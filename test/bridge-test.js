@@ -145,10 +145,6 @@ describe("WHBAR", function () {
             const transfer = await bridgeInstance.mintTransfers(transactionId);
 
             assert.ok(transfer.isExecuted);
-            assert.equal(transfer.receiver, receiver);
-            assert(transfer.amount.eq(amount));
-            assert(transfer.fee.eq(fee));
-            assert(transfer.txCost.eq(txCost));
         })
 
         it("Should not execute same mint transaction twice", async () => {

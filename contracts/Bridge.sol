@@ -17,10 +17,6 @@ contract Bridge is Ownable {
 
     struct Transaction {
         bool isExecuted;
-        address receiver;
-        uint256 amount;
-        uint fee;
-        uint txCost;
         mapping(address => bool) signatures;
     }
 
@@ -44,7 +40,13 @@ contract Bridge is Ownable {
         _;
     }
 
-    event Mint(address account, uint256 amount, bytes transactionId);
+    // Add other params as event
+    event Mint(
+        address account,
+        uint256 amount,
+        uint256 txCost,
+        bytes transactionId
+    );
     event Burn(address account, uint256 amount, bytes receiverAddress);
     event CustodianSet(address operator, bool status);
 
@@ -100,19 +102,17 @@ contract Bridge is Ownable {
             );
             transaction.signatures[signer] = true;
         }
-        transaction.receiver = receiver;
-        transaction.amount = amount;
-        transaction.fee = fee;
-        transaction.txCost = txCost;
         transaction.isExecuted = true;
 
         uint256 amountToMint = amount.sub(txCost).sub(fee);
         whbarToken.mint(receiver, amountToMint);
         whbarToken.mint(msg.sender, txCost);
+        // serviceFee add as constant in the contracrt.
+
         // TODO: ? mint the fee to the multisig wallet ?
         // whbarToken.mint(/multisig wallet address/, fee);
 
-        emit Mint(receiver, amountToMint, transactionId);
+        emit Mint(receiver, amountToMint, txCost, transactionId);
     }
 
     function burn(uint256 amount, bytes memory receiverAddress) public {
