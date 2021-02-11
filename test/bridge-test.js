@@ -48,6 +48,7 @@ describe("WHBAR", function () {
 
         await whbarInstance.setBridgeContractAddress(bridgeInstance.contractAddress);
     });
+
     describe("Contract Setup", function () {
 
         it("should deploy Bridge contract", async () => {
@@ -61,24 +62,21 @@ describe("WHBAR", function () {
 
         it("should set a custodian", async () => {
             await bridgeInstance.setCustodian(aliceCustodian.address, true);
-            const aliceStatus = await bridgeInstance.custodians(aliceCustodian.address);
+            let aliceStatus = await bridgeInstance.containsCustodian(aliceCustodian.address);
             assert.ok(aliceStatus);
-            const custodiansCount = await bridgeInstance.totalCustodians();
-            const expectedCount = 1;
-            assert.equal(custodiansCount.toString(), expectedCount)
         });
 
         it("should set multiple custodians", async () => {
             await bridgeInstance.setCustodian(aliceCustodian.address, true);
             await bridgeInstance.setCustodian(bobCustodian.address, true);
             await bridgeInstance.setCustodian(carlCustodian.address, true);
-            const aliceStatus = await bridgeInstance.custodians(aliceCustodian.address);
-            const bobStatus = await bridgeInstance.custodians(bobCustodian.address);
-            const carlStatus = await bridgeInstance.custodians(carlCustodian.address);
+            const aliceStatus = await bridgeInstance.containsCustodian(aliceCustodian.address);
+            const bobStatus = await bridgeInstance.containsCustodian(bobCustodian.address);
+            const carlStatus = await bridgeInstance.containsCustodian(carlCustodian.address);
             assert.ok(aliceStatus);
             assert.ok(bobStatus);
             assert.ok(carlStatus);
-            const custodiansCount = await bridgeInstance.totalCustodians();
+            const custodiansCount = await bridgeInstance.custodianCount();
             const expectedCount = 3;
             assert.equal(custodiansCount.toString(), expectedCount)
         });
@@ -106,17 +104,17 @@ describe("WHBAR", function () {
         it("should remove a custodians", async () => {
             await bridgeInstance.setCustodian(aliceCustodian.address, true);
             await bridgeInstance.setCustodian(bobCustodian.address, true);
-            let aliceStatus = await bridgeInstance.custodians(aliceCustodian.address);
+            let aliceStatus = await bridgeInstance.containsCustodian(aliceCustodian.address);
             assert.ok(aliceStatus);
-            let custodiansCount = await bridgeInstance.totalCustodians();
+            let custodiansCount = await bridgeInstance.custodianCount();
             let expectedCount = 2;
             assert.equal(custodiansCount.toString(), expectedCount)
 
             await bridgeInstance.setCustodian(aliceCustodian.address, false);
-            aliceStatus = await bridgeInstance.custodians(aliceCustodian.address);
+            aliceStatus = await bridgeInstance.containsCustodian(aliceCustodian.address);
             assert.ok(!aliceStatus);
 
-            custodiansCount = await bridgeInstance.totalCustodians();
+            custodiansCount = await bridgeInstance.custodianCount();
             expectedCount = 1;
             assert.equal(custodiansCount.toString(), expectedCount)
         });
@@ -139,6 +137,7 @@ describe("WHBAR", function () {
     describe("Token Operations", function () {
 
         beforeEach(async () => {
+
             await bridgeInstance.setCustodian(aliceCustodian.address, true);
             await bridgeInstance.setCustodian(bobCustodian.address, true);
             await bridgeInstance.setCustodian(carlCustodian.address, true);

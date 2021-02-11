@@ -1,19 +1,18 @@
 pragma solidity >=0.6.0 <0.8.0;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 import "./WHBAR.sol";
+import "./Custodians.sol";
 
-contract Bridge is Ownable {
+contract Bridge is Custodians, Pausable {
     using SafeMath for uint256;
 
     WHBAR public whbarToken;
+
     // NOTE: value of serviceFee should be in range 0% to 99.999% multiplied my 1000
     uint256 public serviceFee;
-
-    uint256 public totalCustodians;
-    mapping(address => bool) public custodians;
 
     mapping(bytes => Transaction) public mintTransfers;
 
@@ -22,28 +21,22 @@ contract Bridge is Ownable {
         mapping(address => bool) signatures;
     }
 
-    modifier onlyValidSignaturesLength(uint256 length) {
-        require(
-            length <= totalCustodians,
-            "onlyValidSignaturesLength: invalid custodians count"
-        );
-        require(
-            length > (totalCustodians / 2),
-            "onlyValidSignaturesLength: invalid confirmations"
-        );
-        _;
-    }
-
     modifier onlyValidTxId(bytes memory txId) {
         require(
             !mintTransfers[txId].isExecuted,
-            "onlyValidTxId: xId already submitted"
+            "Bridge: txId already submitted"
         );
         _;
     }
 
     modifier onyValidServiceFee(uint256 _serviceFee) {
-        require(_serviceFee < 100000, "Service fee cannot exceed 100%");
+        require(_serviceFee < 100000, "Bridge: Service fee cannot exceed 100%");
+        _;
+    }
+
+    modifier onlyValidSignaturesLength(uint256 length) {
+        require(length <= custodianCount(), "Bridge: Invalid custodians count");
+        require(length > custodianCount() / 2, "Bridge: Invalid confirmations");
         _;
     }
 
@@ -54,31 +47,12 @@ contract Bridge is Ownable {
         bytes transactionId
     );
     event Burn(address account, uint256 amount, bytes receiverAddress);
-    event CustodianSet(address operator, bool status);
     event ServiceFeeSet(uint256 newServiceFee);
+    event Withdraw(address account, uint256 amount);
 
     constructor(address _whbarToken, uint256 _serviceFee) public {
         whbarToken = WHBAR(_whbarToken);
         serviceFee = _serviceFee;
-    }
-
-    function setCustodian(address account, bool isOperator) public onlyOwner {
-        if (isOperator) {
-            require(
-                !custodians[account],
-                "setCustodian: operator already exists"
-            );
-            totalCustodians++;
-        } else if (!isOperator) {
-            require(
-                custodians[account],
-                "setCustodian: operator did not exist"
-            );
-            totalCustodians--;
-        }
-
-        custodians[account] = isOperator;
-        CustodianSet(account, isOperator);
     }
 
     function mint(
@@ -91,9 +65,12 @@ contract Bridge is Ownable {
         public
         onlyValidSignaturesLength(signatures.length)
         onlyValidTxId(transactionId)
+        whenNotPaused
     {
-        require(custodians[msg.sender], "mint: msg.sender is not a custodian");
-
+        require(
+            containsCustodian(msg.sender),
+            "Bridge: msg.sender is not a custodian"
+        );
         bytes32 hashedData = getHash(transactionId, receiver, amount, txCost);
 
         Transaction storage transaction = mintTransfers[transactionId];
@@ -101,22 +78,22 @@ contract Bridge is Ownable {
         for (uint256 i = 0; i < signatures.length; i++) {
             bytes32 ethHash = ECDSA.toEthSignedMessageHash(hashedData);
             address signer = ECDSA.recover(ethHash, signatures[i]);
-            require(custodians[signer], "mint: invalid signer");
+            require(containsCustodian(signer), "Bridge: invalid signer");
             require(
                 !transaction.signatures[signer],
-                "mint: signature already set"
+                "Bridge: signature already set"
             );
-            transaction.signatures[signer] = true; // costs ± 30k per signer
+            transaction.signatures[signer] = true;
         }
         transaction.isExecuted = true;
 
+        // amount * (serviceFee * 1000) / (100(%) * 1000)
         uint256 serviceFeeInWhbar = amount.mul(serviceFee).div(100000);
+
+        _distributeFees(amount, serviceFeeInWhbar, txCost);
+
         uint256 amountToMint = amount.sub(txCost).sub(serviceFeeInWhbar);
         whbarToken.mint(receiver, amountToMint);
-
-        // TODO: add the following values in mapping for every custodian
-        // whbarToken.mint(msg.sender, txCost);
-        // whbarToken.mint(/multisig wallet address/, fee);
 
         emit Mint(receiver, amountToMint, txCost, transactionId);
     }
@@ -124,7 +101,7 @@ contract Bridge is Ownable {
     function burn(uint256 amount, bytes memory receiverAddress) public {
         require(
             receiverAddress.length > 0,
-            "burn: invalid receiverAddress value"
+            "Bridge: invalid receiverAddress value"
         );
 
         whbarToken.burn(msg.sender, amount);
@@ -148,5 +125,50 @@ contract Bridge is Ownable {
     {
         serviceFee = _serviceFee;
         ServiceFeeSet(_serviceFee);
+    }
+
+    function withdraw() public {
+        require(
+            custodiansToAmount[msg.sender] > 0,
+            "Bridge: msg.sender has nothing to withdraw"
+        );
+        uint256 amountToMint = custodiansToAmount[msg.sender];
+        custodiansToAmount[msg.sender] = 0;
+
+        if (!paused()) {
+            whbarToken.mint(msg.sender, amountToMint);
+        } else {
+            whbarToken.transfer(msg.sender, amountToMint);
+        }
+        custodiansTotalAmount = custodiansTotalAmount.sub(amountToMint);
+        Withdraw(msg.sender, amountToMint);
+    }
+
+    function depricate() public onlyOwner {
+        whbarToken.mint(address(this), custodiansTotalAmount);
+        _pause();
+    }
+
+    function _distributeFees(
+        uint256 _totalAmount,
+        uint256 _serviceFeeInWhbar,
+        uint256 _txCost
+    ) private {
+        custodiansTotalAmount = custodiansTotalAmount.add(_totalAmount).add(
+            _txCost
+        );
+
+        uint256 serviceFeePerSigner = _serviceFeeInWhbar.div(custodianCount());
+
+        for (uint256 i = 0; i < custodianCount(); i++) {
+            custodiansToAmount[custodianAddress(i)] = custodiansToAmount[
+                custodianAddress(i)
+            ]
+                .add(serviceFeePerSigner);
+        }
+
+        custodiansToAmount[msg.sender] = custodiansToAmount[msg.sender].add(
+            _txCost
+        );
     }
 }
