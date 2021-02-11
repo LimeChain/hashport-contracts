@@ -9,6 +9,8 @@ contract Bridge is Ownable {
     using SafeMath for uint256;
 
     WHBAR public whbarToken;
+    // NOTE: value of serviceFee should be in range 0% to 99.999% multiplied my 1000
+    uint256 public serviceFee;
 
     uint256 public totalCustodians;
     mapping(address => bool) public custodians;
@@ -40,7 +42,11 @@ contract Bridge is Ownable {
         _;
     }
 
-    // Add other params as event
+    modifier onyValidServiceFee(uint256 _serviceFee) {
+        require(_serviceFee < 100000, "Service fee cannot exceed 100%");
+        _;
+    }
+
     event Mint(
         address account,
         uint256 amount,
@@ -49,9 +55,11 @@ contract Bridge is Ownable {
     );
     event Burn(address account, uint256 amount, bytes receiverAddress);
     event CustodianSet(address operator, bool status);
+    event ServiceFeeSet(uint256 newServiceFee);
 
-    constructor(address _whbarToken) public {
+    constructor(address _whbarToken, uint256 _serviceFee) public {
         whbarToken = WHBAR(_whbarToken);
+        serviceFee = _serviceFee;
     }
 
     function setCustodian(address account, bool isOperator) public onlyOwner {
@@ -77,7 +85,6 @@ contract Bridge is Ownable {
         bytes memory transactionId,
         address receiver,
         uint256 amount,
-        uint256 fee,
         uint256 txCost,
         bytes[] memory signatures
     )
@@ -87,8 +94,7 @@ contract Bridge is Ownable {
     {
         require(custodians[msg.sender], "mint: msg.sender is not a custodian");
 
-        bytes32 hashedData =
-            getHash(transactionId, receiver, amount, fee, txCost);
+        bytes32 hashedData = getHash(transactionId, receiver, amount, txCost);
 
         Transaction storage transaction = mintTransfers[transactionId];
 
@@ -100,16 +106,16 @@ contract Bridge is Ownable {
                 !transaction.signatures[signer],
                 "mint: signature already set"
             );
-            transaction.signatures[signer] = true;
+            transaction.signatures[signer] = true; // costs ± 30k per signer
         }
         transaction.isExecuted = true;
 
-        uint256 amountToMint = amount.sub(txCost).sub(fee);
+        uint256 serviceFeeInWhbar = amount.mul(serviceFee).div(100000);
+        uint256 amountToMint = amount.sub(txCost).sub(serviceFeeInWhbar);
         whbarToken.mint(receiver, amountToMint);
-        whbarToken.mint(msg.sender, txCost);
-        // serviceFee add as constant in the contracrt.
 
-        // TODO: ? mint the fee to the multisig wallet ?
+        // TODO: add the following values in mapping for every custodian
+        // whbarToken.mint(msg.sender, txCost);
         // whbarToken.mint(/multisig wallet address/, fee);
 
         emit Mint(receiver, amountToMint, txCost, transactionId);
@@ -130,10 +136,17 @@ contract Bridge is Ownable {
         bytes memory transactionId,
         address receiver,
         uint256 amount,
-        uint256 fee,
         uint256 txCost
     ) public pure returns (bytes32) {
-        return
-            keccak256(abi.encode(transactionId, receiver, amount, fee, txCost));
+        return keccak256(abi.encode(transactionId, receiver, amount, txCost));
+    }
+
+    function setServiceFee(uint256 _serviceFee)
+        public
+        onyValidServiceFee(_serviceFee)
+        onlyOwner
+    {
+        serviceFee = _serviceFee;
+        ServiceFeeSet(_serviceFee);
     }
 }

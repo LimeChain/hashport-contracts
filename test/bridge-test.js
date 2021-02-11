@@ -4,7 +4,7 @@ const WHBAR = require("../build/WHBAR");
 const ethers = require("ethers");
 
 describe("WHBAR", function () {
-    // this.timeout(10000);
+    this.timeout(10000);
 
     let owner = accounts[9];
     let aliceCustodian = accounts[1].signer;
@@ -20,10 +20,12 @@ describe("WHBAR", function () {
     const symbol = "WHBAR";
     const decimals = 8;
 
+    // 10% multiplied by 1000
+    const serviceFee = "5000";
+
     const transactionId = "0x1";
     const receiver = nonCustodian.address;
     const amount = ethers.utils.parseEther("100");
-    const fee = ethers.utils.parseEther("5");
     const txCost = ethers.utils.parseEther("1");
 
 
@@ -41,6 +43,7 @@ describe("WHBAR", function () {
             Bridge,
             {},
             whbarInstance.contractAddress,
+            serviceFee
         );
 
         await whbarInstance.setBridgeContractAddress(bridgeInstance.contractAddress);
@@ -117,6 +120,21 @@ describe("WHBAR", function () {
             expectedCount = 1;
             assert.equal(custodiansCount.toString(), expectedCount)
         });
+
+        it("should set a service fee", async () => {
+            const newFee = 7000;
+            await bridgeInstance.setServiceFee(newFee);
+        });
+
+        it("should not set a service fee if not from owner", async () => {
+            const newFee = 7000;
+            await assert.revert(bridgeInstance.from(aliceCustodian).setServiceFee(newFee));
+        });
+
+        it("should revert if service fee is above 100%", async () => {
+            const newFee = 100000;
+            await assert.revert(bridgeInstance.setServiceFee(newFee));
+        });
     });
     describe("Token Operations", function () {
 
@@ -127,91 +145,91 @@ describe("WHBAR", function () {
         });
 
         it("Should execute mint transaction", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256", "uint256"], [transactionId, receiver, amount, fee, txCost]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
             const aliceSignature = await aliceCustodian.signMessage(hashData);
             const bobSignature = await bobCustodian.signMessage(hashData);
+            const carlSignatude = await carlCustodian.signMessage(hashData);
 
-            await bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, fee, txCost, [aliceSignature, bobSignature]);
+            await bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignatude]);
+
+            const expectedServiceFee = amount.mul(serviceFee).div(100000);
 
             const balanceOFReciever = await whbarInstance.balanceOf(nonCustodian.address);
-            assert(balanceOFReciever.eq(amount.sub(fee).sub(txCost)));
+            assert(balanceOFReciever.eq(amount.sub(txCost).sub(expectedServiceFee)));
 
-            const aliceBalance = await whbarInstance.balanceOf(aliceCustodian.address);
-            assert(aliceBalance.eq(txCost));
+            const isExecuted = await bridgeInstance.mintTransfers(transactionId);
 
-            const transfer = await bridgeInstance.mintTransfers(transactionId);
-
-            assert.ok(transfer.isExecuted);
+            assert.ok(isExecuted);
         })
 
         it("Should not execute same mint transaction twice", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256", "uint256"], [transactionId, receiver, amount, fee, txCost]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
             const aliceSignature = await aliceCustodian.signMessage(hashData);
             const bobSignature = await bobCustodian.signMessage(hashData);
 
-            await bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, fee, txCost, [aliceSignature, bobSignature]);
-            await assert.revert(bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, fee, txCost, [aliceSignature, bobSignature]));
+            await bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature]);
+            await assert.revert(bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature]));
         })
 
         it("Should not execute mint transaction with less than the half signatures", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256", "uint256"], [transactionId, receiver, amount, fee, txCost]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
             const aliceSignature = await aliceCustodian.signMessage(hashData);
 
-            await assert.revert(bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, fee, txCost, [aliceSignature]));
+            await assert.revert(bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, txCost, [aliceSignature]));
         })
 
         it("Should not execute mint transaction from other than a custodian", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256", "uint256"], [transactionId, receiver, amount, fee, txCost]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
             const aliceSignature = await aliceCustodian.signMessage(hashData);
             const bobSignature = await bobCustodian.signMessage(hashData);
 
-            await assert.revert(bridgeInstance.mint(transactionId, receiver, amount, fee, txCost, [aliceSignature, bobSignature]));
+            await assert.revert(bridgeInstance.mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature]));
         })
 
         it("Should not execute mint transaction signed from non custodian", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256", "uint256"], [transactionId, receiver, amount, fee, txCost]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
             const aliceSignature = await aliceCustodian.signMessage(hashData);
             const nonCustodianSignature = await nonCustodian.signMessage(hashData);
 
-            await assert.revert(bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, fee, txCost, [aliceSignature, nonCustodianSignature]));
+            await assert.revert(bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, txCost, [aliceSignature, nonCustodianSignature]));
         })
 
         it("Should not execute mint transaction with two identical signatures", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256", "uint256"], [transactionId, receiver, amount, fee, txCost]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
             const aliceSignature = await aliceCustodian.signMessage(hashData);
 
-            await assert.revert(bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, fee, txCost, [aliceSignature, aliceSignature]));
+            await assert.revert(bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, txCost, [aliceSignature, aliceSignature]));
         })
 
         it("Should not execute mint transaction with wrong data", async () => {
             const wrongAmount = ethers.utils.parseEther("200");
 
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256", "uint256"], [transactionId, receiver, amount, fee, txCost]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
             const aliceSignature = await aliceCustodian.signMessage(hashData);
             const bobSignature = await bobCustodian.signMessage(hashData);
 
-            await assert.revert(bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, wrongAmount, fee, txCost, [aliceSignature, bobSignature]));
+            await assert.revert(bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, wrongAmount, txCost, [aliceSignature, bobSignature]));
         })
     })
 });
