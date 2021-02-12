@@ -174,16 +174,16 @@ describe("WHBAR", function () {
             const balanceOFReciever = await whbarInstance.balanceOf(nonCustodian.address);
             assert(balanceOFReciever.eq(amount.sub(txCost).sub(expectedServiceFee)));
 
-            const aliceBalance = await bridgeInstance.custodiansToAmount(aliceCustodian.address);
+            const aliceBalance = await bridgeInstance.feesAccrued(aliceCustodian.address);
             assert(aliceBalance.eq(expectedServiceFee.div(3).add(txCost)));
 
-            const bobBalance = await bridgeInstance.custodiansToAmount(bobCustodian.address);
+            const bobBalance = await bridgeInstance.feesAccrued(bobCustodian.address);
             assert(bobBalance.eq(expectedServiceFee.div(3)));
 
-            const carlBalance = await bridgeInstance.custodiansToAmount(carlCustodian.address);
+            const carlBalance = await bridgeInstance.feesAccrued(carlCustodian.address);
             assert(carlBalance.eq(expectedServiceFee.div(3)));
 
-            const totalCustodiansAmount = await bridgeInstance.custodiansTotalAmount();
+            const totalCustodiansAmount = await bridgeInstance.totalFeesAccrued();
 
             assert(totalCustodiansAmount.eq(expectedServiceFee.add(txCost)));
 
@@ -296,7 +296,7 @@ describe("WHBAR", function () {
 
         describe("Withdraw", function () {
             it("Should withdraw service fees", async () => {
-                const totalAmount = await bridgeInstance.custodiansTotalAmount();
+                const totalAmount = await bridgeInstance.totalFeesAccrued();
 
                 const tokensTotalSupply = await whbarInstance.totalSupply();
                 const expextedTotalSupply = amount.sub(txCost).sub(amount.mul(serviceFee).div(100000));
@@ -310,10 +310,10 @@ describe("WHBAR", function () {
                 const expectedAliceBalance = amount.mul(serviceFee).div(100000).div(3).add(txCost);
                 assert(aliceBalance.eq(expectedAliceBalance));
 
-                let custodianAmountLeft = await bridgeInstance.custodiansToAmount(aliceCustodian.address);
+                let custodianAmountLeft = await bridgeInstance.feesAccrued(aliceCustodian.address);
                 assert(custodianAmountLeft.eq(0));
 
-                let totalAmountLeft = await bridgeInstance.custodiansTotalAmount();
+                let totalAmountLeft = await bridgeInstance.totalFeesAccrued();
                 assert(totalAmountLeft.eq(totalAmount.sub(aliceBalance)));
 
                 // Bob
@@ -323,10 +323,10 @@ describe("WHBAR", function () {
                 const expectedBobBalance = amount.mul(serviceFee).div(100000).div(3);
                 assert(bobBalance.eq(expectedBobBalance));
 
-                custodianAmountLeft = await bridgeInstance.custodiansToAmount(bobCustodian.address);
+                custodianAmountLeft = await bridgeInstance.feesAccrued(bobCustodian.address);
                 assert(custodianAmountLeft.eq(0));
 
-                totalAmountLeft = await bridgeInstance.custodiansTotalAmount();
+                totalAmountLeft = await bridgeInstance.totalFeesAccrued();
                 assert(totalAmountLeft.eq(totalAmount.sub(bobBalance).sub(aliceBalance)));
 
                 // Carl
@@ -336,10 +336,10 @@ describe("WHBAR", function () {
                 const expectedCarlBalance = amount.mul(serviceFee).div(100000).div(3);
                 assert(carlBalance.eq(expectedCarlBalance));
 
-                custodianAmountLeft = await bridgeInstance.custodiansToAmount(carlCustodian.address);
+                custodianAmountLeft = await bridgeInstance.feesAccrued(carlCustodian.address);
                 assert(custodianAmountLeft.eq(0));
 
-                totalAmountLeft = await bridgeInstance.custodiansTotalAmount();
+                totalAmountLeft = await bridgeInstance.totalFeesAccrued();
                 assert(totalAmountLeft.eq(totalAmount.sub(bobBalance).sub(aliceBalance).sub(carlBalance)));
 
                 const newTokensTotalSupply = await whbarInstance.totalSupply();
@@ -391,7 +391,7 @@ describe("WHBAR", function () {
                 let tokensTotalSupply = await whbarInstance.totalSupply();
                 assert(tokensTotalSupply.eq(expextedTotalSupply));
 
-                const totalAmount = await bridgeInstance.custodiansTotalAmount();
+                const totalAmount = await bridgeInstance.totalFeesAccrued();
 
                 // Alice
                 await bridgeInstance.from(aliceCustodian.address).withdraw();
@@ -401,10 +401,10 @@ describe("WHBAR", function () {
                 const expectedAliceBalance = amount.mul(serviceFee).div(100000).div(3).add(txCost);
                 assert(aliceBalance.eq(expectedAliceBalance));
 
-                let custodianAmountLeft = await bridgeInstance.custodiansToAmount(aliceCustodian.address);
+                let custodianAmountLeft = await bridgeInstance.feesAccrued(aliceCustodian.address);
                 assert(custodianAmountLeft.eq(0));
 
-                let totalAmountLeft = await bridgeInstance.custodiansTotalAmount();
+                let totalAmountLeft = await bridgeInstance.totalFeesAccrued();
                 assert(totalAmountLeft.eq(totalAmount.sub(aliceBalance)));
 
                 // Bob
@@ -414,10 +414,10 @@ describe("WHBAR", function () {
                 const expectedBobBalance = amount.mul(serviceFee).div(100000).div(3);
                 assert(bobBalance.eq(expectedBobBalance));
 
-                custodianAmountLeft = await bridgeInstance.custodiansToAmount(bobCustodian.address);
+                custodianAmountLeft = await bridgeInstance.feesAccrued(bobCustodian.address);
                 assert(custodianAmountLeft.eq(0));
 
-                totalAmountLeft = await bridgeInstance.custodiansTotalAmount();
+                totalAmountLeft = await bridgeInstance.totalFeesAccrued();
                 assert(totalAmountLeft.eq(totalAmount.sub(bobBalance).sub(aliceBalance)));
 
                 // Carl
@@ -427,10 +427,10 @@ describe("WHBAR", function () {
                 const expectedCarlBalance = amount.mul(serviceFee).div(100000).div(3);
                 assert(carlBalance.eq(expectedCarlBalance));
 
-                custodianAmountLeft = await bridgeInstance.custodiansToAmount(carlCustodian.address);
+                custodianAmountLeft = await bridgeInstance.feesAccrued(carlCustodian.address);
                 assert(custodianAmountLeft.eq(0));
 
-                totalAmountLeft = await bridgeInstance.custodiansTotalAmount();
+                totalAmountLeft = await bridgeInstance.totalFeesAccrued();
                 assert(totalAmountLeft.eq(totalAmount.sub(bobBalance).sub(aliceBalance).sub(carlBalance)));
 
                 tokensTotalSupply = await whbarInstance.totalSupply();

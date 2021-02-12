@@ -4,13 +4,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20Pausable.sol";
 
 contract WHBAR is ERC20Pausable, Ownable {
-    address public bridgeAddress;
+    address public controllerAddress;
 
     event SetBridgeAddress(address newBridgeAddress);
 
     modifier onlyBridgeContract() {
         require(
-            msg.sender == bridgeAddress,
+            msg.sender == controllerAddress,
             "Not called by the bridge contract"
         );
         _;
@@ -36,13 +36,16 @@ contract WHBAR is ERC20Pausable, Ownable {
         super._pause();
     }
 
-    function unpause() public virtual onlyOwner {
+    function unpause() public onlyOwner {
         super._unpause();
     }
 
-    function setBridgeContractAddress(address _bridgeAddress) public onlyOwner {
-        require(_bridgeAddress != address(0));
-        bridgeAddress = _bridgeAddress;
-        emit SetBridgeAddress(bridgeAddress);
+    function setBridgeContractAddress(address _controllerAddress)
+        public
+        onlyOwner
+    {
+        require(_controllerAddress != address(0));
+        controllerAddress = _controllerAddress;
+        emit SetBridgeAddress(controllerAddress);
     }
 }

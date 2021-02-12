@@ -8,8 +8,8 @@ contract Custodians is Ownable {
 
     EnumerableSet.AddressSet private custodiansSet;
 
-    uint256 public custodiansTotalAmount;
-    mapping(address => uint256) public custodiansToAmount;
+    uint256 public totalFeesAccrued;
+    mapping(address => uint256) public feesAccrued;
 
     modifier onlyCustodian() {
         require(

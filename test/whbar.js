@@ -34,8 +34,8 @@ describe("WHBAR", function () {
         await whbarInstace.setBridgeContractAddress(
             minter.address,
         );
-        let bridgeAddress = await whbarInstace.bridgeAddress();
-        assert.strictEqual(bridgeAddress, minter.address, "The bridge address was not set corectly")
+        let controllerAddress = await whbarInstace.controllerAddress();
+        assert.strictEqual(controllerAddress, minter.address, "The bridge address was not set corectly")
     });
 
     it("should revert if not owner tries to set bridge contract address", async () => {

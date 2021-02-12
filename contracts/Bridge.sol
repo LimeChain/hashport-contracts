@@ -14,6 +14,8 @@ contract Bridge is Custodians, Pausable {
     // NOTE: value of serviceFee should be in range 0% to 99.999% multiplied my 1000
     uint256 public serviceFee;
 
+    uint256 constant precision = 100000;
+
     mapping(bytes => Transaction) public mintTransfers;
 
     struct Transaction {
@@ -30,7 +32,10 @@ contract Bridge is Custodians, Pausable {
     }
 
     modifier onyValidServiceFee(uint256 _serviceFee) {
-        require(_serviceFee < 100000, "Bridge: Service fee cannot exceed 100%");
+        require(
+            _serviceFee < precision,
+            "Bridge: Service fee cannot exceed 100%"
+        );
         _;
     }
 
@@ -41,14 +46,18 @@ contract Bridge is Custodians, Pausable {
     }
 
     event Mint(
-        address account,
+        address indexed account,
         uint256 amount,
         uint256 txCost,
-        bytes transactionId
+        bytes indexed transactionId
     );
-    event Burn(address account, uint256 amount, bytes receiverAddress);
+    event Burn(
+        address indexed account,
+        uint256 amount,
+        bytes indexed receiverAddress
+    );
     event ServiceFeeSet(address account, uint256 newServiceFee);
-    event Withdraw(address account, uint256 amount);
+    event Withdraw(address indexed account, uint256 amount);
     event Deprecate(address account, uint256 amount);
 
     constructor(address _whbarToken, uint256 _serviceFee) public {
@@ -86,7 +95,7 @@ contract Bridge is Custodians, Pausable {
         transaction.isExecuted = true;
 
         // amount * (serviceFee(%) * 1000) / (100(%) * 1000)
-        uint256 serviceFeeInWhbar = amount.mul(serviceFee).div(100000);
+        uint256 serviceFeeInWhbar = amount.mul(serviceFee).div(precision);
 
         _distributeFees(serviceFeeInWhbar, txCost);
 
@@ -96,7 +105,10 @@ contract Bridge is Custodians, Pausable {
         emit Mint(receiver, amountToMint, txCost, transactionId);
     }
 
-    function burn(uint256 amount, bytes memory receiverAddress) public {
+    function burn(uint256 amount, bytes memory receiverAddress)
+        public
+        whenNotPaused
+    {
         require(
             receiverAddress.length > 0,
             "Bridge: invalid receiverAddress value"
@@ -129,45 +141,43 @@ contract Bridge is Custodians, Pausable {
 
     function withdraw() public {
         require(
-            custodiansToAmount[msg.sender] > 0,
+            feesAccrued[msg.sender] > 0,
             "Bridge: msg.sender has nothing to withdraw"
         );
-        uint256 amountToMint = custodiansToAmount[msg.sender];
-        custodiansToAmount[msg.sender] = 0;
+        uint256 amountToMint = feesAccrued[msg.sender];
+        feesAccrued[msg.sender] = 0;
 
         if (!paused()) {
             whbarToken.mint(msg.sender, amountToMint);
         } else {
             whbarToken.transfer(msg.sender, amountToMint);
         }
-        custodiansTotalAmount = custodiansTotalAmount.sub(amountToMint);
+        totalFeesAccrued = totalFeesAccrued.sub(amountToMint);
         emit Withdraw(msg.sender, amountToMint);
     }
 
     function deprecate() public onlyOwner {
-        whbarToken.mint(address(this), custodiansTotalAmount);
+        whbarToken.mint(address(this), totalFeesAccrued);
         _pause();
-        emit Deprecate(msg.sender, custodiansTotalAmount);
+        emit Deprecate(msg.sender, totalFeesAccrued);
     }
 
     function _distributeFees(uint256 _serviceFeeInWhbar, uint256 _txCost)
         private
     {
-        custodiansTotalAmount = custodiansTotalAmount
-            .add(_serviceFeeInWhbar)
-            .add(_txCost);
+        totalFeesAccrued = totalFeesAccrued.add(_serviceFeeInWhbar).add(
+            _txCost
+        );
 
         uint256 serviceFeePerSigner = _serviceFeeInWhbar.div(custodianCount());
 
         for (uint256 i = 0; i < custodianCount(); i++) {
-            custodiansToAmount[custodianAddress(i)] = custodiansToAmount[
-                custodianAddress(i)
-            ]
-                .add(serviceFeePerSigner);
+            address currentCustodian = custodianAddress(i);
+            feesAccrued[currentCustodian] = feesAccrued[currentCustodian].add(
+                serviceFeePerSigner
+            );
         }
 
-        custodiansToAmount[msg.sender] = custodiansToAmount[msg.sender].add(
-            _txCost
-        );
+        feesAccrued[msg.sender] = feesAccrued[msg.sender].add(_txCost);
     }
 }
