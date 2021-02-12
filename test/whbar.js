@@ -28,19 +28,21 @@ describe("WHBAR", function () {
             whbarInstace.contractAddress,
             "The contract was not deployed"
         );
+        const _owner = await whbarInstace.owner();
+        assert.equal(_owner, owner.signer.address);
     });
 
     it("should set bridge contract address as minter", async () => {
         await whbarInstace.setBridgeContractAddress(
             minter.address,
         );
-        let controllerAddress = await whbarInstace.controllerAddress();
-        assert.strictEqual(controllerAddress, minter.address, "The bridge address was not set corectly")
+        const controllerAddress = await whbarInstace.controllerAddress();
+        assert.strictEqual(controllerAddress, minter.address, "The bridge address was not set corectly");
     });
 
     it("should revert if not owner tries to set bridge contract address", async () => {
-        await assert.revert(whbarInstace.from(alice).setBridgeContractAddress(
-            minter.address,
-        ));
+        const expectedRevertMessage = "Ownable: caller is not the owner";
+
+        await assert.revertWith(whbarInstace.from(alice).setBridgeContractAddress(minter.address), expectedRevertMessage);
     });
 });
