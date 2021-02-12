@@ -1,4 +1,4 @@
-pragma solidity >=0.6.0 <0.8.0;
+pragma solidity 0.6.0;
 pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/utils/Pausable.sol";
@@ -47,9 +47,9 @@ contract Bridge is Custodians, Pausable {
         bytes transactionId
     );
     event Burn(address account, uint256 amount, bytes receiverAddress);
-    event ServiceFeeSet(uint256 newServiceFee);
+    event ServiceFeeSet(address account, uint256 newServiceFee);
     event Withdraw(address account, uint256 amount);
-    event Deprecate(uint256 amount);
+    event Deprecate(address account, uint256 amount);
 
     constructor(address _whbarToken, uint256 _serviceFee) public {
         whbarToken = WHBAR(_whbarToken);
@@ -64,22 +64,19 @@ contract Bridge is Custodians, Pausable {
         bytes[] memory signatures
     )
         public
-        onlyValidSignaturesLength(signatures.length)
-        onlyValidTxId(transactionId)
         whenNotPaused
+        onlyValidTxId(transactionId)
+        onlyCustodian
+        onlyValidSignaturesLength(signatures.length)
     {
-        require(
-            containsCustodian(msg.sender),
-            "Bridge: msg.sender is not a custodian"
-        );
-        bytes32 hashedData = getHash(transactionId, receiver, amount, txCost);
+        bytes32 ethHash =
+            computeMessage(transactionId, receiver, amount, txCost);
 
         Transaction storage transaction = mintTransfers[transactionId];
 
         for (uint256 i = 0; i < signatures.length; i++) {
-            bytes32 ethHash = ECDSA.toEthSignedMessageHash(hashedData);
             address signer = ECDSA.recover(ethHash, signatures[i]);
-            require(containsCustodian(signer), "Bridge: invalid signer");
+            require(isCustodian(signer), "Bridge: invalid signer");
             require(
                 !transaction.signatures[signer],
                 "Bridge: signature already set"
@@ -110,13 +107,15 @@ contract Bridge is Custodians, Pausable {
         emit Burn(msg.sender, amount, receiverAddress);
     }
 
-    function getHash(
+    function computeMessage(
         bytes memory transactionId,
         address receiver,
         uint256 amount,
         uint256 txCost
     ) public pure returns (bytes32) {
-        return keccak256(abi.encode(transactionId, receiver, amount, txCost));
+        bytes32 hashedData =
+            keccak256(abi.encode(transactionId, receiver, amount, txCost));
+        return ECDSA.toEthSignedMessageHash(hashedData);
     }
 
     function setServiceFee(uint256 _serviceFee)
@@ -125,7 +124,7 @@ contract Bridge is Custodians, Pausable {
         onlyOwner
     {
         serviceFee = _serviceFee;
-        ServiceFeeSet(_serviceFee);
+        emit ServiceFeeSet(msg.sender, _serviceFee);
     }
 
     function withdraw() public {
@@ -142,13 +141,13 @@ contract Bridge is Custodians, Pausable {
             whbarToken.transfer(msg.sender, amountToMint);
         }
         custodiansTotalAmount = custodiansTotalAmount.sub(amountToMint);
-        Withdraw(msg.sender, amountToMint);
+        emit Withdraw(msg.sender, amountToMint);
     }
 
     function deprecate() public onlyOwner {
         whbarToken.mint(address(this), custodiansTotalAmount);
         _pause();
-        Deprecate(custodiansTotalAmount);
+        emit Deprecate(msg.sender, custodiansTotalAmount);
     }
 
     function _distributeFees(uint256 _serviceFeeInWhbar, uint256 _txCost)

@@ -1,4 +1,4 @@
-pragma solidity >=0.6.0 <0.8.0;
+pragma solidity 0.6.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20Pausable.sol";
@@ -43,6 +43,6 @@ contract WHBAR is ERC20Pausable, Ownable {
     function setBridgeContractAddress(address _bridgeAddress) public onlyOwner {
         require(_bridgeAddress != address(0));
         bridgeAddress = _bridgeAddress;
-        SetBridgeAddress(bridgeAddress);
+        emit SetBridgeAddress(bridgeAddress);
     }
 }

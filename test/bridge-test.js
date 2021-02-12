@@ -65,7 +65,7 @@ describe("WHBAR", function () {
 
         it("should set a custodian", async () => {
             await bridgeInstance.setCustodian(aliceCustodian.address, true);
-            let aliceStatus = await bridgeInstance.containsCustodian(aliceCustodian.address);
+            let aliceStatus = await bridgeInstance.isCustodian(aliceCustodian.address);
             assert.ok(aliceStatus);
             const custodianCount = await bridgeInstance.custodianCount();
             const expectedCount = 1;
@@ -76,9 +76,9 @@ describe("WHBAR", function () {
             await bridgeInstance.setCustodian(aliceCustodian.address, true);
             await bridgeInstance.setCustodian(bobCustodian.address, true);
             await bridgeInstance.setCustodian(carlCustodian.address, true);
-            const aliceStatus = await bridgeInstance.containsCustodian(aliceCustodian.address);
-            const bobStatus = await bridgeInstance.containsCustodian(bobCustodian.address);
-            const carlStatus = await bridgeInstance.containsCustodian(carlCustodian.address);
+            const aliceStatus = await bridgeInstance.isCustodian(aliceCustodian.address);
+            const bobStatus = await bridgeInstance.isCustodian(bobCustodian.address);
+            const carlStatus = await bridgeInstance.isCustodian(carlCustodian.address);
             assert.ok(aliceStatus);
             assert.ok(bobStatus);
             assert.ok(carlStatus);
@@ -110,14 +110,14 @@ describe("WHBAR", function () {
         it("should remove a custodians", async () => {
             await bridgeInstance.setCustodian(aliceCustodian.address, true);
             await bridgeInstance.setCustodian(bobCustodian.address, true);
-            let aliceStatus = await bridgeInstance.containsCustodian(aliceCustodian.address);
+            let aliceStatus = await bridgeInstance.isCustodian(aliceCustodian.address);
             assert.ok(aliceStatus);
             let custodiansCount = await bridgeInstance.custodianCount();
             let expectedCount = 2;
             assert(custodiansCount.eq(expectedCount));
 
             await bridgeInstance.setCustodian(aliceCustodian.address, false);
-            aliceStatus = await bridgeInstance.containsCustodian(aliceCustodian.address);
+            aliceStatus = await bridgeInstance.isCustodian(aliceCustodian.address);
             assert.ok(!aliceStatus);
 
             custodiansCount = await bridgeInstance.custodianCount();

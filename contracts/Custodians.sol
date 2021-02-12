@@ -1,4 +1,4 @@
-pragma solidity >=0.6.0 <0.8.0;
+pragma solidity 0.6.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/EnumerableSet.sol";
@@ -11,6 +11,13 @@ contract Custodians is Ownable {
     uint256 public custodiansTotalAmount;
     mapping(address => uint256) public custodiansToAmount;
 
+    modifier onlyCustodian() {
+        require(
+            isCustodian(msg.sender),
+            "Bridge: msg.sender is not a custodian"
+        );
+        _;
+    }
     event CustodianSet(address operator, bool status);
 
     function setCustodian(address account, bool isOperator) public onlyOwner {
@@ -25,10 +32,10 @@ contract Custodians is Ownable {
                 "Custodians: Cannot remove non-existing custodian"
             );
         }
-        CustodianSet(account, isOperator);
+        emit CustodianSet(account, isOperator);
     }
 
-    function containsCustodian(address _custodian) public view returns (bool) {
+    function isCustodian(address _custodian) public view returns (bool) {
         return custodiansSet.contains(_custodian);
     }
 
