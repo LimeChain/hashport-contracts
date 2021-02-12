@@ -49,6 +49,7 @@ contract Bridge is Custodians, Pausable {
     event Burn(address account, uint256 amount, bytes receiverAddress);
     event ServiceFeeSet(uint256 newServiceFee);
     event Withdraw(address account, uint256 amount);
+    event Deprecate(uint256 amount);
 
     constructor(address _whbarToken, uint256 _serviceFee) public {
         whbarToken = WHBAR(_whbarToken);
@@ -87,10 +88,10 @@ contract Bridge is Custodians, Pausable {
         }
         transaction.isExecuted = true;
 
-        // amount * (serviceFee * 1000) / (100(%) * 1000)
+        // amount * (serviceFee(%) * 1000) / (100(%) * 1000)
         uint256 serviceFeeInWhbar = amount.mul(serviceFee).div(100000);
 
-        _distributeFees(amount, serviceFeeInWhbar, txCost);
+        _distributeFees(serviceFeeInWhbar, txCost);
 
         uint256 amountToMint = amount.sub(txCost).sub(serviceFeeInWhbar);
         whbarToken.mint(receiver, amountToMint);
@@ -144,19 +145,18 @@ contract Bridge is Custodians, Pausable {
         Withdraw(msg.sender, amountToMint);
     }
 
-    function depricate() public onlyOwner {
+    function deprecate() public onlyOwner {
         whbarToken.mint(address(this), custodiansTotalAmount);
         _pause();
+        Deprecate(custodiansTotalAmount);
     }
 
-    function _distributeFees(
-        uint256 _totalAmount,
-        uint256 _serviceFeeInWhbar,
-        uint256 _txCost
-    ) private {
-        custodiansTotalAmount = custodiansTotalAmount.add(_totalAmount).add(
-            _txCost
-        );
+    function _distributeFees(uint256 _serviceFeeInWhbar, uint256 _txCost)
+        private
+    {
+        custodiansTotalAmount = custodiansTotalAmount
+            .add(_serviceFeeInWhbar)
+            .add(_txCost);
 
         uint256 serviceFeePerSigner = _serviceFeeInWhbar.div(custodianCount());
 
