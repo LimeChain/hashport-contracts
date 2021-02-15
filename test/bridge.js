@@ -124,7 +124,7 @@ describe("Bridge", function () {
             );
         });
 
-        it("should remove a custodians", async () => {
+        it("should remove a custodian", async () => {
             await bridgeInstance.setCustodian(aliceCustodian.address, true);
             await bridgeInstance.setCustodian(bobCustodian.address, true);
             let aliceStatus = await bridgeInstance.isCustodian(aliceCustodian.address);
@@ -144,7 +144,6 @@ describe("Bridge", function () {
 
         it("should not remove same custodian twice", async () => {
             await bridgeInstance.setCustodian(aliceCustodian.address, true);
-            await bridgeInstance.setCustodian(bobCustodian.address, true);
 
             await bridgeInstance.setCustodian(aliceCustodian.address, false);
 
@@ -155,6 +154,18 @@ describe("Bridge", function () {
         it("should set a service fee", async () => {
             const newFee = 7000;
             await bridgeInstance.setServiceFee(newFee);
+            const newServiceFee = await bridgeInstance.serviceFee();
+            assert.equal(newServiceFee, newFee);
+        });
+
+        it("should emit ServiceFeeSet event", async () => {
+            const newFee = 7000;
+
+            const expectedEvent = "ServiceFeeSet";
+            await assert.emit(
+                bridgeInstance.setServiceFee(newFee),
+                expectedEvent
+            );
         });
 
         it("should not set a service fee if not from owner", async () => {

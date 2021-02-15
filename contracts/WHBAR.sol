@@ -11,7 +11,7 @@ contract WHBAR is ERC20Pausable, Ownable {
     modifier onlyBridgeContract() {
         require(
             msg.sender == controllerAddress,
-            "Not called by the bridge contract"
+            "WHBAR: Not called by the controller contract"
         );
         _;
     }
@@ -24,12 +24,22 @@ contract WHBAR is ERC20Pausable, Ownable {
         super._setupDecimals(decimals);
     }
 
-    function burn(address account, uint256 amount) public onlyBridgeContract {
-        super._burn(account, amount);
-    }
-
     function mint(address account, uint256 amount) public onlyBridgeContract {
         super._mint(account, amount);
+    }
+
+    function burnFrom(address account, uint256 amount)
+        public
+        onlyBridgeContract
+    {
+        uint256 decreasedAllowance =
+            allowance(account, _msgSender()).sub(
+                amount,
+                "ERC20: burn amount exceeds allowance"
+            );
+
+        _approve(account, _msgSender(), decreasedAllowance);
+        _burn(account, amount);
     }
 
     function pause() public onlyOwner {

@@ -114,7 +114,7 @@ contract Bridge is Custodians, Pausable {
             "Bridge: invalid receiverAddress value"
         );
 
-        whbarToken.burn(msg.sender, amount);
+        whbarToken.burnFrom(msg.sender, amount);
 
         emit Burn(msg.sender, amount, receiverAddress);
     }
