@@ -23,7 +23,8 @@ describe("Bridge", function () {
     // 5% multiplied by 1000
     const serviceFee = "5000";
 
-    const transactionId = "0x1";
+    const transactionId = "0x123";
+    const hederaAddress = "0x234";
     const receiver = nonCustodian.address;
     const amount = ethers.utils.parseEther("100");
     const txCost = ethers.utils.parseEther("1");
@@ -52,7 +53,7 @@ describe("Bridge", function () {
 
     describe("Contract Setup", function () {
 
-        it("should deploy Bridge contract", async () => {
+        it("Should deploy Bridge contract", async () => {
             assert.isAddress(
                 bridgeInstance.contractAddress,
                 "The contract was not deployed"
@@ -66,7 +67,7 @@ describe("Bridge", function () {
             assert.equal(_owner, owner.signer.address);
         });
 
-        it("should set a custodian", async () => {
+        it("Should set a custodian", async () => {
             await bridgeInstance.setCustodian(aliceCustodian.address, true);
             const aliceStatus = await bridgeInstance.isCustodian(aliceCustodian.address);
             assert.ok(aliceStatus);
@@ -77,7 +78,7 @@ describe("Bridge", function () {
             assert(custodianCount.eq(expectedCount));
         });
 
-        it("should set multiple custodians", async () => {
+        it("Should set multiple custodians", async () => {
             await bridgeInstance.setCustodian(aliceCustodian.address, true);
             await bridgeInstance.setCustodian(bobCustodian.address, true);
             await bridgeInstance.setCustodian(carlCustodian.address, true);
@@ -101,19 +102,19 @@ describe("Bridge", function () {
             assert.equal(carlAtIndex, carlCustodian.address);
         });
 
-        it("should not set a custodian if not from admin", async () => {
+        it("Should not set a custodian if not from admin", async () => {
             const expectedRevertMessage = "Ownable: caller is not the owner";
             await assert.revertWith(bridgeInstance.from(notAdmin.address).setCustodian(aliceCustodian.address, true), expectedRevertMessage);
         });
 
-        it("should not set same custodian twice", async () => {
+        it("Should not set same custodian twice", async () => {
             const expectedRevertMessage = "Custodians: Cannot add existing custodian";
 
             await bridgeInstance.setCustodian(aliceCustodian.address, true);
             await assert.revertWith(bridgeInstance.setCustodian(aliceCustodian.address, true), expectedRevertMessage);
         });
 
-        it("should emit CustodianSet event", async () => {
+        it("Should emit CustodianSet event", async () => {
             const expectedEvent = "CustodianSet";
             await assert.emit(
                 bridgeInstance.setCustodian(
@@ -124,7 +125,7 @@ describe("Bridge", function () {
             );
         });
 
-        it("should remove a custodian", async () => {
+        it("Should remove a custodian", async () => {
             await bridgeInstance.setCustodian(aliceCustodian.address, true);
             await bridgeInstance.setCustodian(bobCustodian.address, true);
             let aliceStatus = await bridgeInstance.isCustodian(aliceCustodian.address);
@@ -142,7 +143,7 @@ describe("Bridge", function () {
             assert(custodiansCount.eq(expectedCount));
         });
 
-        it("should not remove same custodian twice", async () => {
+        it("Should not remove same custodian twice", async () => {
             await bridgeInstance.setCustodian(aliceCustodian.address, true);
 
             await bridgeInstance.setCustodian(aliceCustodian.address, false);
@@ -151,14 +152,14 @@ describe("Bridge", function () {
             await assert.revertWith(bridgeInstance.setCustodian(aliceCustodian.address, false), expectedRevertMessage);
         });
 
-        it("should set a service fee", async () => {
+        it("Should set a service fee", async () => {
             const newFee = 7000;
             await bridgeInstance.setServiceFee(newFee);
             const newServiceFee = await bridgeInstance.serviceFee();
             assert.equal(newServiceFee, newFee);
         });
 
-        it("should emit ServiceFeeSet event", async () => {
+        it("Should emit ServiceFeeSet event", async () => {
             const newFee = 7000;
 
             const expectedEvent = "ServiceFeeSet";
@@ -168,21 +169,22 @@ describe("Bridge", function () {
             );
         });
 
-        it("should not set a service fee if not from owner", async () => {
+        it("Should not set a service fee if not from owner", async () => {
             const newFee = 7000;
 
             const expectedRevertMessage = "Ownable: caller is not the owner";
             await assert.revertWith(bridgeInstance.from(aliceCustodian).setServiceFee(newFee), expectedRevertMessage);
         });
 
-        it("should revertWith if service fee is equal or above 100%", async () => {
+        it("Should revertWith if service fee is equal or above 100%", async () => {
             const newFee = precision;
             const expectedRevertMessage = "Bridge: Service fee cannot exceed 100%";
             await assert.revertWith(bridgeInstance.setServiceFee(newFee), expectedRevertMessage);
         });
     });
 
-    describe("Token Operations", function () {
+
+    describe("Mint", function () {
 
         beforeEach(async () => {
 
@@ -224,7 +226,7 @@ describe("Bridge", function () {
             assert.ok(isExecuted);
         });
 
-        it("should emit Mint event", async () => {
+        it("Should emit Mint event", async () => {
             const expectedEvent = "Mint";
 
             const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
@@ -313,6 +315,100 @@ describe("Bridge", function () {
             const expectedRevertMessage = "Bridge: invalid signer";
             await assert.revertWith(bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, wrongAmount, txCost, [aliceSignature, bobSignature]), expectedRevertMessage);
         });
+
+    });
+
+    describe("Burn", function () {
+
+        beforeEach(async () => {
+
+            await bridgeInstance.setCustodian(aliceCustodian.address, true);
+            await bridgeInstance.setCustodian(bobCustodian.address, true);
+            await bridgeInstance.setCustodian(carlCustodian.address, true);
+
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
+            const hashMsg = ethers.utils.keccak256(encodeData);
+            const hashData = ethers.utils.arrayify(hashMsg);
+
+            const aliceSignature = await aliceCustodian.signMessage(hashData);
+            const bobSignature = await bobCustodian.signMessage(hashData);
+            const carlSignatude = await carlCustodian.signMessage(hashData);
+
+            await bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignatude]);
+
+        });
+
+        it("Should burn tokens", async () => {
+            const amountToBurn = ethers.utils.parseEther("5");
+            await whbarInstance.from(nonCustodian).approve(bridgeInstance.contractAddress, amountToBurn);
+
+            const balanceOFReciever = await whbarInstance.balanceOf(receiver);
+            const aliceBalance = await bridgeInstance.feesAccrued(aliceCustodian.address);
+            const bobBalance = await bridgeInstance.feesAccrued(bobCustodian.address);
+            const carlBalance = await bridgeInstance.feesAccrued(carlCustodian.address);
+            const totalCustodiansAmount = await bridgeInstance.totalFeesAccrued();
+
+            await bridgeInstance.from(nonCustodian).burn(amountToBurn, hederaAddress);
+
+            const balanceOFRecieverAfter = await whbarInstance.balanceOf(receiver);
+            const aliceBalanceAfter = await bridgeInstance.feesAccrued(aliceCustodian.address);
+            const bobBalanceAfter = await bridgeInstance.feesAccrued(bobCustodian.address);
+            const carlBalanceAfter = await bridgeInstance.feesAccrued(carlCustodian.address);
+            const totalCustodiansAmountAfter = await bridgeInstance.totalFeesAccrued();
+
+            const feeAmount = amountToBurn.mul(serviceFee).div(precision);
+
+            assert(balanceOFRecieverAfter.eq(balanceOFReciever.sub(amountToBurn)));
+            assert(aliceBalanceAfter.eq(aliceBalance.add(feeAmount.div(3))));
+            assert(bobBalanceAfter.eq(bobBalance.add(feeAmount.div(3))));
+            assert(carlBalanceAfter.eq(carlBalance.add(feeAmount.div(3))));
+            assert(totalCustodiansAmountAfter.eq(totalCustodiansAmount.add(feeAmount)));
+
+        });
+
+        it("Should emit burn event", async () => {
+            const amountToBurn = ethers.utils.parseEther("5");
+            await whbarInstance.from(nonCustodian).approve(bridgeInstance.contractAddress, amountToBurn);
+
+            const expectedEvent = "Burn";
+
+            await assert.emit(bridgeInstance.from(nonCustodian).burn(amountToBurn, hederaAddress), expectedEvent);
+        });
+
+        it("Should revert if there are no approved tokens", async () => {
+            const amountToBurn = ethers.utils.parseEther("5");
+
+            const expectedRevertMessage = "ERC20: burn amount exceeds allowance";
+            await assert.revertWith(bridgeInstance.from(nonCustodian).burn(amountToBurn, hederaAddress), expectedRevertMessage);
+        });
+
+        it("Should revert if invoker has no tokens", async () => {
+            const amountToBurn = ethers.utils.parseEther("5");
+            await whbarInstance.from(aliceCustodian).approve(bridgeInstance.contractAddress, amountToBurn);
+
+            const expectedRevertMessage = "ERC20: burn amount exceeds balance";
+            await assert.revertWith(bridgeInstance.from(aliceCustodian).burn(amountToBurn, hederaAddress), expectedRevertMessage);
+        });
+
+        it("Should revert if deprecated", async () => {
+            const amountToBurn = ethers.utils.parseEther("5");
+            await whbarInstance.from(nonCustodian).approve(bridgeInstance.contractAddress, amountToBurn);
+
+            await bridgeInstance.deprecate();
+
+            const expectedRevertMessage = "Pausable: paused";
+            await assert.revertWith(bridgeInstance.from(nonCustodian).burn(amountToBurn, hederaAddress), expectedRevertMessage);
+        });
+
+        it("Should revert if hederaAddress is invalid", async () => {
+            const amountToBurn = ethers.utils.parseEther("5");
+            await whbarInstance.from(nonCustodian).approve(bridgeInstance.contractAddress, amountToBurn);
+
+            const invalidHederaAddress = [];
+
+            const expectedRevertMessage = "Bridge: invalid receiverAddress value";
+            await assert.revertWith(bridgeInstance.from(nonCustodian).burn(amountToBurn, invalidHederaAddress), expectedRevertMessage);
+        });
     });
 
     describe("Withdraw and Deprecate bridge", function () {
@@ -387,7 +483,7 @@ describe("Bridge", function () {
                 assert(newTokensTotalSupply.eq(newExpextedTotalSupply.add(aliceBalance).add(bobBalance).add(carlBalance)));
             });
 
-            it("should emit Withdraw event", async () => {
+            it("Should emit Withdraw event", async () => {
                 const expectedEvent = "Withdraw";
                 await assert.emit(bridgeInstance.from(aliceCustodian.address).withdraw(), expectedEvent);
             });
@@ -411,7 +507,7 @@ describe("Bridge", function () {
                 assert.ok(isPaused);
             });
 
-            it("should emit Deprecate event", async () => {
+            it("Should emit Deprecate event", async () => {
                 const expectedEvent = "Deprecate";
                 await assert.emit(bridgeInstance.deprecate(), expectedEvent);
             });

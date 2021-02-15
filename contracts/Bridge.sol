@@ -114,6 +114,10 @@ contract Bridge is Custodians, Pausable {
             "Bridge: invalid receiverAddress value"
         );
 
+        uint256 serviceFeeInWhbar = amount.mul(serviceFee).div(precision);
+
+        _distributeFees(serviceFeeInWhbar);
+
         whbarToken.burnFrom(msg.sender, amount);
 
         emit Burn(msg.sender, amount, receiverAddress);
@@ -169,6 +173,17 @@ contract Bridge is Custodians, Pausable {
             _txCost
         );
 
+        _setCustodianRewards(_serviceFeeInWhbar);
+
+        feesAccrued[msg.sender] = feesAccrued[msg.sender].add(_txCost);
+    }
+
+    function _distributeFees(uint256 _serviceFeeInWhbar) private {
+        totalFeesAccrued = totalFeesAccrued.add(_serviceFeeInWhbar);
+        _setCustodianRewards(_serviceFeeInWhbar);
+    }
+
+    function _setCustodianRewards(uint256 _serviceFeeInWhbar) private {
         uint256 serviceFeePerSigner = _serviceFeeInWhbar.div(custodianCount());
 
         for (uint256 i = 0; i < custodianCount(); i++) {
@@ -177,7 +192,5 @@ contract Bridge is Custodians, Pausable {
                 serviceFeePerSigner
             );
         }
-
-        feesAccrued[msg.sender] = feesAccrued[msg.sender].add(_txCost);
     }
 }
