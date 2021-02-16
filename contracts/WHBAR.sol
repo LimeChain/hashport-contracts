@@ -6,9 +6,9 @@ import "@openzeppelin/contracts/token/ERC20/ERC20Pausable.sol";
 contract WHBAR is ERC20Pausable, Ownable {
     address public controllerAddress;
 
-    event SetBridgeAddress(address newBridgeAddress);
+    event SetControllerAddress(address newControllerAddress);
 
-    modifier onlyBridgeContract() {
+    modifier onlyControllerContract() {
         require(
             msg.sender == controllerAddress,
             "WHBAR: Not called by the controller contract"
@@ -24,13 +24,16 @@ contract WHBAR is ERC20Pausable, Ownable {
         super._setupDecimals(decimals);
     }
 
-    function mint(address account, uint256 amount) public onlyBridgeContract {
+    function mint(address account, uint256 amount)
+        public
+        onlyControllerContract
+    {
         super._mint(account, amount);
     }
 
     function burnFrom(address account, uint256 amount)
         public
-        onlyBridgeContract
+        onlyControllerContract
     {
         uint256 decreasedAllowance =
             allowance(account, _msgSender()).sub(
@@ -50,12 +53,9 @@ contract WHBAR is ERC20Pausable, Ownable {
         super._unpause();
     }
 
-    function setBridgeContractAddress(address _controllerAddress)
-        public
-        onlyOwner
-    {
+    function setControllerAddress(address _controllerAddress) public onlyOwner {
         require(_controllerAddress != address(0));
         controllerAddress = _controllerAddress;
-        emit SetBridgeAddress(controllerAddress);
+        emit SetControllerAddress(controllerAddress);
     }
 }

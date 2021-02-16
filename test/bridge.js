@@ -48,7 +48,7 @@ describe("Bridge", function () {
             serviceFee
         );
 
-        await whbarInstance.setBridgeContractAddress(bridgeInstance.contractAddress);
+        await whbarInstance.setControllerAddress(bridgeInstance.contractAddress);
     });
 
     describe("Contract Setup", function () {

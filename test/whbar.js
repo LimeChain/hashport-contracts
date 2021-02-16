@@ -64,21 +64,26 @@ describe("WHBAR", function () {
     });
 
     it("Should set bridge contract address as controller", async () => {
-        await whbarInstace.setBridgeContractAddress(
-            controller.address,
+        await whbarInstace.setControllerAddress(
+            controller.address
         );
         const controllerAddress = await whbarInstace.controllerAddress();
         assert.strictEqual(controllerAddress, controller.address, "The bridge address was not set corectly");
     });
 
+    it("Should emit SetControllerAddress event", async () => {
+        const expectedEvent = "SetControllerAddress";
+        await assert.emit(whbarInstace.setControllerAddress(controller.address), expectedEvent);
+    });
+
     it("Should revert if not owner tries to set bridge contract address", async () => {
         const expectedRevertMessage = "Ownable: caller is not the owner";
 
-        await assert.revertWith(whbarInstace.from(alice).setBridgeContractAddress(controller.address), expectedRevertMessage);
+        await assert.revertWith(whbarInstace.from(alice).setControllerAddress(controller.address), expectedRevertMessage);
     });
 
     it("Should mint tokens from controller", async () => {
-        await whbarInstace.setBridgeContractAddress(
+        await whbarInstace.setControllerAddress(
             controller.address,
         );
         const mintAmount = ethers.utils.parseEther("153");
@@ -90,7 +95,7 @@ describe("WHBAR", function () {
 
     it("Should revert if not controller tries to mint", async () => {
         const expectedRevertMessage = "WHBAR: Not called by the controller contract";
-        await whbarInstace.setBridgeContractAddress(
+        await whbarInstace.setControllerAddress(
             controller.address,
         );
         const mintAmount = ethers.utils.parseEther("153");
@@ -98,7 +103,7 @@ describe("WHBAR", function () {
     });
 
     it("Should burn tokens from controller", async () => {
-        await whbarInstace.setBridgeContractAddress(
+        await whbarInstace.setControllerAddress(
             controller.address,
         );
         const mintAmount = ethers.utils.parseEther("153");
@@ -116,7 +121,7 @@ describe("WHBAR", function () {
     it("Should revert if not controller tries to burn", async () => {
         const expectedRevertMessage = "WHBAR: Not called by the controller contract";
 
-        await whbarInstace.setBridgeContractAddress(
+        await whbarInstace.setControllerAddress(
             controller.address,
         );
         const mintAmount = ethers.utils.parseEther("153");
@@ -131,7 +136,7 @@ describe("WHBAR", function () {
     it("Should revert if there is no allowance", async () => {
         const expectedRevertMessage = "ERC20: burn amount exceeds allowance";
 
-        await whbarInstace.setBridgeContractAddress(
+        await whbarInstace.setControllerAddress(
             controller.address,
         );
         const mintAmount = ethers.utils.parseEther("153");
@@ -144,7 +149,7 @@ describe("WHBAR", function () {
 
 
     it("Should not mint if token is paused", async () => {
-        await whbarInstace.setBridgeContractAddress(
+        await whbarInstace.setControllerAddress(
             controller.address,
         );
         await whbarInstace.from(owner).pause();
@@ -156,7 +161,7 @@ describe("WHBAR", function () {
     });
 
     it("Should not burn if token is paused", async () => {
-        await whbarInstace.setBridgeContractAddress(
+        await whbarInstace.setControllerAddress(
             controller.address,
         );
 
