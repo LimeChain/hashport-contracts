@@ -94,8 +94,9 @@ contract Bridge is Custodians, Pausable {
         }
         transaction.isExecuted = true;
 
-        // amount * (serviceFee(%) * 1000) / (100(%) * 1000)
-        uint256 serviceFeeInWhbar = amount.mul(serviceFee).div(precision);
+        // (amount - txCost) * (serviceFee(%) * 1000) / (100(%) * 1000)
+        uint256 serviceFeeInWhbar =
+            (amount.sub(txCost)).mul(serviceFee).div(precision);
 
         _distributeFees(serviceFeeInWhbar, txCost);
 
