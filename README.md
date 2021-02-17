@@ -9,7 +9,7 @@ Contracts consist of the ERC20 WHBAR and the Bridge contract responsible for the
 
 UML Diagrams for the main contracts:
 
-<div align="center">
+<div align="center" style="width:50%">
 
 ![bridge](/images/bridge.png "Bridge contract") 
 
