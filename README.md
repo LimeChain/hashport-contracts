@@ -1,13 +1,20 @@
-# hedera-eth-bridge-contracts
+<div align="center">
 
-## Prerequisites
+# Hedera <-> Ethereum Bridge Contracts
 
-`etherlime`
+</div>
+
+This repository contains the smart contracts for the Hedera <-> Ethereum bridge.
+Contracts consist of the ERC20 WHBAR and the Bridge contract responsible for the minting/burning of tokens.
+
+## Contract Addresses & ABI
+This is a WIP and the contracts have not been deployed yet.
+
+## Development
+`etherlime` - framework used for the development and testing of the contracts
 
 ### Compilation
-
 Before you deploy the contracts, you will need to compile them using:
-
 ```
 etherlime compile --solcVersion 0.6.0
 ```
