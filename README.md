@@ -11,9 +11,9 @@ UML Diagrams for the main contracts:
 
 <div align="center" style="width:50%">
 
-![bridge](/images/bridge.png "Bridge contract") 
+![bridge](/img/bridge.png "Bridge contract") 
 
-![governance](/images/gov.png "Governance contract") 
+![governance](/img/gov.png "Governance contract") 
 
 </div>
 
