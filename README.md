@@ -7,6 +7,16 @@
 This repository contains the smart contracts for the Hedera <-> Ethereum bridge.
 Contracts consist of the ERC20 WHBAR and the Bridge contract responsible for the minting/burning of tokens.
 
+UML Diagrams for the main contracts:
+
+<div align="center">
+
+![bridge](/images/bridge.png "Bridge contract") 
+
+![governance](/images/gov.png "Governance contract") 
+
+</div>
+
 ## Contract Addresses & ABI
 This is a WIP and the contracts have not been deployed yet.
 
