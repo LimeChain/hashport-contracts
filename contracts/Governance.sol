@@ -48,7 +48,7 @@ contract Governance is Ownable {
         emit MemberUpdated(account, isMember);
     }
 
-    /// @notice Returning true/false depending on whether a given address is member or not
+    /// @notice Returns true/false depending on whether a given address is member or not
     function isMember(address _member) public view returns (bool) {
         return membersSet.contains(_member);
     }

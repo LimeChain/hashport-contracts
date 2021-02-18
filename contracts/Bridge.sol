@@ -16,13 +16,13 @@ contract Bridge is Governance, Pausable {
     /// @notice The configured WHBAR token
     WHBAR public whbarToken;
 
-    /// @notice Value of the service fee in percents. Range 0% to 99.999% multiplied my 1000
+    /// @notice Value of the service fee in percentage. Range 0% to 99.999% multiplied my 1000
     uint256 public serviceFee;
 
     /// @notice Precision of the service fee
     uint256 constant PRECISION = 100000;
 
-    /// @notice Mapping storing metadata about the transactions. The key is Hedera Transaction ID
+    /// @notice Storage metadata for hedera -> eth transactions. Key bytes represents Hedera TransactionID
     mapping(bytes => Transaction) public mintTransfers;
 
     /// @notice Struct containing necessary metadata for a given transaction
@@ -88,7 +88,7 @@ contract Bridge is Governance, Pausable {
     }
 
     /**
-     * @notice Mints `amount` - fees WHBARs to the `receiver` address, authorised by members `signatures`
+     * @notice Mints `amount - fees` WHBARs to the `receiver` address. Must be authorised by `signatures` from the `members` set
      * @param transactionId The Hedera Transaction ID
      * @param receiver The address receiving the tokens
      * @param amount The desired minting amount
@@ -185,7 +185,7 @@ contract Bridge is Governance, Pausable {
         emit Claim(msg.sender, amountToMint);
     }
 
-    /// @notice Depricates the contract. The outstanding, non-claimed fees are minted to the bridge contract for members to claim
+    /// @notice Deprecates the contract. The outstanding, non-claimed fees are minted to the bridge contract for members to claim
     function deprecate() public onlyOwner {
         whbarToken.mint(address(this), totalClaimableFees);
         _pause();
