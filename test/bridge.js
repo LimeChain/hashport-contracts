@@ -7,10 +7,10 @@ describe("Bridge", function () {
     this.timeout(10000);
 
     let owner = accounts[9];
-    let aliceCustodian = accounts[1].signer;
-    let bobCustodian = accounts[2].signer;
-    let carlCustodian = accounts[3].signer;
-    let nonCustodian = accounts[4].signer;
+    let aliceMember = accounts[1].signer;
+    let bobMember = accounts[2].signer;
+    let carlMember = accounts[3].signer;
+    let nonMember = accounts[4].signer;
     let notAdmin = accounts[5].signer;
 
     let bridgeInstance;
@@ -25,7 +25,7 @@ describe("Bridge", function () {
 
     const transactionId = "0x123";
     const hederaAddress = "0x234";
-    const receiver = nonCustodian.address;
+    const receiver = nonMember.address;
     const amount = ethers.utils.parseEther("100");
     const txCost = ethers.utils.parseEther("1");
     const precision = 100000;
@@ -67,89 +67,89 @@ describe("Bridge", function () {
             assert.equal(_owner, owner.signer.address);
         });
 
-        it("Should set a custodian", async () => {
-            await bridgeInstance.setCustodian(aliceCustodian.address, true);
-            const aliceStatus = await bridgeInstance.isCustodian(aliceCustodian.address);
+        it("Should set a member", async () => {
+            await bridgeInstance.updateMember(aliceMember.address, true);
+            const aliceStatus = await bridgeInstance.isMember(aliceMember.address);
             assert.ok(aliceStatus);
-            const addressAtIndex = await bridgeInstance.custodianAddress(0);
-            assert.equal(addressAtIndex, aliceCustodian.address);
-            const custodianCount = await bridgeInstance.custodianCount();
+            const addressAtIndex = await bridgeInstance.memberAt(0);
+            assert.equal(addressAtIndex, aliceMember.address);
+            const membersCount = await bridgeInstance.membersCount();
             const expectedCount = 1;
-            assert(custodianCount.eq(expectedCount));
+            assert(membersCount.eq(expectedCount));
         });
 
-        it("Should set multiple custodians", async () => {
-            await bridgeInstance.setCustodian(aliceCustodian.address, true);
-            await bridgeInstance.setCustodian(bobCustodian.address, true);
-            await bridgeInstance.setCustodian(carlCustodian.address, true);
-            const aliceStatus = await bridgeInstance.isCustodian(aliceCustodian.address);
-            const bobStatus = await bridgeInstance.isCustodian(bobCustodian.address);
-            const carlStatus = await bridgeInstance.isCustodian(carlCustodian.address);
+        it("Should set multiple member", async () => {
+            await bridgeInstance.updateMember(aliceMember.address, true);
+            await bridgeInstance.updateMember(bobMember.address, true);
+            await bridgeInstance.updateMember(carlMember.address, true);
+            const aliceStatus = await bridgeInstance.isMember(aliceMember.address);
+            const bobStatus = await bridgeInstance.isMember(bobMember.address);
+            const carlStatus = await bridgeInstance.isMember(carlMember.address);
             assert.ok(aliceStatus);
             assert.ok(bobStatus);
             assert.ok(carlStatus);
-            const custodiansCount = await bridgeInstance.custodianCount();
+            const membersCount = await bridgeInstance.membersCount();
             const expectedCount = 3;
-            assert.equal(custodiansCount.toString(), expectedCount);
+            assert.equal(membersCount.toString(), expectedCount);
 
-            const aliceAtIndex = await bridgeInstance.custodianAddress(0);
-            assert.equal(aliceAtIndex, aliceCustodian.address);
+            const aliceAtIndex = await bridgeInstance.memberAt(0);
+            assert.equal(aliceAtIndex, aliceMember.address);
 
-            const bobAtIndex = await bridgeInstance.custodianAddress(1);
-            assert.equal(bobAtIndex, bobCustodian.address);
+            const bobAtIndex = await bridgeInstance.memberAt(1);
+            assert.equal(bobAtIndex, bobMember.address);
 
-            const carlAtIndex = await bridgeInstance.custodianAddress(2);
-            assert.equal(carlAtIndex, carlCustodian.address);
+            const carlAtIndex = await bridgeInstance.memberAt(2);
+            assert.equal(carlAtIndex, carlMember.address);
         });
 
-        it("Should not set a custodian if not from admin", async () => {
+        it("Should not set a member if not from admin", async () => {
             const expectedRevertMessage = "Ownable: caller is not the owner";
-            await assert.revertWith(bridgeInstance.from(notAdmin.address).setCustodian(aliceCustodian.address, true), expectedRevertMessage);
+            await assert.revertWith(bridgeInstance.from(notAdmin.address).updateMember(aliceMember.address, true), expectedRevertMessage);
         });
 
-        it("Should not set same custodian twice", async () => {
-            const expectedRevertMessage = "Custodians: Cannot add existing custodian";
+        it("Should not set same member twice", async () => {
+            const expectedRevertMessage = "Governance: Account already added";
 
-            await bridgeInstance.setCustodian(aliceCustodian.address, true);
-            await assert.revertWith(bridgeInstance.setCustodian(aliceCustodian.address, true), expectedRevertMessage);
+            await bridgeInstance.updateMember(aliceMember.address, true);
+            await assert.revertWith(bridgeInstance.updateMember(aliceMember.address, true), expectedRevertMessage);
         });
 
-        it("Should emit CustodianSet event", async () => {
-            const expectedEvent = "CustodianSet";
+        it("Should emit MemberUpdated event", async () => {
+            const expectedEvent = "MemberUpdated";
             await assert.emit(
-                bridgeInstance.setCustodian(
-                    aliceCustodian.address,
+                bridgeInstance.updateMember(
+                    aliceMember.address,
                     true
                 ),
                 expectedEvent
             );
         });
 
-        it("Should remove a custodian", async () => {
-            await bridgeInstance.setCustodian(aliceCustodian.address, true);
-            await bridgeInstance.setCustodian(bobCustodian.address, true);
-            let aliceStatus = await bridgeInstance.isCustodian(aliceCustodian.address);
+        it("Should remove a member", async () => {
+            await bridgeInstance.updateMember(aliceMember.address, true);
+            await bridgeInstance.updateMember(bobMember.address, true);
+            let aliceStatus = await bridgeInstance.isMember(aliceMember.address);
             assert.ok(aliceStatus);
-            let custodiansCount = await bridgeInstance.custodianCount();
+            let membersCount = await bridgeInstance.membersCount();
             let expectedCount = 2;
-            assert(custodiansCount.eq(expectedCount));
+            assert(membersCount.eq(expectedCount));
 
-            await bridgeInstance.setCustodian(aliceCustodian.address, false);
-            aliceStatus = await bridgeInstance.isCustodian(aliceCustodian.address);
+            await bridgeInstance.updateMember(aliceMember.address, false);
+            aliceStatus = await bridgeInstance.isMember(aliceMember.address);
             assert.ok(!aliceStatus);
 
-            custodiansCount = await bridgeInstance.custodianCount();
+            membersCount = await bridgeInstance.membersCount();
             expectedCount = 1;
-            assert(custodiansCount.eq(expectedCount));
+            assert(membersCount.eq(expectedCount));
         });
 
-        it("Should not remove same custodian twice", async () => {
-            await bridgeInstance.setCustodian(aliceCustodian.address, true);
+        it("Should not remove same member twice", async () => {
+            await bridgeInstance.updateMember(aliceMember.address, true);
 
-            await bridgeInstance.setCustodian(aliceCustodian.address, false);
+            await bridgeInstance.updateMember(aliceMember.address, false);
 
-            const expectedRevertMessage = "Custodians: Cannot remove non-existing custodian";
-            await assert.revertWith(bridgeInstance.setCustodian(aliceCustodian.address, false), expectedRevertMessage);
+            const expectedRevertMessage = "Governance: Account is not a member";
+            await assert.revertWith(bridgeInstance.updateMember(aliceMember.address, false), expectedRevertMessage);
         });
 
         it("Should set a service fee", async () => {
@@ -173,7 +173,7 @@ describe("Bridge", function () {
             const newFee = 7000;
 
             const expectedRevertMessage = "Ownable: caller is not the owner";
-            await assert.revertWith(bridgeInstance.from(aliceCustodian).setServiceFee(newFee), expectedRevertMessage);
+            await assert.revertWith(bridgeInstance.from(aliceMember).setServiceFee(newFee), expectedRevertMessage);
         });
 
         it("Should revertWith if service fee is equal or above 100%", async () => {
@@ -188,9 +188,9 @@ describe("Bridge", function () {
 
         beforeEach(async () => {
 
-            await bridgeInstance.setCustodian(aliceCustodian.address, true);
-            await bridgeInstance.setCustodian(bobCustodian.address, true);
-            await bridgeInstance.setCustodian(carlCustodian.address, true);
+            await bridgeInstance.updateMember(aliceMember.address, true);
+            await bridgeInstance.updateMember(bobMember.address, true);
+            await bridgeInstance.updateMember(carlMember.address, true);
         });
 
         it("Should execute mint transaction", async () => {
@@ -198,29 +198,29 @@ describe("Bridge", function () {
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
-            const aliceSignature = await aliceCustodian.signMessage(hashData);
-            const bobSignature = await bobCustodian.signMessage(hashData);
-            const carlSignatude = await carlCustodian.signMessage(hashData);
+            const aliceSignature = await aliceMember.signMessage(hashData);
+            const bobSignature = await bobMember.signMessage(hashData);
+            const carlSignatude = await carlMember.signMessage(hashData);
 
-            await bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignatude]);
+            await bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignatude]);
 
             const expectedServiceFee = amount.sub(txCost).mul(serviceFee).div(precision);
 
             const balanceOFReciever = await whbarInstance.balanceOf(receiver);
             assert(balanceOFReciever.eq(amount.sub(txCost).sub(expectedServiceFee)));
 
-            const aliceBalance = await bridgeInstance.feesAccrued(aliceCustodian.address);
+            const aliceBalance = await bridgeInstance.claimableFees(aliceMember.address);
             assert(aliceBalance.eq(expectedServiceFee.div(3).add(txCost)));
 
-            const bobBalance = await bridgeInstance.feesAccrued(bobCustodian.address);
+            const bobBalance = await bridgeInstance.claimableFees(bobMember.address);
             assert(bobBalance.eq(expectedServiceFee.div(3)));
 
-            const carlBalance = await bridgeInstance.feesAccrued(carlCustodian.address);
+            const carlBalance = await bridgeInstance.claimableFees(carlMember.address);
             assert(carlBalance.eq(expectedServiceFee.div(3)));
 
-            const totalCustodiansAmount = await bridgeInstance.totalFeesAccrued();
+            const totalClaimableFees = await bridgeInstance.totalClaimableFees();
 
-            assert(totalCustodiansAmount.eq(expectedServiceFee.add(txCost)));
+            assert(totalClaimableFees.eq(expectedServiceFee.add(txCost)));
 
             const isExecuted = await bridgeInstance.mintTransfers(transactionId);
             assert.ok(isExecuted);
@@ -233,11 +233,11 @@ describe("Bridge", function () {
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
-            const aliceSignature = await aliceCustodian.signMessage(hashData);
-            const bobSignature = await bobCustodian.signMessage(hashData);
-            const carlSignatude = await carlCustodian.signMessage(hashData);
+            const aliceSignature = await aliceMember.signMessage(hashData);
+            const bobSignature = await bobMember.signMessage(hashData);
+            const carlSignatude = await carlMember.signMessage(hashData);
 
-            await assert.emit(bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignatude]), expectedEvent);
+            await assert.emit(bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignatude]), expectedEvent);
         });
 
         it("Should not execute same mint transaction twice", async () => {
@@ -245,15 +245,15 @@ describe("Bridge", function () {
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
-            const aliceSignature = await aliceCustodian.signMessage(hashData);
-            const bobSignature = await bobCustodian.signMessage(hashData);
-            const carlSignature = await carlCustodian.signMessage(hashData);
+            const aliceSignature = await aliceMember.signMessage(hashData);
+            const bobSignature = await bobMember.signMessage(hashData);
+            const carlSignature = await carlMember.signMessage(hashData);
 
 
-            await bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature]);
+            await bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature]);
 
             const expectedRevertMessage = "Bridge: txId already submitted";
-            await assert.revertWith(bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature]), expectedRevertMessage);
+            await assert.revertWith(bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature]), expectedRevertMessage);
         });
 
         it("Should not execute mint transaction with less than the half signatures", async () => {
@@ -261,34 +261,34 @@ describe("Bridge", function () {
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
-            const aliceSignature = await aliceCustodian.signMessage(hashData);
+            const aliceSignature = await aliceMember.signMessage(hashData);
 
-            const expectedRevertMessage = "Bridge: Invalid confirmations";
-            await assert.revertWith(bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, txCost, [aliceSignature]), expectedRevertMessage);
+            const expectedRevertMessage = "Bridge: Invalid number of signatures";
+            await assert.revertWith(bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature]), expectedRevertMessage);
         });
 
-        it("Should not execute mint transaction from other than a custodian", async () => {
+        it("Should not execute mint transaction from other than a member", async () => {
             const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
-            const aliceSignature = await aliceCustodian.signMessage(hashData);
-            const bobSignature = await bobCustodian.signMessage(hashData);
+            const aliceSignature = await aliceMember.signMessage(hashData);
+            const bobSignature = await bobMember.signMessage(hashData);
 
-            const expectedRevertMessage = "Bridge: msg.sender is not a custodian";
+            const expectedRevertMessage = "Governance: msg.sender is not a member";
             await assert.revertWith(bridgeInstance.mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature]), expectedRevertMessage);
         });
 
-        it("Should not execute mint transaction signed from non custodian", async () => {
+        it("Should not execute mint transaction signed from non member", async () => {
             const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
-            const aliceSignature = await aliceCustodian.signMessage(hashData);
-            const nonCustodianSignature = await nonCustodian.signMessage(hashData);
+            const aliceSignature = await aliceMember.signMessage(hashData);
+            const nonMemberSignature = await nonMember.signMessage(hashData);
 
             const expectedRevertMessage = "Bridge: invalid signer";
-            await assert.revertWith(bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, txCost, [aliceSignature, nonCustodianSignature]), expectedRevertMessage);
+            await assert.revertWith(bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, nonMemberSignature]), expectedRevertMessage);
         });
 
         it("Should not execute mint transaction with identical signatures", async () => {
@@ -296,10 +296,10 @@ describe("Bridge", function () {
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
-            const aliceSignature = await aliceCustodian.signMessage(hashData);
+            const aliceSignature = await aliceMember.signMessage(hashData);
 
             const expectedRevertMessage = "Bridge: signature already set";
-            await assert.revertWith(bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, txCost, [aliceSignature, aliceSignature]), expectedRevertMessage);
+            await assert.revertWith(bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, aliceSignature]), expectedRevertMessage);
         });
 
         it("Should not execute mint transaction with wrong data", async () => {
@@ -309,11 +309,11 @@ describe("Bridge", function () {
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
-            const aliceSignature = await aliceCustodian.signMessage(hashData);
-            const bobSignature = await bobCustodian.signMessage(hashData);
+            const aliceSignature = await aliceMember.signMessage(hashData);
+            const bobSignature = await bobMember.signMessage(hashData);
 
             const expectedRevertMessage = "Bridge: invalid signer";
-            await assert.revertWith(bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, wrongAmount, txCost, [aliceSignature, bobSignature]), expectedRevertMessage);
+            await assert.revertWith(bridgeInstance.from(aliceMember).mint(transactionId, receiver, wrongAmount, txCost, [aliceSignature, bobSignature]), expectedRevertMessage);
         });
 
     });
@@ -322,39 +322,39 @@ describe("Bridge", function () {
 
         beforeEach(async () => {
 
-            await bridgeInstance.setCustodian(aliceCustodian.address, true);
-            await bridgeInstance.setCustodian(bobCustodian.address, true);
-            await bridgeInstance.setCustodian(carlCustodian.address, true);
+            await bridgeInstance.updateMember(aliceMember.address, true);
+            await bridgeInstance.updateMember(bobMember.address, true);
+            await bridgeInstance.updateMember(carlMember.address, true);
 
             const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
-            const aliceSignature = await aliceCustodian.signMessage(hashData);
-            const bobSignature = await bobCustodian.signMessage(hashData);
-            const carlSignatude = await carlCustodian.signMessage(hashData);
+            const aliceSignature = await aliceMember.signMessage(hashData);
+            const bobSignature = await bobMember.signMessage(hashData);
+            const carlSignatude = await carlMember.signMessage(hashData);
 
-            await bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignatude]);
+            await bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignatude]);
 
         });
 
         it("Should burn tokens", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await whbarInstance.from(nonCustodian).approve(bridgeInstance.contractAddress, amountToBurn);
+            await whbarInstance.from(nonMember).approve(bridgeInstance.contractAddress, amountToBurn);
 
             const balanceOFReciever = await whbarInstance.balanceOf(receiver);
-            const aliceBalance = await bridgeInstance.feesAccrued(aliceCustodian.address);
-            const bobBalance = await bridgeInstance.feesAccrued(bobCustodian.address);
-            const carlBalance = await bridgeInstance.feesAccrued(carlCustodian.address);
-            const totalCustodiansAmount = await bridgeInstance.totalFeesAccrued();
+            const aliceBalance = await bridgeInstance.claimableFees(aliceMember.address);
+            const bobBalance = await bridgeInstance.claimableFees(bobMember.address);
+            const carlBalance = await bridgeInstance.claimableFees(carlMember.address);
+            const totalClaimableFees = await bridgeInstance.totalClaimableFees();
 
-            await bridgeInstance.from(nonCustodian).burn(amountToBurn, hederaAddress);
+            await bridgeInstance.from(nonMember).burn(amountToBurn, hederaAddress);
 
             const balanceOFRecieverAfter = await whbarInstance.balanceOf(receiver);
-            const aliceBalanceAfter = await bridgeInstance.feesAccrued(aliceCustodian.address);
-            const bobBalanceAfter = await bridgeInstance.feesAccrued(bobCustodian.address);
-            const carlBalanceAfter = await bridgeInstance.feesAccrued(carlCustodian.address);
-            const totalCustodiansAmountAfter = await bridgeInstance.totalFeesAccrued();
+            const aliceBalanceAfter = await bridgeInstance.claimableFees(aliceMember.address);
+            const bobBalanceAfter = await bridgeInstance.claimableFees(bobMember.address);
+            const carlBalanceAfter = await bridgeInstance.claimableFees(carlMember.address);
+            const totalClaimableFeesAfter = await bridgeInstance.totalClaimableFees();
 
             const feeAmount = amountToBurn.mul(serviceFee).div(precision);
 
@@ -362,134 +362,134 @@ describe("Bridge", function () {
             assert(aliceBalanceAfter.eq(aliceBalance.add(feeAmount.div(3))));
             assert(bobBalanceAfter.eq(bobBalance.add(feeAmount.div(3))));
             assert(carlBalanceAfter.eq(carlBalance.add(feeAmount.div(3))));
-            assert(totalCustodiansAmountAfter.eq(totalCustodiansAmount.add(feeAmount)));
+            assert(totalClaimableFeesAfter.eq(totalClaimableFees.add(feeAmount)));
 
         });
 
         it("Should emit burn event", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await whbarInstance.from(nonCustodian).approve(bridgeInstance.contractAddress, amountToBurn);
+            await whbarInstance.from(nonMember).approve(bridgeInstance.contractAddress, amountToBurn);
 
             const expectedEvent = "Burn";
 
-            await assert.emit(bridgeInstance.from(nonCustodian).burn(amountToBurn, hederaAddress), expectedEvent);
+            await assert.emit(bridgeInstance.from(nonMember).burn(amountToBurn, hederaAddress), expectedEvent);
         });
 
         it("Should revert if there are no approved tokens", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
 
             const expectedRevertMessage = "ERC20: burn amount exceeds allowance";
-            await assert.revertWith(bridgeInstance.from(nonCustodian).burn(amountToBurn, hederaAddress), expectedRevertMessage);
+            await assert.revertWith(bridgeInstance.from(nonMember).burn(amountToBurn, hederaAddress), expectedRevertMessage);
         });
 
         it("Should revert if invoker has no tokens", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await whbarInstance.from(aliceCustodian).approve(bridgeInstance.contractAddress, amountToBurn);
+            await whbarInstance.from(aliceMember).approve(bridgeInstance.contractAddress, amountToBurn);
 
             const expectedRevertMessage = "ERC20: burn amount exceeds balance";
-            await assert.revertWith(bridgeInstance.from(aliceCustodian).burn(amountToBurn, hederaAddress), expectedRevertMessage);
+            await assert.revertWith(bridgeInstance.from(aliceMember).burn(amountToBurn, hederaAddress), expectedRevertMessage);
         });
 
         it("Should revert if deprecated", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await whbarInstance.from(nonCustodian).approve(bridgeInstance.contractAddress, amountToBurn);
+            await whbarInstance.from(nonMember).approve(bridgeInstance.contractAddress, amountToBurn);
 
             await bridgeInstance.deprecate();
 
             const expectedRevertMessage = "Pausable: paused";
-            await assert.revertWith(bridgeInstance.from(nonCustodian).burn(amountToBurn, hederaAddress), expectedRevertMessage);
+            await assert.revertWith(bridgeInstance.from(nonMember).burn(amountToBurn, hederaAddress), expectedRevertMessage);
         });
 
         it("Should revert if hederaAddress is invalid", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await whbarInstance.from(nonCustodian).approve(bridgeInstance.contractAddress, amountToBurn);
+            await whbarInstance.from(nonMember).approve(bridgeInstance.contractAddress, amountToBurn);
 
             const invalidHederaAddress = [];
 
-            const expectedRevertMessage = "Bridge: invalid receiverAddress value";
-            await assert.revertWith(bridgeInstance.from(nonCustodian).burn(amountToBurn, invalidHederaAddress), expectedRevertMessage);
+            const expectedRevertMessage = "Bridge: invalid receiver value";
+            await assert.revertWith(bridgeInstance.from(nonMember).burn(amountToBurn, invalidHederaAddress), expectedRevertMessage);
         });
     });
 
-    describe("Withdraw and Deprecate bridge", function () {
+    describe("Claim and Deprecate bridge", function () {
 
         beforeEach(async () => {
 
-            await bridgeInstance.setCustodian(aliceCustodian.address, true);
-            await bridgeInstance.setCustodian(bobCustodian.address, true);
-            await bridgeInstance.setCustodian(carlCustodian.address, true);
+            await bridgeInstance.updateMember(aliceMember.address, true);
+            await bridgeInstance.updateMember(bobMember.address, true);
+            await bridgeInstance.updateMember(carlMember.address, true);
 
             const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
-            const aliceSignature = await aliceCustodian.signMessage(hashData);
-            const bobSignature = await bobCustodian.signMessage(hashData);
-            const carlSignatude = await carlCustodian.signMessage(hashData);
+            const aliceSignature = await aliceMember.signMessage(hashData);
+            const bobSignature = await bobMember.signMessage(hashData);
+            const carlSignatude = await carlMember.signMessage(hashData);
 
-            await bridgeInstance.from(aliceCustodian).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignatude]);
+            await bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignatude]);
         });
 
-        describe("Withdraw", function () {
-            it("Should withdraw service fees", async () => {
-                const totalAmount = await bridgeInstance.totalFeesAccrued();
+        describe("Claim", function () {
+            it("Should claim service fees", async () => {
+                const totalAmount = await bridgeInstance.totalClaimableFees();
 
                 const tokensTotalSupply = await whbarInstance.totalSupply();
                 const expextedTotalSupply = amount.sub(txCost).sub(amount.sub(txCost).mul(serviceFee).div(precision));
                 assert(tokensTotalSupply.eq(expextedTotalSupply));
 
                 // Alice
-                await bridgeInstance.from(aliceCustodian.address).withdraw();
+                await bridgeInstance.from(aliceMember.address).claim();
 
-                const aliceBalance = await whbarInstance.balanceOf(aliceCustodian.address);
+                const aliceBalance = await whbarInstance.balanceOf(aliceMember.address);
 
                 const expectedAliceBalance = amount.sub(txCost).mul(serviceFee).div(precision).div(3).add(txCost);
                 assert(aliceBalance.eq(expectedAliceBalance));
 
-                let custodianAmountLeft = await bridgeInstance.feesAccrued(aliceCustodian.address);
-                assert(custodianAmountLeft.eq(0));
+                let claimableFeesLeft = await bridgeInstance.claimableFees(aliceMember.address);
+                assert(claimableFeesLeft.eq(0));
 
-                let totalAmountLeft = await bridgeInstance.totalFeesAccrued();
+                let totalAmountLeft = await bridgeInstance.totalClaimableFees();
                 assert(totalAmountLeft.eq(totalAmount.sub(aliceBalance)));
 
                 // Bob
-                await bridgeInstance.from(bobCustodian.address).withdraw();
-                const bobBalance = await whbarInstance.balanceOf(bobCustodian.address);
+                await bridgeInstance.from(bobMember.address).claim();
+                const bobBalance = await whbarInstance.balanceOf(bobMember.address);
 
                 const expectedBobBalance = amount.sub(txCost).mul(serviceFee).div(precision).div(3);
                 assert(bobBalance.eq(expectedBobBalance));
 
-                custodianAmountLeft = await bridgeInstance.feesAccrued(bobCustodian.address);
-                assert(custodianAmountLeft.eq(0));
+                claimableFeesLeft = await bridgeInstance.claimableFees(bobMember.address);
+                assert(claimableFeesLeft.eq(0));
 
-                totalAmountLeft = await bridgeInstance.totalFeesAccrued();
+                totalAmountLeft = await bridgeInstance.totalClaimableFees();
                 assert(totalAmountLeft.eq(totalAmount.sub(bobBalance).sub(aliceBalance)));
 
                 // Carl
-                await bridgeInstance.from(carlCustodian.address).withdraw();
-                const carlBalance = await whbarInstance.balanceOf(carlCustodian.address);
+                await bridgeInstance.from(carlMember.address).claim();
+                const carlBalance = await whbarInstance.balanceOf(carlMember.address);
 
                 const expectedCarlBalance = amount.sub(txCost).mul(serviceFee).div(precision).div(3);
                 assert(carlBalance.eq(expectedCarlBalance));
 
-                custodianAmountLeft = await bridgeInstance.feesAccrued(carlCustodian.address);
-                assert(custodianAmountLeft.eq(0));
+                claimableFeesLeft = await bridgeInstance.claimableFees(carlMember.address);
+                assert(claimableFeesLeft.eq(0));
 
-                totalAmountLeft = await bridgeInstance.totalFeesAccrued();
+                totalAmountLeft = await bridgeInstance.totalClaimableFees();
                 assert(totalAmountLeft.eq(totalAmount.sub(bobBalance).sub(aliceBalance).sub(carlBalance)));
 
                 const newTokensTotalSupply = await whbarInstance.totalSupply();
                 assert(newTokensTotalSupply.eq(expextedTotalSupply.add(aliceBalance).add(bobBalance).add(carlBalance)));
             });
 
-            it("Should emit Withdraw event", async () => {
-                const expectedEvent = "Withdraw";
-                await assert.emit(bridgeInstance.from(aliceCustodian.address).withdraw(), expectedEvent);
+            it("Should emit claim event", async () => {
+                const expectedEvent = "Claim";
+                await assert.emit(bridgeInstance.from(aliceMember.address).claim(), expectedEvent);
             });
 
-            it("Should revertWith if user without balance tries to withdraw", async () => {
-                const expectedRevertMessage = "Bridge: msg.sender has nothing to withdraw";
-                await assert.revertWith(bridgeInstance.from(nonCustodian.address).withdraw(), expectedRevertMessage);
+            it("Should revertWith if user without balance tries to claim", async () => {
+                const expectedRevertMessage = "Bridge: msg.sender has nothing to claim";
+                await assert.revertWith(bridgeInstance.from(nonMember.address).claim(), expectedRevertMessage);
             });
         });
 
@@ -519,56 +519,56 @@ describe("Bridge", function () {
 
             it("Should not depricate Bridge if not called from owner", async () => {
                 const expectedRevertMessage = "Ownable: caller is not the owner";
-                await assert.revertWith(bridgeInstance.from(aliceCustodian).deprecate(), expectedRevertMessage);
+                await assert.revertWith(bridgeInstance.from(aliceMember).deprecate(), expectedRevertMessage);
             });
 
-            it("Should allow custodians to withdraw when depricated", async () => {
+            it("Should allow members to claim when depricated", async () => {
                 await bridgeInstance.deprecate();
 
                 const expextedTotalSupply = amount;
                 let tokensTotalSupply = await whbarInstance.totalSupply();
                 assert(tokensTotalSupply.eq(expextedTotalSupply));
 
-                const totalAmount = await bridgeInstance.totalFeesAccrued();
+                const totalAmount = await bridgeInstance.totalClaimableFees();
 
                 // Alice
-                await bridgeInstance.from(aliceCustodian.address).withdraw();
+                await bridgeInstance.from(aliceMember.address).claim();
 
-                const aliceBalance = await whbarInstance.balanceOf(aliceCustodian.address);
+                const aliceBalance = await whbarInstance.balanceOf(aliceMember.address);
 
                 const expectedAliceBalance = amount.sub(txCost).mul(serviceFee).div(precision).div(3).add(txCost);
                 assert(aliceBalance.eq(expectedAliceBalance));
 
-                let custodianAmountLeft = await bridgeInstance.feesAccrued(aliceCustodian.address);
-                assert(custodianAmountLeft.eq(0));
+                let memberFeesLeft = await bridgeInstance.claimableFees(aliceMember.address);
+                assert(memberFeesLeft.eq(0));
 
-                let totalAmountLeft = await bridgeInstance.totalFeesAccrued();
+                let totalAmountLeft = await bridgeInstance.totalClaimableFees();
                 assert(totalAmountLeft.eq(totalAmount.sub(aliceBalance)));
 
                 // Bob
-                await bridgeInstance.from(bobCustodian.address).withdraw();
-                const bobBalance = await whbarInstance.balanceOf(bobCustodian.address);
+                await bridgeInstance.from(bobMember.address).claim();
+                const bobBalance = await whbarInstance.balanceOf(bobMember.address);
 
                 const expectedBobBalance = amount.sub(txCost).mul(serviceFee).div(precision).div(3);
                 assert(bobBalance.eq(expectedBobBalance));
 
-                custodianAmountLeft = await bridgeInstance.feesAccrued(bobCustodian.address);
-                assert(custodianAmountLeft.eq(0));
+                memberFeesLeft = await bridgeInstance.claimableFees(bobMember.address);
+                assert(memberFeesLeft.eq(0));
 
-                totalAmountLeft = await bridgeInstance.totalFeesAccrued();
+                totalAmountLeft = await bridgeInstance.totalClaimableFees();
                 assert(totalAmountLeft.eq(totalAmount.sub(bobBalance).sub(aliceBalance)));
 
                 // Carl
-                await bridgeInstance.from(carlCustodian.address).withdraw();
-                const carlBalance = await whbarInstance.balanceOf(carlCustodian.address);
+                await bridgeInstance.from(carlMember.address).claim();
+                const carlBalance = await whbarInstance.balanceOf(carlMember.address);
 
                 const expectedCarlBalance = amount.sub(txCost).mul(serviceFee).div(precision).div(3);
                 assert(carlBalance.eq(expectedCarlBalance));
 
-                custodianAmountLeft = await bridgeInstance.feesAccrued(carlCustodian.address);
-                assert(custodianAmountLeft.eq(0));
+                memberFeesLeft = await bridgeInstance.claimableFees(carlMember.address);
+                assert(memberFeesLeft.eq(0));
 
-                totalAmountLeft = await bridgeInstance.totalFeesAccrued();
+                totalAmountLeft = await bridgeInstance.totalClaimableFees();
                 assert(totalAmountLeft.eq(totalAmount.sub(bobBalance).sub(aliceBalance).sub(carlBalance)));
 
                 tokensTotalSupply = await whbarInstance.totalSupply();
@@ -583,12 +583,12 @@ describe("Bridge", function () {
                 const hashMsg = ethers.utils.keccak256(encodeData);
                 const hashData = ethers.utils.arrayify(hashMsg);
 
-                const aliceSignature = await aliceCustodian.signMessage(hashData);
-                const bobSignature = await bobCustodian.signMessage(hashData);
-                const carlSignatude = await carlCustodian.signMessage(hashData);
+                const aliceSignature = await aliceMember.signMessage(hashData);
+                const bobSignature = await bobMember.signMessage(hashData);
+                const carlSignatude = await carlMember.signMessage(hashData);
 
                 const expectedRevertMessage = "Pausable: paused";
-                await assert.revertWith(bridgeInstance.from(aliceCustodian).mint(newTxId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignatude]), expectedRevertMessage);
+                await assert.revertWith(bridgeInstance.from(aliceMember).mint(newTxId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignatude]), expectedRevertMessage);
             });
         });
     });

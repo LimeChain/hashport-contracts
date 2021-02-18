@@ -38,3 +38,22 @@ etherlime deploy --network 'network' --secret '0x..'
 ```
 OPERATOR_KEY=... OPERATOR_ID=... node ./scripts/hedera-deploy.js
 ```
+
+## Diagrams
+
+UML diagram for the 2 major contracts are presented here.
+### Bridge contract
+
+<div align="center" style="width:50%">
+
+![bridge](/img/bridge.png "Bridge contract") 
+
+</div>
+
+### Governance contract
+
+<div align="center" style="width:50%">
+
+![governance](/img/gov.png "Governance contract") 
+
+</div>
