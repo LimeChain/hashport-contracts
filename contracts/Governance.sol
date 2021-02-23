@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/utils/EnumerableSet.sol";
  *  @author LimeChain Dev team
  *  @title Governance contract, providing governance/members functionality
  */
-contract Governance is Ownable {
+abstract contract Governance is Ownable {
     using SafeMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -24,7 +24,8 @@ contract Governance is Ownable {
     /// @notice Total fees accrued per each checkpoint
     mapping(uint256 => uint256) public checkpointServiceFeesAccrued;
 
-    /// @notice Mapping of members and the fees that they are eligble to claim
+    /// @notice Mapping of members and the fees that they are eligble to claim.
+    /// Does not include the fees of each member from the current checkpoint.
     mapping(address => uint256) public claimableFees;
 
     /// @notice An event emitted once member is updated
@@ -36,8 +37,9 @@ contract Governance is Ownable {
         _;
     }
 
+    /// @notice Construct a new Governance contract
     constructor() public {
-        checkpointServiceFeesAccrued[totalCheckpoints] = 0; // set value to allocate state
+        checkpointServiceFeesAccrued[totalCheckpoints] = 0; // sets value to allocate state
     }
 
     /**
@@ -101,5 +103,25 @@ contract Governance is Ownable {
                 feePerMember
             );
         }
+    }
+
+    /**
+     * @notice Gets the claimable fee of a member, including the fee from the current checkpoint
+     * @param _address the member's address
+     */
+    function claimableFeesFor(address _address) public view returns (uint256) {
+        if (!isMember(_address)) {
+            return claimableFees[_address];
+        }
+
+        uint256 currentCheckpointFeePerMember = 0;
+        if (membersCount() > 0) {
+            currentCheckpointFeePerMember = checkpointServiceFeesAccrued[
+                totalCheckpoints
+            ]
+                .div(membersCount());
+        }
+
+        return claimableFees[_address].add(currentCheckpointFeePerMember);
     }
 }

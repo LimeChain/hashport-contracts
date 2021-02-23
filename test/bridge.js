@@ -209,13 +209,13 @@ describe("Bridge", function () {
             const balanceOFReciever = await whbarInstance.balanceOf(receiver);
             assert(balanceOFReciever.eq(amount.sub(txCost).sub(expectedServiceFee)));
 
-            const aliceBalance = await bridgeInstance.claimableFees(aliceMember.address);
+            const aliceBalance = await bridgeInstance.claimableFeesFor(aliceMember.address);
             assert(aliceBalance.eq(expectedServiceFee.div(3).add(txCost)));
 
-            const bobBalance = await bridgeInstance.claimableFees(bobMember.address);
+            const bobBalance = await bridgeInstance.claimableFeesFor(bobMember.address);
             assert(bobBalance.eq(expectedServiceFee.div(3)));
 
-            const carlBalance = await bridgeInstance.claimableFees(carlMember.address);
+            const carlBalance = await bridgeInstance.claimableFeesFor(carlMember.address);
             assert(carlBalance.eq(expectedServiceFee.div(3)));
 
             const totalClaimableFees = await bridgeInstance.totalClaimableFees();
@@ -343,17 +343,17 @@ describe("Bridge", function () {
             await whbarInstance.from(nonMember).approve(bridgeInstance.contractAddress, amountToBurn);
 
             const balanceOFReciever = await whbarInstance.balanceOf(receiver);
-            const aliceBalance = await bridgeInstance.claimableFees(aliceMember.address);
-            const bobBalance = await bridgeInstance.claimableFees(bobMember.address);
-            const carlBalance = await bridgeInstance.claimableFees(carlMember.address);
+            const aliceBalance = await bridgeInstance.claimableFeesFor(aliceMember.address);
+            const bobBalance = await bridgeInstance.claimableFeesFor(bobMember.address);
+            const carlBalance = await bridgeInstance.claimableFeesFor(carlMember.address);
             const totalClaimableFees = await bridgeInstance.totalClaimableFees();
 
             await bridgeInstance.from(nonMember).burn(amountToBurn, hederaAddress);
 
             const balanceOFRecieverAfter = await whbarInstance.balanceOf(receiver);
-            const aliceBalanceAfter = await bridgeInstance.claimableFees(aliceMember.address);
-            const bobBalanceAfter = await bridgeInstance.claimableFees(bobMember.address);
-            const carlBalanceAfter = await bridgeInstance.claimableFees(carlMember.address);
+            const aliceBalanceAfter = await bridgeInstance.claimableFeesFor(aliceMember.address);
+            const bobBalanceAfter = await bridgeInstance.claimableFeesFor(bobMember.address);
+            const carlBalanceAfter = await bridgeInstance.claimableFeesFor(carlMember.address);
             const totalClaimableFeesAfter = await bridgeInstance.totalClaimableFees();
 
             const feeAmount = amountToBurn.mul(serviceFee).div(precision);
