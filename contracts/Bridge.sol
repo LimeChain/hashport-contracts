@@ -1,4 +1,4 @@
-pragma solidity 0.6.0;
+pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/utils/Pausable.sol";
@@ -169,6 +169,8 @@ contract Bridge is Governance, Pausable {
 
     /// @notice Claims the accrued fees of a member
     function claim() public {
+        createNewCheckpoint();
+
         require(
             claimableFees[msg.sender] > 0,
             "Bridge: msg.sender has nothing to claim"
@@ -192,35 +194,31 @@ contract Bridge is Governance, Pausable {
         emit Deprecate(msg.sender, totalClaimableFees);
     }
 
-    /// @notice Updates the accrued fees of members based on service and tx fees
+    /// @notice Updates the accrued fees based on service and tx fees
     function _distributeFees(uint256 _serviceFeeInWhbar, uint256 _txFee)
         private
     {
         totalClaimableFees = totalClaimableFees.add(_serviceFeeInWhbar).add(
             _txFee
         );
-
-        _setMembersRewards(_serviceFeeInWhbar);
+        _addServiceFeeReward(_serviceFeeInWhbar);
 
         claimableFees[msg.sender] = claimableFees[msg.sender].add(_txFee);
     }
 
-    /// @notice Updates the accrued fees of members based on service fee
+    /// @notice Updates the accrued fees based on service fee
     function _distributeFees(uint256 _serviceFeeInWhbar) private {
         totalClaimableFees = totalClaimableFees.add(_serviceFeeInWhbar);
-        _setMembersRewards(_serviceFeeInWhbar);
+        _addServiceFeeReward(_serviceFeeInWhbar);
     }
 
-    /// @notice Increments all members rewards the new service and tx fees
-    function _setMembersRewards(uint256 _serviceFeeInWhbar) private {
-        uint256 serviceFeePerSigner = _serviceFeeInWhbar.div(membersCount());
-
-        for (uint256 i = 0; i < membersCount(); i++) {
-            address currentMember = memberAt(i);
-            claimableFees[currentMember] = claimableFees[currentMember].add(
-                serviceFeePerSigner
-            );
-        }
+    /// @notice Adds a service fee reward to the latest checkpoint
+    function _addServiceFeeReward(uint256 _serviceFeeReward) private {
+        checkpointServiceFeesAccrued[
+            totalCheckpoints
+        ] = checkpointServiceFeesAccrued[totalCheckpoints].add(
+            _serviceFeeReward
+        );
     }
 
     /// @notice Computes the bytes32 ethereum signed message hash of the signature
