@@ -16,7 +16,7 @@ abstract contract Governance is Ownable {
     EnumerableSet.AddressSet private membersSet;
 
     /// @notice Total checkpoints so far
-    uint256 totalCheckpoints = 0;
+    uint256 public totalCheckpoints = 0;
 
     /// @notice Total fees that could be claimed
     uint256 public totalClaimableFees;
@@ -107,7 +107,7 @@ abstract contract Governance is Ownable {
 
     /**
      * @notice Gets the claimable fee of a member, including the fee from the current checkpoint
-     * @param _address the member's address
+     * @param _address the target address
      */
     function claimableFeesFor(address _address) public view returns (uint256) {
         if (!isMember(_address)) {
