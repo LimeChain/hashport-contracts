@@ -447,7 +447,7 @@ describe("Bridge", function () {
         });
 
         describe("Claim", function () {
-            it.only("Should claim service fees", async () => {
+            it("Should claim service fees", async () => {
                 let expectedTotalCheckpoints = 0;
                 const totalAmount = await bridgeInstance.totalClaimableFees();
 
