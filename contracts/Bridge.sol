@@ -36,11 +36,17 @@ contract Bridge is Governance, Pausable {
         address indexed account,
         uint256 amount,
         uint256 txCost,
+        uint256 serviceFee,
         bytes indexed transactionId
     );
 
     /// @notice An event emitted once a Burn transaction is executed
-    event Burn(address indexed account, uint256 amount, bytes indexed receiver);
+    event Burn(
+        address indexed account,
+        uint256 amount,
+        uint256 serviceFee,
+        bytes indexed receiver
+    );
 
     /// @notice An event emitted once the service fee is modified
     event ServiceFeeSet(address account, uint256 newServiceFee);
@@ -133,7 +139,13 @@ contract Bridge is Governance, Pausable {
         uint256 amountToMint = amount.sub(txCost).sub(serviceFeeInWhbar);
         whbarToken.mint(receiver, amountToMint);
 
-        emit Mint(receiver, amountToMint, txCost, transactionId);
+        emit Mint(
+            receiver,
+            amountToMint,
+            serviceFeeInWhbar,
+            txCost,
+            transactionId
+        );
     }
 
     /**
@@ -151,7 +163,7 @@ contract Bridge is Governance, Pausable {
 
         whbarToken.burnFrom(msg.sender, amount);
 
-        emit Burn(msg.sender, amount, receiver);
+        emit Burn(msg.sender, amount, serviceFeeInWhbar, receiver);
     }
 
     /**
@@ -168,23 +180,22 @@ contract Bridge is Governance, Pausable {
     }
 
     /// @notice Claims the accrued fees of a member
-    function claim() public {
+    function claim(uint256 _amount) public {
         createNewCheckpoint();
 
         require(
-            claimableFees[msg.sender] > 0,
+            _amount > 0 && _amount <= claimableFees[msg.sender],
             "Bridge: msg.sender has nothing to claim"
         );
-        uint256 amountToMint = claimableFees[msg.sender];
-        claimableFees[msg.sender] = 0;
+        claimableFees[msg.sender] = claimableFees[msg.sender].sub(_amount);
 
         if (!paused()) {
-            whbarToken.mint(msg.sender, amountToMint);
+            whbarToken.mint(msg.sender, _amount);
         } else {
-            whbarToken.transfer(msg.sender, amountToMint);
+            whbarToken.transfer(msg.sender, _amount);
         }
-        totalClaimableFees = totalClaimableFees.sub(amountToMint);
-        emit Claim(msg.sender, amountToMint);
+        totalClaimableFees = totalClaimableFees.sub(_amount);
+        emit Claim(msg.sender, _amount);
     }
 
     /// @notice Deprecates the contract. The outstanding, non-claimed fees are minted to the bridge contract for members to claim
