@@ -16,7 +16,7 @@ abstract contract Governance is Ownable {
     EnumerableSet.AddressSet private membersSet;
 
     /// @notice Total checkpoints so far
-    uint256 public totalCheckpoints = 0;
+    uint256 public totalCheckpoints;
 
     /// @notice Total fees that could be claimed
     uint256 public totalClaimableFees;
@@ -35,11 +35,6 @@ abstract contract Governance is Ownable {
     modifier onlyMember() {
         require(isMember(msg.sender), "Governance: msg.sender is not a member");
         _;
-    }
-
-    /// @notice Construct a new Governance contract
-    constructor() public {
-        checkpointServiceFeesAccrued[totalCheckpoints] = 0; // sets value to allocate state
     }
 
     /**
