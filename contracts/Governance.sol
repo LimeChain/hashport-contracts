@@ -77,23 +77,23 @@ abstract contract Governance is Ownable {
     /// @notice Creates a new checkpoint, distributing the accrued fees
     /// of the previous checkpoint to all members
     function createNewCheckpoint() internal {
-        uint256 membersCount = membersCount();
-        if (membersCount == 0) {
+        uint256 mCount = membersCount();
+        if (mCount == 0) {
             return;
         }
 
         uint256 feesAccrued = checkpointServiceFeesAccrued[totalCheckpoints];
-        uint256 feePerMember = feesAccrued.div(membersCount);
+        uint256 feePerMember = feesAccrued.div(mCount);
         if (feePerMember == 0) {
             return;
         }
 
-        uint256 feesTotal = feePerMember.mul(membersCount);
+        uint256 feesTotal = feePerMember.mul(mCount);
         uint256 feesLeft = feesAccrued.sub(feesTotal); // fees left due to integer division
         totalCheckpoints++;
         checkpointServiceFeesAccrued[totalCheckpoints] = feesLeft;
 
-        for (uint256 i = 0; i < membersCount; i++) {
+        for (uint256 i = 0; i < mCount; i++) {
             address currentMember = memberAt(i);
             claimableFees[currentMember] = claimableFees[currentMember].add(
                 feePerMember

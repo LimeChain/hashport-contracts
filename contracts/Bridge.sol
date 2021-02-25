@@ -45,7 +45,7 @@ contract Bridge is Governance, Pausable {
         address indexed account,
         uint256 amount,
         uint256 serviceFee,
-        bytes indexed receiver
+        bytes receiver
     );
 
     /// @notice An event emitted once the service fee is modified
@@ -142,8 +142,8 @@ contract Bridge is Governance, Pausable {
         emit Mint(
             receiver,
             amountToMint,
-            serviceFeeInWhbar,
             txCost,
+            serviceFeeInWhbar,
             transactionId
         );
     }
@@ -162,8 +162,9 @@ contract Bridge is Governance, Pausable {
         _distributeFees(serviceFeeInWhbar);
 
         whbarToken.burnFrom(msg.sender, amount);
+        uint256 bridgedAmount = amount.sub(serviceFeeInWhbar);
 
-        emit Burn(msg.sender, amount, serviceFeeInWhbar, receiver);
+        emit Burn(msg.sender, bridgedAmount, serviceFeeInWhbar, receiver);
     }
 
     /**
