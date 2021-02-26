@@ -180,7 +180,10 @@ contract Bridge is Governance, Pausable {
         emit ServiceFeeSet(msg.sender, _serviceFee);
     }
 
-    /// @notice Claims the accrued fees of a member
+    /**
+     * @notice Claims an amount of accrued fees to msg.sender
+     * @param _amount The target amount
+     */
     function claim(uint256 _amount) public {
         createNewCheckpoint();
 
