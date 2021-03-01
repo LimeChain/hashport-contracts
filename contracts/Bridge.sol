@@ -1,4 +1,4 @@
-pragma solidity 0.6.0;
+pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/utils/Pausable.sol";
@@ -36,11 +36,17 @@ contract Bridge is Governance, Pausable {
         address indexed account,
         uint256 amount,
         uint256 txCost,
+        uint256 serviceFee,
         bytes indexed transactionId
     );
 
     /// @notice An event emitted once a Burn transaction is executed
-    event Burn(address indexed account, uint256 amount, bytes indexed receiver);
+    event Burn(
+        address indexed account,
+        uint256 amount,
+        uint256 serviceFee,
+        bytes receiver
+    );
 
     /// @notice An event emitted once the service fee is modified
     event ServiceFeeSet(address account, uint256 newServiceFee);
@@ -133,7 +139,13 @@ contract Bridge is Governance, Pausable {
         uint256 amountToMint = amount.sub(txCost).sub(serviceFeeInWhbar);
         whbarToken.mint(receiver, amountToMint);
 
-        emit Mint(receiver, amountToMint, txCost, transactionId);
+        emit Mint(
+            receiver,
+            amountToMint,
+            txCost,
+            serviceFeeInWhbar,
+            transactionId
+        );
     }
 
     /**
@@ -150,8 +162,9 @@ contract Bridge is Governance, Pausable {
         _distributeFees(serviceFeeInWhbar);
 
         whbarToken.burnFrom(msg.sender, amount);
+        uint256 bridgedAmount = amount.sub(serviceFeeInWhbar);
 
-        emit Burn(msg.sender, amount, receiver);
+        emit Burn(msg.sender, bridgedAmount, serviceFeeInWhbar, receiver);
     }
 
     /**
@@ -167,22 +180,26 @@ contract Bridge is Governance, Pausable {
         emit ServiceFeeSet(msg.sender, _serviceFee);
     }
 
-    /// @notice Claims the accrued fees of a member
-    function claim() public {
+    /**
+     * @notice Claims an amount of accrued fees to msg.sender
+     * @param _amount The target amount
+     */
+    function claim(uint256 _amount) public {
+        createNewCheckpoint();
+
         require(
-            claimableFees[msg.sender] > 0,
+            _amount > 0 && _amount <= claimableFees[msg.sender],
             "Bridge: msg.sender has nothing to claim"
         );
-        uint256 amountToMint = claimableFees[msg.sender];
-        claimableFees[msg.sender] = 0;
+        claimableFees[msg.sender] = claimableFees[msg.sender].sub(_amount);
 
         if (!paused()) {
-            whbarToken.mint(msg.sender, amountToMint);
+            whbarToken.mint(msg.sender, _amount);
         } else {
-            whbarToken.transfer(msg.sender, amountToMint);
+            whbarToken.transfer(msg.sender, _amount);
         }
-        totalClaimableFees = totalClaimableFees.sub(amountToMint);
-        emit Claim(msg.sender, amountToMint);
+        totalClaimableFees = totalClaimableFees.sub(_amount);
+        emit Claim(msg.sender, _amount);
     }
 
     /// @notice Deprecates the contract. The outstanding, non-claimed fees are minted to the bridge contract for members to claim
@@ -192,35 +209,31 @@ contract Bridge is Governance, Pausable {
         emit Deprecate(msg.sender, totalClaimableFees);
     }
 
-    /// @notice Updates the accrued fees of members based on service and tx fees
+    /// @notice Updates the accrued fees based on service and tx fees
     function _distributeFees(uint256 _serviceFeeInWhbar, uint256 _txFee)
         private
     {
         totalClaimableFees = totalClaimableFees.add(_serviceFeeInWhbar).add(
             _txFee
         );
-
-        _setMembersRewards(_serviceFeeInWhbar);
+        _addServiceFeeReward(_serviceFeeInWhbar);
 
         claimableFees[msg.sender] = claimableFees[msg.sender].add(_txFee);
     }
 
-    /// @notice Updates the accrued fees of members based on service fee
+    /// @notice Updates the accrued fees based on service fee
     function _distributeFees(uint256 _serviceFeeInWhbar) private {
         totalClaimableFees = totalClaimableFees.add(_serviceFeeInWhbar);
-        _setMembersRewards(_serviceFeeInWhbar);
+        _addServiceFeeReward(_serviceFeeInWhbar);
     }
 
-    /// @notice Increments all members rewards the new service and tx fees
-    function _setMembersRewards(uint256 _serviceFeeInWhbar) private {
-        uint256 serviceFeePerSigner = _serviceFeeInWhbar.div(membersCount());
-
-        for (uint256 i = 0; i < membersCount(); i++) {
-            address currentMember = memberAt(i);
-            claimableFees[currentMember] = claimableFees[currentMember].add(
-                serviceFeePerSigner
-            );
-        }
+    /// @notice Adds a service fee reward to the latest checkpoint
+    function _addServiceFeeReward(uint256 _serviceFeeReward) private {
+        checkpointServiceFeesAccrued[
+            totalCheckpoints
+        ] = checkpointServiceFeesAccrued[totalCheckpoints].add(
+            _serviceFeeReward
+        );
     }
 
     /// @notice Computes the bytes32 ethereum signed message hash of the signature

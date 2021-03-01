@@ -1,22 +1,31 @@
-pragma solidity 0.6.0;
+pragma solidity ^0.6.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/EnumerableSet.sol";
 
 /**
  *  @author LimeChain Dev team
  *  @title Governance contract, providing governance/members functionality
  */
-contract Governance is Ownable {
+abstract contract Governance is Ownable {
+    using SafeMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /// @notice Iterable set of members
     EnumerableSet.AddressSet private membersSet;
 
+    /// @notice Total checkpoints so far
+    uint256 public totalCheckpoints;
+
     /// @notice Total fees that could be claimed
     uint256 public totalClaimableFees;
 
-    /// @notice Mapping of members and the fees that they are eligble to claim
+    /// @notice Total fees accrued per each checkpoint
+    mapping(uint256 => uint256) public checkpointServiceFeesAccrued;
+
+    /// @notice Mapping of members and the fees that they are eligble to claim.
+    /// Does not include the fees of each member from the current checkpoint.
     mapping(address => uint256) public claimableFees;
 
     /// @notice An event emitted once member is updated
@@ -34,6 +43,8 @@ contract Governance is Ownable {
      * @param isMember Whether the account will be set as member or not
      */
     function updateMember(address account, bool isMember) public onlyOwner {
+        createNewCheckpoint();
+
         if (isMember) {
             require(
                 membersSet.add(account),
@@ -61,5 +72,52 @@ contract Governance is Ownable {
     /// @notice Returns the address of a member at a given index
     function memberAt(uint256 index) public view returns (address) {
         return membersSet.at(index);
+    }
+
+    /// @notice Creates a new checkpoint, distributing the accrued fees
+    /// of the previous checkpoint to all members
+    function createNewCheckpoint() internal {
+        uint256 mCount = membersCount();
+        if (mCount == 0) {
+            return;
+        }
+
+        uint256 feesAccrued = checkpointServiceFeesAccrued[totalCheckpoints];
+        uint256 feePerMember = feesAccrued.div(mCount);
+        if (feePerMember == 0) {
+            return;
+        }
+
+        uint256 feesTotal = feePerMember.mul(mCount);
+        uint256 feesLeft = feesAccrued.sub(feesTotal); // fees left due to integer division
+        totalCheckpoints++;
+        checkpointServiceFeesAccrued[totalCheckpoints] = feesLeft;
+
+        for (uint256 i = 0; i < mCount; i++) {
+            address currentMember = memberAt(i);
+            claimableFees[currentMember] = claimableFees[currentMember].add(
+                feePerMember
+            );
+        }
+    }
+
+    /**
+     * @notice Gets the claimable fee of a member, including the fee from the current checkpoint
+     * @param _address the target address
+     */
+    function claimableFeesFor(address _address) public view returns (uint256) {
+        if (!isMember(_address)) {
+            return claimableFees[_address];
+        }
+
+        uint256 currentCheckpointFeePerMember = 0;
+        if (membersCount() > 0) {
+            currentCheckpointFeePerMember = checkpointServiceFeesAccrued[
+                totalCheckpoints
+            ]
+                .div(membersCount());
+        }
+
+        return claimableFees[_address].add(currentCheckpointFeePerMember);
     }
 }

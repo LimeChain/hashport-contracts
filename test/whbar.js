@@ -76,6 +76,12 @@ describe("WHBAR", function () {
         await assert.emit(whbarInstace.setControllerAddress(controller.address), expectedEvent);
     });
 
+    it("Should emit SetControllerAddress event arguments", async () => {
+        const expectedEvent = "SetControllerAddress";
+        const expectedEventArgs = [controller.address];
+        await assert.emitWithArgs(whbarInstace.setControllerAddress(controller.address), expectedEvent, expectedEventArgs);
+    });
+
     it("Should revert if not owner tries to set bridge contract address", async () => {
         const expectedRevertMessage = "Ownable: caller is not the owner";
 

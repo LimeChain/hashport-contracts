@@ -23,13 +23,13 @@ describe("Bridge", function () {
     // 5% multiplied by 1000
     const serviceFee = "5000";
 
-    const transactionId = "0x123";
-    const hederaAddress = "0x234";
+    const transactionId = ethers.utils.formatBytes32String("0.0.0000-0000000000-000000000");
+    const hederaAddress = ethers.utils.formatBytes32String("0.0.0000");
     const receiver = nonMember.address;
     const amount = ethers.utils.parseEther("100");
     const txCost = ethers.utils.parseEther("1");
     const precision = 100000;
-
+    const expectedMintServiceFee = amount.sub(txCost).mul(serviceFee).div(precision);
 
     beforeEach(async () => {
         deployer = new etherlime.EtherlimeGanacheDeployer(owner.secretKey);
@@ -78,7 +78,7 @@ describe("Bridge", function () {
             assert(membersCount.eq(expectedCount));
         });
 
-        it("Should set multiple member", async () => {
+        it("Should set multiple members", async () => {
             await bridgeInstance.updateMember(aliceMember.address, true);
             await bridgeInstance.updateMember(bobMember.address, true);
             await bridgeInstance.updateMember(carlMember.address, true);
@@ -102,7 +102,7 @@ describe("Bridge", function () {
             assert.equal(carlAtIndex, carlMember.address);
         });
 
-        it("Should not set a member if not from admin", async () => {
+        it("Should not set a member if not from owner", async () => {
             const expectedRevertMessage = "Ownable: caller is not the owner";
             await assert.revertWith(bridgeInstance.from(notAdmin.address).updateMember(aliceMember.address, true), expectedRevertMessage);
         });
@@ -122,6 +122,21 @@ describe("Bridge", function () {
                     true
                 ),
                 expectedEvent
+            );
+        });
+
+        it("Should emit MemberUpdated event arguments", async () => {
+            const expectedEvent = "MemberUpdated";
+            await assert.emitWithArgs(
+                bridgeInstance.updateMember(
+                    aliceMember.address,
+                    true
+                ),
+                expectedEvent,
+                [
+                    aliceMember.address,
+                    true
+                ]
             );
         });
 
@@ -169,6 +184,20 @@ describe("Bridge", function () {
             );
         });
 
+        it("Should emit ServiceFeeSet event arguments", async () => {
+            const newFee = 7000;
+
+            const expectedEvent = "ServiceFeeSet";
+            await assert.emitWithArgs(
+                bridgeInstance.setServiceFee(newFee),
+                expectedEvent,
+                [
+                    owner.signer.address,
+                    newFee
+                ]
+            );
+        });
+
         it("Should not set a service fee if not from owner", async () => {
             const newFee = 7000;
 
@@ -200,27 +229,36 @@ describe("Bridge", function () {
 
             const aliceSignature = await aliceMember.signMessage(hashData);
             const bobSignature = await bobMember.signMessage(hashData);
-            const carlSignatude = await carlMember.signMessage(hashData);
+            const carlSignature = await carlMember.signMessage(hashData);
 
-            await bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignatude]);
+            const expectedCheckpoints = await bridgeInstance.totalCheckpoints();
 
-            const expectedServiceFee = amount.sub(txCost).mul(serviceFee).div(precision);
+            const feesAccruedForCheckpointBeforeMint = await bridgeInstance.checkpointServiceFeesAccrued(expectedCheckpoints);
+
+            await bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature]);
 
             const balanceOFReciever = await whbarInstance.balanceOf(receiver);
-            assert(balanceOFReciever.eq(amount.sub(txCost).sub(expectedServiceFee)));
+            assert(balanceOFReciever.eq(amount.sub(txCost).sub(expectedMintServiceFee)));
 
-            const aliceBalance = await bridgeInstance.claimableFees(aliceMember.address);
-            assert(aliceBalance.eq(expectedServiceFee.div(3).add(txCost)));
+            const aliceBalance = await bridgeInstance.claimableFeesFor(aliceMember.address);
+            assert(aliceBalance.eq(expectedMintServiceFee.div(3).add(txCost)));
 
-            const bobBalance = await bridgeInstance.claimableFees(bobMember.address);
-            assert(bobBalance.eq(expectedServiceFee.div(3)));
+            const bobBalance = await bridgeInstance.claimableFeesFor(bobMember.address);
+            assert(bobBalance.eq(expectedMintServiceFee.div(3)));
 
-            const carlBalance = await bridgeInstance.claimableFees(carlMember.address);
-            assert(carlBalance.eq(expectedServiceFee.div(3)));
+            const carlBalance = await bridgeInstance.claimableFeesFor(carlMember.address);
+            assert(carlBalance.eq(expectedMintServiceFee.div(3)));
 
             const totalClaimableFees = await bridgeInstance.totalClaimableFees();
 
-            assert(totalClaimableFees.eq(expectedServiceFee.add(txCost)));
+            assert(totalClaimableFees.eq(expectedMintServiceFee.add(txCost)));
+
+            const totalCheckpoints = await bridgeInstance.totalCheckpoints();
+            assert(expectedCheckpoints.eq(totalCheckpoints));
+
+            const expectedFeesAccruedForCheckpoint = feesAccruedForCheckpointBeforeMint.add(expectedMintServiceFee);
+            const feesAccruedForCheckpointAfterMint = await bridgeInstance.checkpointServiceFeesAccrued(totalCheckpoints);
+            assert(expectedFeesAccruedForCheckpoint.eq(feesAccruedForCheckpointAfterMint));
 
             const isExecuted = await bridgeInstance.mintTransfers(transactionId);
             assert.ok(isExecuted);
@@ -235,9 +273,9 @@ describe("Bridge", function () {
 
             const aliceSignature = await aliceMember.signMessage(hashData);
             const bobSignature = await bobMember.signMessage(hashData);
-            const carlSignatude = await carlMember.signMessage(hashData);
+            const carlSignature = await carlMember.signMessage(hashData);
 
-            await assert.emit(bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignatude]), expectedEvent);
+            await assert.emit(bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature]), expectedEvent);
         });
 
         it("Should not execute same mint transaction twice", async () => {
@@ -321,21 +359,7 @@ describe("Bridge", function () {
     describe("Burn", function () {
 
         beforeEach(async () => {
-
-            await bridgeInstance.updateMember(aliceMember.address, true);
-            await bridgeInstance.updateMember(bobMember.address, true);
-            await bridgeInstance.updateMember(carlMember.address, true);
-
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
-            const hashMsg = ethers.utils.keccak256(encodeData);
-            const hashData = ethers.utils.arrayify(hashMsg);
-
-            const aliceSignature = await aliceMember.signMessage(hashData);
-            const bobSignature = await bobMember.signMessage(hashData);
-            const carlSignatude = await carlMember.signMessage(hashData);
-
-            await bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignatude]);
-
+            await updateMembersAndMint();
         });
 
         it("Should burn tokens", async () => {
@@ -343,27 +367,32 @@ describe("Bridge", function () {
             await whbarInstance.from(nonMember).approve(bridgeInstance.contractAddress, amountToBurn);
 
             const balanceOFReciever = await whbarInstance.balanceOf(receiver);
-            const aliceBalance = await bridgeInstance.claimableFees(aliceMember.address);
-            const bobBalance = await bridgeInstance.claimableFees(bobMember.address);
-            const carlBalance = await bridgeInstance.claimableFees(carlMember.address);
+            const aliceBalance = await bridgeInstance.claimableFeesFor(aliceMember.address);
+            const bobBalance = await bridgeInstance.claimableFeesFor(bobMember.address);
+            const carlBalance = await bridgeInstance.claimableFeesFor(carlMember.address);
             const totalClaimableFees = await bridgeInstance.totalClaimableFees();
+
+            const expectedTotalCheckpoints = await bridgeInstance.totalCheckpoints();
+            const feesAccruedForCheckpointBeforeMint = await bridgeInstance.checkpointServiceFeesAccrued(expectedTotalCheckpoints);
 
             await bridgeInstance.from(nonMember).burn(amountToBurn, hederaAddress);
 
             const balanceOFRecieverAfter = await whbarInstance.balanceOf(receiver);
-            const aliceBalanceAfter = await bridgeInstance.claimableFees(aliceMember.address);
-            const bobBalanceAfter = await bridgeInstance.claimableFees(bobMember.address);
-            const carlBalanceAfter = await bridgeInstance.claimableFees(carlMember.address);
+            const aliceBalanceAfter = await bridgeInstance.claimableFeesFor(aliceMember.address);
+            const bobBalanceAfter = await bridgeInstance.claimableFeesFor(bobMember.address);
+            const carlBalanceAfter = await bridgeInstance.claimableFeesFor(carlMember.address);
             const totalClaimableFeesAfter = await bridgeInstance.totalClaimableFees();
 
             const feeAmount = amountToBurn.mul(serviceFee).div(precision);
+            const feesAccruedForCheckpointAfterMint = await bridgeInstance.checkpointServiceFeesAccrued(expectedTotalCheckpoints);
 
             assert(balanceOFRecieverAfter.eq(balanceOFReciever.sub(amountToBurn)));
             assert(aliceBalanceAfter.eq(aliceBalance.add(feeAmount.div(3))));
             assert(bobBalanceAfter.eq(bobBalance.add(feeAmount.div(3))));
             assert(carlBalanceAfter.eq(carlBalance.add(feeAmount.div(3))));
-            assert(totalClaimableFeesAfter.eq(totalClaimableFees.add(feeAmount)));
 
+            assert(totalClaimableFeesAfter.eq(totalClaimableFees.add(feeAmount)));
+            assert(feesAccruedForCheckpointAfterMint.eq(feesAccruedForCheckpointBeforeMint.add(feeAmount)));
         });
 
         it("Should emit burn event", async () => {
@@ -373,6 +402,25 @@ describe("Bridge", function () {
             const expectedEvent = "Burn";
 
             await assert.emit(bridgeInstance.from(nonMember).burn(amountToBurn, hederaAddress), expectedEvent);
+        });
+
+        it("Should emit burn event arguments", async () => {
+            const amountToBurn = ethers.utils.parseEther("5");
+            const expectedServiceFee = amountToBurn.mul(serviceFee).div(precision);
+            const expectedAmount = amountToBurn.sub(expectedServiceFee);
+            await whbarInstance.from(nonMember).approve(bridgeInstance.contractAddress, amountToBurn);
+
+            const expectedEvent = "Burn";
+
+            await assert.emitWithArgs(
+                bridgeInstance.from(nonMember).burn(amountToBurn, hederaAddress),
+                expectedEvent,
+                [
+                    nonMember.address,
+                    expectedAmount,
+                    expectedServiceFee,
+                    hederaAddress
+                ]);
         });
 
         it("Should revert if there are no approved tokens", async () => {
@@ -425,21 +473,42 @@ describe("Bridge", function () {
 
             const aliceSignature = await aliceMember.signMessage(hashData);
             const bobSignature = await bobMember.signMessage(hashData);
-            const carlSignatude = await carlMember.signMessage(hashData);
+            const carlSignature = await carlMember.signMessage(hashData);
 
-            await bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignatude]);
+            await bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature]);
         });
 
         describe("Claim", function () {
             it("Should claim service fees", async () => {
+                const expectedServiceFeePerMember = expectedMintServiceFee.div(await bridgeInstance.membersCount());
+                let expectedTotalCheckpoints = 0;
                 const totalAmount = await bridgeInstance.totalClaimableFees();
 
                 const tokensTotalSupply = await whbarInstance.totalSupply();
-                const expextedTotalSupply = amount.sub(txCost).sub(amount.sub(txCost).mul(serviceFee).div(precision));
-                assert(tokensTotalSupply.eq(expextedTotalSupply));
+                const expectedTotalSupply = amount.sub(txCost).sub(amount.sub(txCost).mul(serviceFee).div(precision));
+                assert(tokensTotalSupply.eq(expectedTotalSupply));
+
+                const nonMemberClaimableFees = await bridgeInstance.claimableFeesFor(nonMember.address);
+                assert(nonMemberClaimableFees.eq(0));
+
+                assert(totalAmount.eq(txCost.add(expectedMintServiceFee)));
+
+                const totalCheckpoints = await bridgeInstance.totalCheckpoints();
+                assert(totalCheckpoints.eq(expectedTotalCheckpoints));
+
+                let feesAccruedForCheckpoint = await bridgeInstance.checkpointServiceFeesAccrued(0);
+                assert(feesAccruedForCheckpoint.eq(expectedMintServiceFee));
+
+                let aliceClaimableFees = await bridgeInstance.claimableFeesFor(aliceMember.address);
+                let bobClaimableFees = await bridgeInstance.claimableFeesFor(bobMember.address);
+                let carlClaimableFees = await bridgeInstance.claimableFeesFor(carlMember.address);
+                assert(aliceClaimableFees.eq(txCost.add(expectedServiceFeePerMember)));
+                assert(bobClaimableFees.eq(expectedServiceFeePerMember));
+                assert(carlClaimableFees.eq(expectedServiceFeePerMember));
 
                 // Alice
-                await bridgeInstance.from(aliceMember.address).claim();
+                await bridgeInstance.from(aliceMember.address).claim(txCost.add(expectedMintServiceFee.div(3)));
+                expectedTotalCheckpoints++;
 
                 const aliceBalance = await whbarInstance.balanceOf(aliceMember.address);
 
@@ -452,49 +521,100 @@ describe("Bridge", function () {
                 let totalAmountLeft = await bridgeInstance.totalClaimableFees();
                 assert(totalAmountLeft.eq(totalAmount.sub(aliceBalance)));
 
+                const totalCheckpointsAfterAliceClaim = await bridgeInstance.totalCheckpoints();
+                assert(totalCheckpointsAfterAliceClaim.eq(expectedTotalCheckpoints));
+
+                bobClaimableFees = await bridgeInstance.claimableFeesFor(bobMember.address);
+                carlClaimableFees = await bridgeInstance.claimableFeesFor(carlMember.address);
+
+                assert(bobClaimableFees.eq(expectedMintServiceFee.div(3)));
+                assert(carlClaimableFees.eq(expectedMintServiceFee.div(3)));
+
+                feesAccruedForCheckpoint = await bridgeInstance.checkpointServiceFeesAccrued(expectedTotalCheckpoints);
+                assert(feesAccruedForCheckpoint.eq(0));
+
                 // Bob
-                await bridgeInstance.from(bobMember.address).claim();
+                await bridgeInstance.from(bobMember.address).claim(expectedServiceFeePerMember);
                 const bobBalance = await whbarInstance.balanceOf(bobMember.address);
 
                 const expectedBobBalance = amount.sub(txCost).mul(serviceFee).div(precision).div(3);
                 assert(bobBalance.eq(expectedBobBalance));
 
-                claimableFeesLeft = await bridgeInstance.claimableFees(bobMember.address);
+                const totalCheckpointsAfterBobClaim = await bridgeInstance.totalCheckpoints();
+                assert(totalCheckpointsAfterBobClaim.eq(expectedTotalCheckpoints));
+
+                claimableFeesLeft = await bridgeInstance.claimableFeesFor(bobMember.address);
                 assert(claimableFeesLeft.eq(0));
 
                 totalAmountLeft = await bridgeInstance.totalClaimableFees();
                 assert(totalAmountLeft.eq(totalAmount.sub(bobBalance).sub(aliceBalance)));
 
+                carlClaimableFees = await bridgeInstance.claimableFeesFor(carlMember.address);
+                assert(carlClaimableFees.eq(expectedMintServiceFee.div(3)));
+
+                feesAccruedForCheckpoint = await bridgeInstance.checkpointServiceFeesAccrued(expectedTotalCheckpoints);
+                assert(feesAccruedForCheckpoint.eq(0));
+
                 // Carl
-                await bridgeInstance.from(carlMember.address).claim();
+                await bridgeInstance.from(carlMember.address).claim(expectedServiceFeePerMember);
                 const carlBalance = await whbarInstance.balanceOf(carlMember.address);
 
                 const expectedCarlBalance = amount.sub(txCost).mul(serviceFee).div(precision).div(3);
                 assert(carlBalance.eq(expectedCarlBalance));
 
-                claimableFeesLeft = await bridgeInstance.claimableFees(carlMember.address);
+                claimableFeesLeft = await bridgeInstance.claimableFeesFor(carlMember.address);
                 assert(claimableFeesLeft.eq(0));
 
                 totalAmountLeft = await bridgeInstance.totalClaimableFees();
                 assert(totalAmountLeft.eq(totalAmount.sub(bobBalance).sub(aliceBalance).sub(carlBalance)));
 
                 const newTokensTotalSupply = await whbarInstance.totalSupply();
-                assert(newTokensTotalSupply.eq(expextedTotalSupply.add(aliceBalance).add(bobBalance).add(carlBalance)));
+                assert(newTokensTotalSupply.eq(expectedTotalSupply.add(aliceBalance).add(bobBalance).add(carlBalance)));
+
+                const totalCheckpointsAfterCarlClaim = await bridgeInstance.totalCheckpoints();
+                assert(totalCheckpointsAfterCarlClaim.eq(expectedTotalCheckpoints));
+
+                feesAccruedForCheckpoint = await bridgeInstance.checkpointServiceFeesAccrued(expectedTotalCheckpoints);
+                assert(feesAccruedForCheckpoint.eq(0));
             });
 
             it("Should emit claim event", async () => {
                 const expectedEvent = "Claim";
-                await assert.emit(bridgeInstance.from(aliceMember.address).claim(), expectedEvent);
+                await assert.emit(bridgeInstance.from(aliceMember.address).claim(txCost), expectedEvent);
+            });
+
+            it("Should emit claim event arguments", async () => {
+                const expectedEvent = "Claim";
+                await assert.emitWithArgs(
+                    bridgeInstance.from(aliceMember.address).claim(txCost),
+                    expectedEvent,
+                    [
+                        aliceMember.address,
+                        txCost
+                    ]);
             });
 
             it("Should revertWith if user without balance tries to claim", async () => {
                 const expectedRevertMessage = "Bridge: msg.sender has nothing to claim";
-                await assert.revertWith(bridgeInstance.from(nonMember.address).claim(), expectedRevertMessage);
+                await assert.revertWith(bridgeInstance.from(nonMember.address).claim(txCost), expectedRevertMessage);
+            });
+
+            it("Should be able to claim after member is removed", async () => {
+                await bridgeInstance.updateMember(aliceMember.address, false);
+
+                await bridgeInstance.from(aliceMember.address).claim(txCost.add(expectedMintServiceFee.div(3)));
+                const aliceBalance = await whbarInstance.balanceOf(aliceMember.address);
+
+                const expectedAliceBalance = amount.sub(txCost).mul(serviceFee).div(precision).div(3).add(txCost);
+                assert(aliceBalance.eq(expectedAliceBalance));
+
+                let claimableFeesLeft = await bridgeInstance.claimableFees(aliceMember.address);
+                assert(claimableFeesLeft.eq(0));
             });
         });
 
         describe("Deprecate", function () {
-            it("Should depricate Bridge", async () => {
+            it("Should deprecate Bridge", async () => {
                 let isPaused = await bridgeInstance.paused();
                 assert.ok(!isPaused);
                 await bridgeInstance.deprecate();
@@ -511,18 +631,31 @@ describe("Bridge", function () {
                 await assert.emit(bridgeInstance.deprecate(), expectedEvent);
             });
 
-            it("Should not depricate Bridge if already deprecated", async () => {
+            it("Should emit Deprecate event arguments", async () => {
+                const expectedAmount = await bridgeInstance.totalClaimableFees();
+                const expectedEvent = "Deprecate";
+                await assert.emitWithArgs(
+                    bridgeInstance.deprecate(),
+                    expectedEvent,
+                    [
+                        owner.signer.address,
+                        expectedAmount
+                    ]);
+            });
+
+            it("Should not deprecate Bridge if already deprecated", async () => {
                 await bridgeInstance.deprecate();
                 const expectedRevertMessage = "Pausable: paused";
                 await assert.revertWith(bridgeInstance.deprecate(), expectedRevertMessage);
             });
 
-            it("Should not depricate Bridge if not called from owner", async () => {
+            it("Should not deprecate Bridge if not called from owner", async () => {
                 const expectedRevertMessage = "Ownable: caller is not the owner";
                 await assert.revertWith(bridgeInstance.from(aliceMember).deprecate(), expectedRevertMessage);
             });
 
-            it("Should allow members to claim when depricated", async () => {
+            it("Should allow members to claim when deprecated", async () => {
+                const expectedServiceFeePerMember = expectedMintServiceFee.div(await bridgeInstance.membersCount());
                 await bridgeInstance.deprecate();
 
                 const expextedTotalSupply = amount;
@@ -532,7 +665,7 @@ describe("Bridge", function () {
                 const totalAmount = await bridgeInstance.totalClaimableFees();
 
                 // Alice
-                await bridgeInstance.from(aliceMember.address).claim();
+                await bridgeInstance.from(aliceMember.address).claim(txCost.add(expectedServiceFeePerMember));
 
                 const aliceBalance = await whbarInstance.balanceOf(aliceMember.address);
 
@@ -546,7 +679,7 @@ describe("Bridge", function () {
                 assert(totalAmountLeft.eq(totalAmount.sub(aliceBalance)));
 
                 // Bob
-                await bridgeInstance.from(bobMember.address).claim();
+                await bridgeInstance.from(bobMember.address).claim(expectedServiceFeePerMember);
                 const bobBalance = await whbarInstance.balanceOf(bobMember.address);
 
                 const expectedBobBalance = amount.sub(txCost).mul(serviceFee).div(precision).div(3);
@@ -559,7 +692,7 @@ describe("Bridge", function () {
                 assert(totalAmountLeft.eq(totalAmount.sub(bobBalance).sub(aliceBalance)));
 
                 // Carl
-                await bridgeInstance.from(carlMember.address).claim();
+                await bridgeInstance.from(carlMember.address).claim(expectedServiceFeePerMember);
                 const carlBalance = await whbarInstance.balanceOf(carlMember.address);
 
                 const expectedCarlBalance = amount.sub(txCost).mul(serviceFee).div(precision).div(3);
@@ -575,21 +708,154 @@ describe("Bridge", function () {
                 assert(tokensTotalSupply.eq(expextedTotalSupply));
             });
 
-            it("Should not allow mint transaction if depricated", async () => {
+            it("Should not allow mint transaction if deprecated", async () => {
                 await bridgeInstance.deprecate();
 
-                newTxId = "0x2";
-                const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [newTxId, receiver, amount, txCost]);
+                const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
                 const hashMsg = ethers.utils.keccak256(encodeData);
                 const hashData = ethers.utils.arrayify(hashMsg);
 
                 const aliceSignature = await aliceMember.signMessage(hashData);
                 const bobSignature = await bobMember.signMessage(hashData);
-                const carlSignatude = await carlMember.signMessage(hashData);
+                const carlSignature = await carlMember.signMessage(hashData);
 
                 const expectedRevertMessage = "Pausable: paused";
-                await assert.revertWith(bridgeInstance.from(aliceMember).mint(newTxId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignatude]), expectedRevertMessage);
+                await assert.revertWith(bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature]), expectedRevertMessage);
             });
         });
     });
+
+    describe("Checkpoints", async () => {
+        beforeEach(async () => {
+            await updateMembersAndMint();
+        });
+
+        it("Should properly diststribute fees upon member change", async () => {
+            const beforeUpdateCheckpoints = await bridgeInstance.totalCheckpoints();
+            const expectedServiceFeePerMember = expectedMintServiceFee.div(await bridgeInstance.membersCount());
+
+            await bridgeInstance.updateMember(aliceMember.address, false);
+
+            const afterUpdateCheckpoints = await bridgeInstance.totalCheckpoints();
+            assert(afterUpdateCheckpoints.eq(beforeUpdateCheckpoints.add(1)));
+
+            const totalFeesForNewCheckpoint = await bridgeInstance.checkpointServiceFeesAccrued(afterUpdateCheckpoints);
+            assert(totalFeesForNewCheckpoint.eq(0));
+
+            const aliceClaimableFees = await bridgeInstance.claimableFees(aliceMember.address);
+            const aliceTotalClaimableFees = await bridgeInstance.claimableFeesFor(aliceMember.address);
+            assert(aliceClaimableFees.eq(txCost.add(expectedServiceFeePerMember)));
+            assert(aliceClaimableFees.eq(aliceTotalClaimableFees));
+
+            const bobClaimableFees = await bridgeInstance.claimableFees(bobMember.address);
+            const bobTotalClaimableFees = await bridgeInstance.claimableFeesFor(bobMember.address);
+            assert(bobClaimableFees.eq(expectedServiceFeePerMember));
+            assert(bobTotalClaimableFees.eq(bobClaimableFees));
+
+            const carolClaimableFees = await bridgeInstance.claimableFees(carlMember.address);
+            const carolTotalClaimableFees = await bridgeInstance.claimableFeesFor(carlMember.address);
+            assert(carolClaimableFees.eq(expectedServiceFeePerMember));
+            assert(carolTotalClaimableFees.eq(carolClaimableFees));
+        });
+
+        it("Should not update checkpoints twice after consecutive update and claim", async () => {
+            const beforeUpdateCheckpoints = await bridgeInstance.totalCheckpoints();
+            const expectedCheckpoints = beforeUpdateCheckpoints.add(1);
+
+            await bridgeInstance.updateMember(aliceMember.address, false);
+
+            const afterUpdateCheckpoints = await bridgeInstance.totalCheckpoints();
+            assert(afterUpdateCheckpoints.eq(expectedCheckpoints));
+
+            await bridgeInstance.from(aliceMember.address).claim(await bridgeInstance.claimableFeesFor(aliceMember.address));
+
+            const afterClaimCheckpoints = await bridgeInstance.totalCheckpoints();
+            assert(afterClaimCheckpoints.eq(expectedCheckpoints));
+        });
+
+        it("Should leave leftovers in next checkpoint", async () => {
+            const membersCount = await bridgeInstance.membersCount();
+            const additionalAmount = ethers.utils.parseEther("1");
+            const newTxCost = ethers.utils.parseEther("0.5");
+            const nexTxId = "0x1234";
+
+            const expectedAdditionalMintServiceFee = additionalAmount
+                .sub(newTxCost)
+                .mul(serviceFee)
+                .div(precision);
+            const expectedTotalClaimableFeesAfterAdditionalMint = txCost
+                .add(newTxCost)
+                .add(expectedMintServiceFee)
+                .add(expectedAdditionalMintServiceFee);
+
+            const expectedCheckpointServiceFeesAccrued = expectedAdditionalMintServiceFee
+                .add(expectedMintServiceFee);
+
+            const checkpointServiceFeesPerMember = expectedCheckpointServiceFeesAccrued.div(membersCount);
+
+            const expectedLeftoversForNewCheckpoint = expectedCheckpointServiceFeesAccrued
+                .sub(
+                    checkpointServiceFeesPerMember
+                        .mul(membersCount)
+                );
+
+            const encodeData = ethers.utils.defaultAbiCoder
+                .encode(["bytes", "address", "uint256", "uint256"], [nexTxId, receiver, additionalAmount, newTxCost]);
+            const hashMsg = ethers.utils.keccak256(encodeData);
+            const hashData = ethers.utils.arrayify(hashMsg);
+
+            const aliceSignature = await aliceMember.signMessage(hashData);
+            const bobSignature = await bobMember.signMessage(hashData);
+            const carlSignature = await carlMember.signMessage(hashData);
+
+            await bridgeInstance.from(aliceMember).mint(nexTxId, receiver, additionalAmount, newTxCost, [aliceSignature, bobSignature, carlSignature]);
+
+            const totalClaimableFees = await bridgeInstance.totalClaimableFees();
+            assert(totalClaimableFees.eq(expectedTotalClaimableFeesAfterAdditionalMint));
+
+            const totalCheckpointsBeforeUpdateMember = await bridgeInstance.totalCheckpoints();
+            const feesAccruedForCheckpointBeforeUpdateMember = await bridgeInstance.checkpointServiceFeesAccrued(totalCheckpointsBeforeUpdateMember);
+            assert(feesAccruedForCheckpointBeforeUpdateMember.eq(expectedCheckpointServiceFeesAccrued));
+
+            await bridgeInstance.updateMember(aliceMember.address, false); // new checkpoint is created
+
+            const totalCheckpointsAfterUpdateMember = await bridgeInstance.totalCheckpoints();
+            assert(totalCheckpointsAfterUpdateMember.eq(totalCheckpointsBeforeUpdateMember.add(1)));
+
+            const feesAccruedForPreviousCheckpoint = await bridgeInstance.checkpointServiceFeesAccrued(totalCheckpointsBeforeUpdateMember);
+            assert(feesAccruedForPreviousCheckpoint.eq(feesAccruedForCheckpointBeforeUpdateMember));
+
+            const feesAccruedForNewCheckpoint = await bridgeInstance.checkpointServiceFeesAccrued(totalCheckpointsAfterUpdateMember);
+            assert(feesAccruedForNewCheckpoint.eq(expectedLeftoversForNewCheckpoint));
+
+            const aliceTotalClaimableFees = await bridgeInstance.claimableFeesFor(aliceMember.address);
+            assert(aliceTotalClaimableFees
+                .eq(txCost
+                    .add(newTxCost)
+                    .add(checkpointServiceFeesPerMember)
+                ));
+
+            const bobTotalClaimableFees = await bridgeInstance.claimableFeesFor(bobMember.address);
+            assert(bobTotalClaimableFees.eq(checkpointServiceFeesPerMember));
+
+            const carolTotalClaimableFees = await bridgeInstance.claimableFeesFor(carlMember.address);
+            assert(carolTotalClaimableFees.eq(checkpointServiceFeesPerMember));
+        });
+    });
+
+    async function updateMembersAndMint() {
+        await bridgeInstance.updateMember(aliceMember.address, true);
+        await bridgeInstance.updateMember(bobMember.address, true);
+        await bridgeInstance.updateMember(carlMember.address, true);
+
+        const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
+        const hashMsg = ethers.utils.keccak256(encodeData);
+        const hashData = ethers.utils.arrayify(hashMsg);
+
+        const aliceSignature = await aliceMember.signMessage(hashData);
+        const bobSignature = await bobMember.signMessage(hashData);
+        const carlSignature = await carlMember.signMessage(hashData);
+
+        await bridgeInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature]);
+    }
 });
