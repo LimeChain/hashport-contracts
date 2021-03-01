@@ -598,6 +598,19 @@ describe("Bridge", function () {
                 const expectedRevertMessage = "Bridge: msg.sender has nothing to claim";
                 await assert.revertWith(bridgeInstance.from(nonMember.address).claim(txCost), expectedRevertMessage);
             });
+
+            it("Should be able to claim after member is removed", async () => {
+                await bridgeInstance.updateMember(aliceMember.address, false);
+
+                await bridgeInstance.from(aliceMember.address).claim(txCost.add(expectedMintServiceFee.div(3)));
+                const aliceBalance = await whbarInstance.balanceOf(aliceMember.address);
+
+                const expectedAliceBalance = amount.sub(txCost).mul(serviceFee).div(precision).div(3).add(txCost);
+                assert(aliceBalance.eq(expectedAliceBalance));
+
+                let claimableFeesLeft = await bridgeInstance.claimableFees(aliceMember.address);
+                assert(claimableFeesLeft.eq(0));
+            });
         });
 
         describe("Deprecate", function () {
