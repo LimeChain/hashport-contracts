@@ -28,8 +28,8 @@ const deploy = async (network, secret) => {
     await bridgeInstance.updateMember("0x4fA67c4ebC625B496eFC85c3ebf757551Da88dED", true);
     await bridgeInstance.updateMember("0x8f35870Df31C5C3b9f7772f3dA20EB580e865AB3", true);
 
-    // await whbarInstance.transferOwnership(multisigWallet);
-    // await bridgeInstance.transferOwnership(multisigWallet);
+    await whbarInstance.transferOwnership(multisigWallet);
+    await bridgeInstance.transferOwnership(multisigWallet);
 };
 
 module.exports = {
