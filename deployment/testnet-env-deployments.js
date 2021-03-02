@@ -17,7 +17,7 @@ const deploy = async (network, secret) => {
         deployer = new etherlime.InfuraPrivateKeyDeployer(secret, network, INFURA_PROVIDER);
     }
 
-    whbarInstance = await deployer.deploy(WHBAR, {}, "Name", "Symbol", 8);
+    whbarInstance = await deployer.deploy(WHBAR, {}, "Wrapper HBAR", "WHBAR", 8);
     bridgeInstance = await deployer.deploy(Bridge, {}, whbarInstance.contractAddress, serviceFee);
 
     await whbarInstance.setControllerAddress(bridgeInstance.contractAddress);
