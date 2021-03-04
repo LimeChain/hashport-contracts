@@ -55,12 +55,6 @@ etherlime compile --solcVersion 0.6.0
 etherlime deploy ./deployment/testnet-env-deployments.js --compile false --network /network name or id/ --secret /your private key/
 ```
 
-#### Hedera deployment (3 accounts + topic)
-
-```
-OPERATOR_KEY=... OPERATOR_ID=... node ./scripts/hedera-deploy.js
-```
-
 ## Diagrams
 
 UML diagram for the 2 major contracts are presented here.
