@@ -2,7 +2,6 @@ pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/utils/Pausable.sol";
-// import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 import "./Interfaces/IWrappedToken.sol";
 import "./PriceDistributor.sol";
 
@@ -92,13 +91,14 @@ contract Bridge is PriceDistributor, Pausable {
         address receiver,
         uint256 amount,
         uint256 txCost,
-        bytes memory transactionId
+        bytes memory transactionId,
+        address executorMember
     ) public whenNotPaused onlyRouterContract(msg.sender) returns (bool) {
         // (amount - txCost) * (serviceFee(%) * 1000) / (100(%) * 1000)
         uint256 serviceFeeInWTokens =
             amount.sub(txCost).mul(serviceFee).div(PRECISION);
 
-        _distributeFees(serviceFeeInWTokens, txCost);
+        _distributeFees(executorMember, serviceFeeInWTokens, txCost);
 
         uint256 amountToMint = amount.sub(txCost).sub(serviceFeeInWTokens);
         wrappedToken.mint(receiver, amountToMint);
@@ -173,15 +173,19 @@ contract Bridge is PriceDistributor, Pausable {
     }
 
     /// @notice Updates the accrued fees based on service and tx fees
-    function _distributeFees(uint256 _serviceFeeInWTokens, uint256 _txFee)
-        private
-    {
+    function _distributeFees(
+        address _executorMember,
+        uint256 _serviceFeeInWTokens,
+        uint256 _txFee
+    ) private {
         totalClaimableFees = totalClaimableFees.add(_serviceFeeInWTokens).add(
             _txFee
         );
         _addServiceFeeReward(_serviceFeeInWTokens);
 
-        claimableFees[msg.sender] = claimableFees[msg.sender].add(_txFee);
+        claimableFees[_executorMember] = claimableFees[_executorMember].add(
+            _txFee
+        );
     }
 
     /// @notice Updates the accrued fees based on service fee

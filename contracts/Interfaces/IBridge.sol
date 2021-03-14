@@ -5,7 +5,8 @@ interface IBridge {
         address receiver,
         uint256 amount,
         uint256 txCost,
-        bytes calldata transactionId
+        bytes calldata transactionId,
+        address executorMember
     ) external returns (bool);
 
     function burn(

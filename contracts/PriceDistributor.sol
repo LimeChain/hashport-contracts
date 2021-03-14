@@ -4,6 +4,10 @@ import "./Interfaces/IGovernance.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+/**
+ *  @author LimeChain Dev team
+ *  @title PriceDistributor contract, providing fee distribution services
+ */
 contract PriceDistributor is Ownable {
     using SafeMath for uint256;
 
@@ -23,6 +27,9 @@ contract PriceDistributor is Ownable {
     /// Does not include the fees of each member from the current checkpoint.
     mapping(address => uint256) public claimableFees;
 
+    /// @notice An event emitted once a router contract is set
+    event RouterContractSet(address routerContract, address setBy);
+
     /// @notice Creates a new checkpoint, distributing the accrued fees
     /// of the previous checkpoint to all members
     function _createNewCheckpoint() internal {
@@ -36,7 +43,7 @@ contract PriceDistributor is Ownable {
         if (feePerMember == 0) {
             return;
         }
-        
+
         uint256 feesTotal = feePerMember.mul(mCount);
         uint256 feesLeft = feesAccrued.sub(feesTotal); // fees left due to integer division
         totalCheckpoints++;
@@ -49,10 +56,14 @@ contract PriceDistributor is Ownable {
         }
     }
 
+    /**
+     * @notice Set the address of the router contract
+     * @param _routerContract the router contract address
+     */
     function setRouterContract(address _routerContract) public onlyOwner {
         require(_routerContract != address(0));
         routerContract = _routerContract;
-        // TODO: throw an event and unit test it
+        emit RouterContractSet(_routerContract, msg.sender);
     }
 
     /**

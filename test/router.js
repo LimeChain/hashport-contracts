@@ -31,7 +31,7 @@ describe("Bridge", function () {
     const amount = ethers.utils.parseEther("100");
     const txCost = ethers.utils.parseEther("10");
     const precision = 100000;
-    const expectedMintServiceFee = (amount.sub(txCost)).mul(serviceFee).div(precision);
+    const expectedMintServiceFee = amount.sub(txCost).mul(serviceFee).div(precision);
 
     beforeEach(async () => {
         deployer = new etherlime.EtherlimeGanacheDeployer(owner.secretKey);
@@ -52,7 +52,6 @@ describe("Bridge", function () {
 
         routerInstance = await deployer.deploy(Router);
 
-        await bridgeInstance.setRouterContract(routerInstance.contractAddress);
         await whbarInstance.setControllerAddress(bridgeInstance.contractAddress);
     });
 
@@ -165,7 +164,43 @@ describe("Bridge", function () {
             await assert.revertWith(routerInstance.updateMember(aliceMember.address, false), expectedRevertMessage);
         });
 
-        // TODO: Add tests for add/remove bridges
+        it("Should set bridge contract", async () => {
+            await routerInstance.setBridgeContract(bridgeInstance.contractAddress, true);
+            const bridgesCount = await routerInstance.bridgesCount();
+            assert(bridgesCount.eq(1));
+            const isBridge = await routerInstance.isBridge(bridgeInstance.contractAddress);
+            assert.ok(isBridge);
+
+            const bridgeAddress = await routerInstance.bridgeAt(0);
+            assert.equal(bridgeAddress, bridgeInstance.contractAddress);
+        });
+
+        it("Should revert if not owner tries to set bridge contract", async () => {
+            const expectedRevertMessage = "Ownable: caller is not the owner";
+            await assert.revertWith(routerInstance.from(notAdmin).setBridgeContract(bridgeInstance.contractAddress, true), expectedRevertMessage);
+
+        });
+
+        it("Should emit BridgeContractSet event", async () => {
+            const expectedEvent = "BridgeContractSet";
+
+            await assert.emit(
+                routerInstance.setBridgeContract(bridgeInstance.contractAddress, true),
+                expectedEvent
+            );
+        });
+
+        it("Should emit BridgeContractSet event arguments", async () => {
+            const expectedEvent = "BridgeContractSet";
+            await assert.emitWithArgs(
+                routerInstance.setBridgeContract(bridgeInstance.contractAddress, true),
+                expectedEvent,
+                [
+                    bridgeInstance.contractAddress,
+                    true
+                ]
+            );
+        });
 
     });
 
@@ -178,11 +213,12 @@ describe("Bridge", function () {
             await routerInstance.updateMember(bobMember.address, true);
             await routerInstance.updateMember(carlMember.address, true);
 
+            await bridgeInstance.setRouterContract(routerInstance.contractAddress);
             await routerInstance.setBridgeContract(bridgeInstance.contractAddress, true);
         });
 
-        it.only("Should execute mint transaction", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
+        it("Should execute mint transaction", async () => {
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256", "address"], [transactionId, receiver, amount, txCost, bridgeInstance.contractAddress]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -201,10 +237,7 @@ describe("Bridge", function () {
 
             const aliceBalance = await bridgeInstance.claimableFeesFor(aliceMember.address);
 
-            // TODO: Check this out
-            console.log(aliceBalance.toString());
-            console.log(expectedMintServiceFee.div(3).add(txCost).toString());
-            // assert(aliceBalance.eq(expectedMintServiceFee.div(3).add(txCost)));
+            assert(aliceBalance.eq(expectedMintServiceFee.div(3).add(txCost)));
 
             const bobBalance = await bridgeInstance.claimableFeesFor(bobMember.address);
             assert(bobBalance.eq(expectedMintServiceFee.div(3)));
@@ -228,7 +261,7 @@ describe("Bridge", function () {
         });
 
         it("Should not execute same mint transaction twice", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256", "address"], [transactionId, receiver, amount, txCost, bridgeInstance.contractAddress]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -244,7 +277,7 @@ describe("Bridge", function () {
         });
 
         it("Should not execute mint transaction with less than the half signatures", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256", "address"], [transactionId, receiver, amount, txCost, bridgeInstance.contractAddress]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -255,7 +288,7 @@ describe("Bridge", function () {
         });
 
         it("Should not execute mint transaction from other than a member", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256", "address"], [transactionId, receiver, amount, txCost, bridgeInstance.contractAddress]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -267,7 +300,7 @@ describe("Bridge", function () {
         });
 
         it("Should not execute mint transaction signed from non member", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256", "address"], [transactionId, receiver, amount, txCost, bridgeInstance.contractAddress]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -279,7 +312,7 @@ describe("Bridge", function () {
         });
 
         it("Should not execute mint transaction with identical signatures", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256", "address"], [transactionId, receiver, amount, txCost, bridgeInstance.contractAddress]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -292,7 +325,7 @@ describe("Bridge", function () {
         it("Should not execute mint transaction with wrong data", async () => {
             const wrongAmount = ethers.utils.parseEther("200");
 
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256", "address"], [transactionId, receiver, amount, txCost, bridgeInstance.contractAddress]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -394,10 +427,8 @@ describe("Bridge", function () {
                 let aliceClaimableFees = await bridgeInstance.claimableFeesFor(aliceMember.address);
                 let bobClaimableFees = await bridgeInstance.claimableFeesFor(bobMember.address);
                 let carlClaimableFees = await bridgeInstance.claimableFeesFor(carlMember.address);
-                console.log(aliceClaimableFees.toString());
 
-                // TODO: Alice Calculations
-                // assert(aliceClaimableFees.eq(txCost.add(expectedServiceFeePerMember)));
+                assert(aliceClaimableFees.eq(txCost.add(expectedServiceFeePerMember)));
                 assert(bobClaimableFees.eq(expectedServiceFeePerMember));
                 assert(carlClaimableFees.eq(expectedServiceFeePerMember));
 
@@ -496,7 +527,6 @@ describe("Bridge", function () {
 
             it("Should be able to claim after member is removed", async () => {
                 await routerInstance.updateMember(aliceMember.address, false);
-                //TODO: Alice calculations
                 await bridgeInstance.from(aliceMember.address).claim(txCost.add(expectedMintServiceFee.div(3)));
                 const aliceBalance = await whbarInstance.balanceOf(aliceMember.address);
 
@@ -521,7 +551,6 @@ describe("Bridge", function () {
                 const totalAmount = await bridgeInstance.totalClaimableFees();
 
                 // Alice
-                // TODO: Alice calculations...
                 await bridgeInstance.from(aliceMember.address).claim(txCost.add(expectedServiceFeePerMember));
 
                 const aliceBalance = await whbarInstance.balanceOf(aliceMember.address);
@@ -569,7 +598,7 @@ describe("Bridge", function () {
                 await routerInstance.deprecate(bridgeInstance.contractAddress);
                 const newTransactionId = ethers.utils.formatBytes32String("0.0.0000-0000000000-000000001");
 
-                const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [newTransactionId, receiver, amount, txCost]);
+                const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256", "address"], [newTransactionId, receiver, amount, txCost, bridgeInstance.contractAddress]);
                 const hashMsg = ethers.utils.keccak256(encodeData);
                 const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -603,12 +632,8 @@ describe("Bridge", function () {
 
             const aliceClaimableFees = await bridgeInstance.claimableFees(aliceMember.address);
             const aliceTotalClaimableFees = await bridgeInstance.claimableFeesFor(aliceMember.address);
-            //TODO: Alice...
-            // assert(aliceClaimableFees.eq(txCost.add(expectedServiceFeePerMember)));
+            assert(aliceClaimableFees.eq(txCost.add(expectedServiceFeePerMember)));
             assert(aliceClaimableFees.eq(aliceTotalClaimableFees));
-
-            console.log(aliceClaimableFees.toString());
-            console.log(aliceTotalClaimableFees.toString());
 
             const bobClaimableFees = await bridgeInstance.claimableFees(bobMember.address);
             const bobTotalClaimableFees = await bridgeInstance.claimableFeesFor(bobMember.address);
@@ -663,7 +688,7 @@ describe("Bridge", function () {
                 );
 
             const encodeData = ethers.utils.defaultAbiCoder
-                .encode(["bytes", "address", "uint256", "uint256"], [nexTxId, receiver, additionalAmount, newTxCost]);
+                .encode(["bytes", "address", "uint256", "uint256", "address"], [nexTxId, receiver, additionalAmount, newTxCost, bridgeInstance.contractAddress]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -691,19 +716,13 @@ describe("Bridge", function () {
             const feesAccruedForNewCheckpoint = await bridgeInstance.checkpointServiceFeesAccrued(totalCheckpointsAfterUpdateMember);
             assert(feesAccruedForNewCheckpoint.eq(expectedLeftoversForNewCheckpoint));
 
-            //TODO: Alice..
             const aliceTotalClaimableFees = await bridgeInstance.claimableFeesFor(aliceMember.address);
 
-            console.log(aliceTotalClaimableFees.toString());
-            console.log(txCost
-                .add(newTxCost)
-                .add(checkpointServiceFeesPerMember).toString());
-
-            // assert(aliceTotalClaimableFees
-            //     .eq(txCost
-            //         .add(newTxCost)
-            //         .add(checkpointServiceFeesPerMember)
-            //     ));
+            assert(aliceTotalClaimableFees
+                .eq(txCost
+                    .add(newTxCost)
+                    .add(checkpointServiceFeesPerMember)
+                ));
 
             const bobTotalClaimableFees = await bridgeInstance.claimableFeesFor(bobMember.address);
             assert(bobTotalClaimableFees.eq(checkpointServiceFeesPerMember));
@@ -718,7 +737,7 @@ describe("Bridge", function () {
         await routerInstance.updateMember(bobMember.address, true);
         await routerInstance.updateMember(carlMember.address, true);
 
-        const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256"], [transactionId, receiver, amount, txCost]);
+        const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "uint256", "uint256", "address"], [transactionId, receiver, amount, txCost, bridgeInstance.contractAddress]);
         const hashMsg = ethers.utils.keccak256(encodeData);
         const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -727,8 +746,8 @@ describe("Bridge", function () {
         const carlSignature = await carlMember.signMessage(hashData);
 
         await routerInstance.setBridgeContract(bridgeInstance.contractAddress, true);
+        await bridgeInstance.setRouterContract(routerInstance.contractAddress);
 
         await routerInstance.from(aliceMember).mint(transactionId, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature], bridgeInstance.contractAddress);
     }
-    // });
 });

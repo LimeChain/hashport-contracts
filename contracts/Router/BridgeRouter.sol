@@ -15,6 +15,9 @@ contract BridgeRouter is Governance {
     /// @notice Storage metadata for hedera -> eth transactions. Key bytes represents Hedera TransactionID
     mapping(bytes => Transaction) public mintTransfers;
 
+    /// @notice An event emitted once bridge contract is set
+    event BridgeContractSet(address newBridge, bool isActive);
+
     /// @notice Accepts number of signatures in the range (n/2; n] where n is the number of members
     modifier onlyValidSignatures(uint256 n) {
         uint256 members = membersCount();
@@ -61,7 +64,13 @@ contract BridgeRouter is Governance {
     {
         require(bridgesSet.contains(bridgeContract));
         bytes32 ethHash =
-            computeMessage(transactionId, receiver, amount, txCost);
+            computeMessage(
+                transactionId,
+                receiver,
+                amount,
+                txCost,
+                bridgeContract
+            );
 
         Transaction storage transaction = mintTransfers[transactionId];
 
@@ -81,7 +90,8 @@ contract BridgeRouter is Governance {
                 receiver,
                 amount,
                 txCost,
-                transactionId
+                transactionId,
+                msg.sender
             )
         );
     }
@@ -132,6 +142,8 @@ contract BridgeRouter is Governance {
         } else {
             require(bridgesSet.remove(newBridge));
         }
+
+        emit BridgeContractSet(newBridge, isActive);
     }
 
     /// @notice Deprecates the contract. The outstanding, non-claimed fees are minted to the bridge contract for members to claim
@@ -139,15 +151,39 @@ contract BridgeRouter is Governance {
         require(IBridge(bridgeContract).deprecate());
     }
 
+    /// @notice Returns true/false depending on whether a given address is active bridge or not
+    function isBridge(address _bridge) public view returns (bool) {
+        return bridgesSet.contains(_bridge);
+    }
+
+    /// @notice Returns the count of the bridges
+    function bridgesCount() public view returns (uint256) {
+        return bridgesSet.length();
+    }
+
+    /// @notice Returns the address of a bridge at a given index
+    function bridgeAt(uint256 index) public view returns (address) {
+        return bridgesSet.at(index);
+    }
+
     /// @notice Computes the bytes32 ethereum signed message hash of the signature
     function computeMessage(
         bytes memory transactionId,
         address receiver,
         uint256 amount,
-        uint256 txCost
+        uint256 txCost,
+        address bridgeContract
     ) private pure returns (bytes32) {
         bytes32 hashedData =
-            keccak256(abi.encode(transactionId, receiver, amount, txCost));
+            keccak256(
+                abi.encode(
+                    transactionId,
+                    receiver,
+                    amount,
+                    txCost,
+                    bridgeContract
+                )
+            );
         return ECDSA.toEthSignedMessageHash(hashedData);
     }
 }
