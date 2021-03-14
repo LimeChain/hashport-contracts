@@ -2,28 +2,25 @@ pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/utils/Pausable.sol";
-import "@openzeppelin/contracts/cryptography/ECDSA.sol";
-import "./WHBAR.sol";
-import "./Governance.sol";
+// import "@openzeppelin/contracts/cryptography/ECDSA.sol";
+import "./Interfaces/IWrappedToken.sol";
+import "./PriceDistributor.sol";
 
 /**
  *  @author LimeChain Dev team
  *  @title HBAR Bridge Contract
  */
-contract Bridge is Governance, Pausable {
+contract Bridge is PriceDistributor, Pausable {
     using SafeMath for uint256;
 
-    /// @notice The configured WHBAR token
-    WHBAR public whbarToken;
+    /// @notice The configured wrappedToken
+    IWrappedToken public wrappedToken;
 
     /// @notice Value of the service fee in percentage. Range 0% to 99.999% multiplied my 1000
     uint256 public serviceFee;
 
     /// @notice Precision of the service fee
     uint256 constant PRECISION = 100000;
-
-    /// @notice Storage metadata for hedera -> eth transactions. Key bytes represents Hedera TransactionID
-    mapping(bytes => Transaction) public mintTransfers;
 
     /// @notice Struct containing necessary metadata for a given transaction
     struct Transaction {
@@ -36,7 +33,6 @@ contract Bridge is Governance, Pausable {
         address indexed account,
         uint256 amount,
         uint256 txCost,
-        uint256 serviceFee,
         bytes indexed transactionId
     );
 
@@ -59,25 +55,16 @@ contract Bridge is Governance, Pausable {
 
     /**
      *  @notice Construct a new Bridge contract
-     *  @param _whbarToken The address of the ERC20 WHBAR token
+     *  @param _wrappedToken The address of the ERC20 Wrapped token
      *  @param _serviceFee The initial service fee
      */
-    constructor(address _whbarToken, uint256 _serviceFee) public {
-        whbarToken = WHBAR(_whbarToken);
+    constructor(address _wrappedToken, uint256 _serviceFee) public {
+        wrappedToken = IWrappedToken(_wrappedToken);
         serviceFee = _serviceFee;
     }
 
-    /// @notice Accepts only non-executed transactions
-    modifier onlyValidTxId(bytes memory txId) {
-        require(
-            !mintTransfers[txId].isExecuted,
-            "Bridge: txId already submitted"
-        );
-        _;
-    }
-
     /// @notice Accepts only service fee between 0 and PRECISION
-    modifier onyValidServiceFee(uint256 _serviceFee) {
+    modifier onlyValidServiceFee(uint256 _serviceFee) {
         require(
             _serviceFee < PRECISION,
             "Bridge: Service fee cannot exceed 100%"
@@ -85,86 +72,61 @@ contract Bridge is Governance, Pausable {
         _;
     }
 
-    /// @notice Accepts number of signatures in the range (n/2; n] where n is the number of members
-    modifier onlyValidSignatures(uint256 n) {
-        uint256 members = membersCount();
-        require(n <= members, "Bridge: Invalid number of signatures");
-        require(n > members / 2, "Bridge: Invalid number of signatures");
+    /// @notice Allows calls only from router contract
+    modifier onlyRouterContract(address _routerContract) {
+        require(
+            _routerContract == routerContract,
+            "Bridge: Only executable from the router contract"
+        );
         _;
     }
 
     /**
-     * @notice Mints `amount - fees` WHBARs to the `receiver` address. Must be authorised by `signatures` from the `members` set
-     * @param transactionId The Hedera Transaction ID
+     * @notice Mints `amount - fees` WrappedTokens to the `receiver` address. Must be authorised by `signatures` from the `members` set
      * @param receiver The address receiving the tokens
      * @param amount The desired minting amount
-     * @param txCost The amount of WHBARs reimbursed to `msg.sender`
-     * @param signatures The array of signatures from the members, authorising the operation
+     * @param txCost The amount of WrappedTokens reimbursed to `msg.sender`
+     * @param transactionId The Hedera Transaction ID
      */
     function mint(
-        bytes memory transactionId,
         address receiver,
         uint256 amount,
         uint256 txCost,
-        bytes[] memory signatures
-    )
-        public
-        whenNotPaused
-        onlyValidTxId(transactionId)
-        onlyMember
-        onlyValidSignatures(signatures.length)
-    {
-        bytes32 ethHash =
-            computeMessage(transactionId, receiver, amount, txCost);
-
-        Transaction storage transaction = mintTransfers[transactionId];
-
-        for (uint256 i = 0; i < signatures.length; i++) {
-            address signer = ECDSA.recover(ethHash, signatures[i]);
-            require(isMember(signer), "Bridge: invalid signer");
-            require(
-                !transaction.signatures[signer],
-                "Bridge: signature already set"
-            );
-            transaction.signatures[signer] = true;
-        }
-        transaction.isExecuted = true;
-
+        bytes memory transactionId
+    ) public whenNotPaused onlyRouterContract(msg.sender) returns (bool) {
         // (amount - txCost) * (serviceFee(%) * 1000) / (100(%) * 1000)
-        uint256 serviceFeeInWhbar =
-            (amount.sub(txCost)).mul(serviceFee).div(PRECISION);
+        uint256 serviceFeeInWTokens =
+            amount.sub(txCost).mul(serviceFee).div(PRECISION);
 
-        _distributeFees(serviceFeeInWhbar, txCost);
+        _distributeFees(serviceFeeInWTokens, txCost);
 
-        uint256 amountToMint = amount.sub(txCost).sub(serviceFeeInWhbar);
-        whbarToken.mint(receiver, amountToMint);
+        uint256 amountToMint = amount.sub(txCost).sub(serviceFeeInWTokens);
+        wrappedToken.mint(receiver, amountToMint);
+        emit Mint(receiver, amount, txCost, transactionId);
 
-        emit Mint(
-            receiver,
-            amountToMint,
-            txCost,
-            serviceFeeInWhbar,
-            transactionId
-        );
+        return true;
     }
 
     /**
-     * @notice Burns `amount` WHBARs from `msg.sender`, distributes fees
+     * @notice Burns `amount` WrappedTokens from `msg.sender`, distributes fees
      * and emits Burn event initiating the bridging of the tokens
-     * @param amount The amount of WHBARs to be bridged
+     * @param amount The amount of WrappedTokens to be bridged
      * @param receiver The Hedera account to receive the HBARs
      */
-    function burn(uint256 amount, bytes memory receiver) public whenNotPaused {
-        require(receiver.length > 0, "Bridge: invalid receiver value");
+    function burn(
+        address from,
+        uint256 amount,
+        bytes memory receiver
+    ) public whenNotPaused onlyRouterContract(msg.sender) returns (bool) {
+        uint256 serviceFeeInWTokens = amount.mul(serviceFee).div(PRECISION);
 
-        uint256 serviceFeeInWhbar = amount.mul(serviceFee).div(PRECISION);
+        _distributeFees(serviceFeeInWTokens);
 
-        _distributeFees(serviceFeeInWhbar);
+        wrappedToken.burnFrom(from, amount);
+        uint256 bridgedAmount = amount.sub(serviceFeeInWTokens);
 
-        whbarToken.burnFrom(msg.sender, amount);
-        uint256 bridgedAmount = amount.sub(serviceFeeInWhbar);
-
-        emit Burn(msg.sender, bridgedAmount, serviceFeeInWhbar, receiver);
+        emit Burn(from, bridgedAmount, serviceFeeInWTokens, receiver);
+        return true;
     }
 
     /**
@@ -173,8 +135,8 @@ contract Bridge is Governance, Pausable {
      */
     function setServiceFee(uint256 _serviceFee)
         public
-        onyValidServiceFee(_serviceFee)
-        onlyOwner
+        onlyValidServiceFee(_serviceFee)
+        onlyOwner()
     {
         serviceFee = _serviceFee;
         emit ServiceFeeSet(msg.sender, _serviceFee);
@@ -185,7 +147,7 @@ contract Bridge is Governance, Pausable {
      * @param _amount The target amount
      */
     function claim(uint256 _amount) public {
-        createNewCheckpoint();
+        _createNewCheckpoint();
 
         require(
             _amount > 0 && _amount <= claimableFees[msg.sender],
@@ -194,37 +156,38 @@ contract Bridge is Governance, Pausable {
         claimableFees[msg.sender] = claimableFees[msg.sender].sub(_amount);
 
         if (!paused()) {
-            whbarToken.mint(msg.sender, _amount);
+            wrappedToken.mint(msg.sender, _amount);
         } else {
-            whbarToken.transfer(msg.sender, _amount);
+            wrappedToken.transfer(msg.sender, _amount);
         }
         totalClaimableFees = totalClaimableFees.sub(_amount);
         emit Claim(msg.sender, _amount);
     }
 
     /// @notice Deprecates the contract. The outstanding, non-claimed fees are minted to the bridge contract for members to claim
-    function deprecate() public onlyOwner {
-        whbarToken.mint(address(this), totalClaimableFees);
+    function deprecate() public onlyRouterContract(msg.sender) returns (bool) {
+        wrappedToken.mint(address(this), totalClaimableFees);
         _pause();
         emit Deprecate(msg.sender, totalClaimableFees);
+        return true;
     }
 
     /// @notice Updates the accrued fees based on service and tx fees
-    function _distributeFees(uint256 _serviceFeeInWhbar, uint256 _txFee)
+    function _distributeFees(uint256 _serviceFeeInWTokens, uint256 _txFee)
         private
     {
-        totalClaimableFees = totalClaimableFees.add(_serviceFeeInWhbar).add(
+        totalClaimableFees = totalClaimableFees.add(_serviceFeeInWTokens).add(
             _txFee
         );
-        _addServiceFeeReward(_serviceFeeInWhbar);
+        _addServiceFeeReward(_serviceFeeInWTokens);
 
         claimableFees[msg.sender] = claimableFees[msg.sender].add(_txFee);
     }
 
     /// @notice Updates the accrued fees based on service fee
-    function _distributeFees(uint256 _serviceFeeInWhbar) private {
-        totalClaimableFees = totalClaimableFees.add(_serviceFeeInWhbar);
-        _addServiceFeeReward(_serviceFeeInWhbar);
+    function _distributeFees(uint256 _serviceFeeInWTokens) private {
+        totalClaimableFees = totalClaimableFees.add(_serviceFeeInWTokens);
+        _addServiceFeeReward(_serviceFeeInWTokens);
     }
 
     /// @notice Adds a service fee reward to the latest checkpoint
@@ -236,15 +199,13 @@ contract Bridge is Governance, Pausable {
         );
     }
 
-    /// @notice Computes the bytes32 ethereum signed message hash of the signature
-    function computeMessage(
-        bytes memory transactionId,
-        address receiver,
-        uint256 amount,
-        uint256 txCost
-    ) private pure returns (bytes32) {
-        bytes32 hashedData =
-            keccak256(abi.encode(transactionId, receiver, amount, txCost));
-        return ECDSA.toEthSignedMessageHash(hashedData);
+    /// @notice Allows _createNewCheckpoint() to be called from router
+    function createNewCheckpoint()
+        public
+        onlyRouterContract(msg.sender)
+        returns (bool)
+    {
+        _createNewCheckpoint();
+        return true;
     }
 }
