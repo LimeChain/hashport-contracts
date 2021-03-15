@@ -4,7 +4,7 @@ const WHBAR = require("../build/WHBAR");
 const Router = require("../build/BridgeRouter");
 const ethers = require("ethers");
 
-describe("Bridge", function () {
+describe("Router", function () {
     this.timeout(10000);
 
     let owner = accounts[9];
