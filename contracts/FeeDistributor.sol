@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *  @author LimeChain Dev team
  *  @title PriceDistributor contract, providing fee distribution services
  */
-contract PriceDistributor is Ownable {
+contract FeeDistributor is Ownable {
     using SafeMath for uint256;
 
     /// @notice The configured router contract

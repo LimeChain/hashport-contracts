@@ -3,13 +3,13 @@ pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "./Interfaces/IWrappedToken.sol";
-import "./PriceDistributor.sol";
+import "./FeeDistributor.sol";
 
 /**
  *  @author LimeChain Dev team
  *  @title HBAR Bridge Contract
  */
-contract Bridge is PriceDistributor, Pausable {
+contract Bridge is FeeDistributor, Pausable {
     using SafeMath for uint256;
 
     /// @notice The configured wrappedToken
