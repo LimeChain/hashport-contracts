@@ -15,6 +15,9 @@ contract Bridge is FeeDistributor, Pausable {
     /// @notice The configured wrappedToken
     IWrappedToken public wrappedToken;
 
+    /// @notice The address of the wrapped id
+    bytes32 public wrappedId;
+
     /// @notice Value of the service fee in percentage. Range 0% to 99.999% multiplied my 1000
     uint256 public serviceFee;
 
@@ -56,10 +59,16 @@ contract Bridge is FeeDistributor, Pausable {
      *  @notice Construct a new Bridge contract
      *  @param _wrappedToken The address of the ERC20 Wrapped token
      *  @param _serviceFee The initial service fee
+     *  @param _wrappedId The address of the wrapped id
      */
-    constructor(address _wrappedToken, uint256 _serviceFee) public {
+    constructor(
+        address _wrappedToken,
+        uint256 _serviceFee,
+        bytes32 _wrappedId
+    ) public {
         wrappedToken = IWrappedToken(_wrappedToken);
         serviceFee = _serviceFee;
+        wrappedId = _wrappedId;
     }
 
     /// @notice Accepts only service fee between 0 and PRECISION
@@ -72,9 +81,9 @@ contract Bridge is FeeDistributor, Pausable {
     }
 
     /// @notice Allows calls only from router contract
-    modifier onlyRouterContract(address _routerContract) {
+    modifier onlyRouterContract() {
         require(
-            _routerContract == routerContract,
+            msg.sender == routerContract,
             "Bridge: Only executable from the router contract"
         );
         _;
@@ -93,7 +102,7 @@ contract Bridge is FeeDistributor, Pausable {
         uint256 txCost,
         bytes memory transactionId,
         address executorMember
-    ) public whenNotPaused onlyRouterContract(msg.sender) returns (bool) {
+    ) public whenNotPaused onlyRouterContract returns (bool) {
         // (amount - txCost) * (serviceFee(%) * 1000) / (100(%) * 1000)
         uint256 serviceFeeInWTokens =
             amount.sub(txCost).mul(serviceFee).div(PRECISION);
@@ -117,7 +126,7 @@ contract Bridge is FeeDistributor, Pausable {
         address from,
         uint256 amount,
         bytes memory receiver
-    ) public whenNotPaused onlyRouterContract(msg.sender) returns (bool) {
+    ) public whenNotPaused onlyRouterContract returns (bool) {
         uint256 serviceFeeInWTokens = amount.mul(serviceFee).div(PRECISION);
 
         _distributeFees(serviceFeeInWTokens);
@@ -136,7 +145,7 @@ contract Bridge is FeeDistributor, Pausable {
     function setServiceFee(uint256 _serviceFee)
         public
         onlyValidServiceFee(_serviceFee)
-        onlyOwner()
+        onlyOwner
     {
         serviceFee = _serviceFee;
         emit ServiceFeeSet(msg.sender, _serviceFee);
@@ -165,7 +174,7 @@ contract Bridge is FeeDistributor, Pausable {
     }
 
     /// @notice Deprecates the contract. The outstanding, non-claimed fees are minted to the bridge contract for members to claim
-    function deprecate() public onlyRouterContract(msg.sender) returns (bool) {
+    function deprecate() public onlyRouterContract returns (bool) {
         wrappedToken.mint(address(this), totalClaimableFees);
         _pause();
         emit Deprecate(msg.sender, totalClaimableFees);
@@ -204,11 +213,7 @@ contract Bridge is FeeDistributor, Pausable {
     }
 
     /// @notice Allows _createNewCheckpoint() to be called from router
-    function createNewCheckpoint()
-        public
-        onlyRouterContract(msg.sender)
-        returns (bool)
-    {
+    function createNewCheckpoint() public onlyRouterContract returns (bool) {
         _createNewCheckpoint();
         return true;
     }

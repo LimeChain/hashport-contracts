@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *  @author LimeChain Dev team
  *  @title PriceDistributor contract, providing fee distribution services
  */
-contract FeeDistributor is Ownable {
+abstract contract FeeDistributor is Ownable {
     using SafeMath for uint256;
 
     /// @notice The configured router contract
@@ -61,7 +61,10 @@ contract FeeDistributor is Ownable {
      * @param _routerContract the router contract address
      */
     function setRouterContract(address _routerContract) public onlyOwner {
-        require(_routerContract != address(0));
+        require(
+            _routerContract != address(0),
+            "FeeDistributor: Router contract cannot be zero"
+        );
         routerContract = _routerContract;
         emit RouterContractSet(_routerContract, msg.sender);
     }

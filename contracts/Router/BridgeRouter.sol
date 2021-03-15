@@ -25,6 +25,7 @@ contract BridgeRouter is Governance {
         require(n > members / 2, "Bridge: Invalid number of signatures");
         _;
     }
+
     /// @notice Accepts only non-executed transactions
     modifier onlyValidTxId(bytes memory txId) {
         require(
@@ -47,7 +48,7 @@ contract BridgeRouter is Governance {
      * @param amount The desired minting amount
      * @param txCost The amount of WHBARs reimbursed to `msg.sender`
      * @param signatures The array of signatures from the members, authorising the operation
-     * @param bridgeContract The coresponding bridge contract
+     * @param bridgeContract The corresponding bridge contract
      */
     function mint(
         bytes memory transactionId,
@@ -62,7 +63,10 @@ contract BridgeRouter is Governance {
         onlyMember
         onlyValidSignatures(signatures.length)
     {
-        require(bridgesSet.contains(bridgeContract));
+        require(
+            bridgesSet.contains(bridgeContract),
+            "BridgeRouter: Bridge contract not active"
+        );
         bytes32 ethHash =
             computeMessage(
                 transactionId,
@@ -92,7 +96,8 @@ contract BridgeRouter is Governance {
                 txCost,
                 transactionId,
                 msg.sender
-            )
+            ),
+            "BridgeRouter: Failed to mint tokens"
         );
     }
 
@@ -100,7 +105,7 @@ contract BridgeRouter is Governance {
      * @notice call burn of the given bridgeContract `amount` WHBARs from `msg.sender`, distributes fees
      * @param amount The amount of WHBARs to be bridged
      * @param receiver The Hedera account to receive the HBARs
-     * @param bridgeContract The coresponding bridge contract
+     * @param bridgeContract The corresponding bridge contract
      */
     function burn(
         uint256 amount,
@@ -112,7 +117,10 @@ contract BridgeRouter is Governance {
             "BridgeRouter: invalid bridge address"
         );
         require(receiver.length > 0, "BridgeRouter: invalid receiver value");
-        require(IBridge(bridgeContract).burn(msg.sender, amount, receiver));
+        require(
+            IBridge(bridgeContract).burn(msg.sender, amount, receiver),
+            "BridgeRouter: Failed to burn tokens"
+        );
     }
 
     /**
@@ -123,7 +131,10 @@ contract BridgeRouter is Governance {
      */
     function updateMember(address account, bool isMember) public onlyOwner {
         for (uint256 i = 0; i < bridgesSet.length(); i++) {
-            require(IBridge(bridgesSet.at(i)).createNewCheckpoint());
+            require(
+                IBridge(bridgesSet.at(i)).createNewCheckpoint(),
+                "BridgeRouter: Failed to create checkpoint"
+            );
         }
         _updateMember(account, isMember);
     }
@@ -131,6 +142,7 @@ contract BridgeRouter is Governance {
     /**
      * @notice Adds/Removes Bridge contracts
      * @param newBridge The address of the bridge contract
+     * @param isActive Shows the status of the contract
      */
     function setBridgeContract(address newBridge, bool isActive)
         public
@@ -138,9 +150,15 @@ contract BridgeRouter is Governance {
     {
         require(newBridge != address(0));
         if (isActive) {
-            require(bridgesSet.add(newBridge));
+            require(
+                bridgesSet.add(newBridge),
+                "BridgeRouter: Failed to add bridge contract"
+            );
         } else {
-            require(bridgesSet.remove(newBridge));
+            require(
+                bridgesSet.remove(newBridge),
+                "BridgeRouter: Failed to remove bridge contract"
+            );
         }
 
         emit BridgeContractSet(newBridge, isActive);
@@ -148,7 +166,10 @@ contract BridgeRouter is Governance {
 
     /// @notice Deprecates the contract. The outstanding, non-claimed fees are minted to the bridge contract for members to claim
     function deprecate(address bridgeContract) public onlyOwner {
-        require(IBridge(bridgeContract).deprecate());
+        require(
+            IBridge(bridgeContract).deprecate(),
+            "BridgeRouter: Failed to depecate bridge"
+        );
     }
 
     /// @notice Returns true/false depending on whether a given address is active bridge or not

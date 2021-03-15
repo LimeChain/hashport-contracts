@@ -27,6 +27,7 @@ describe("Router", function () {
 
     const transactionId = ethers.utils.formatBytes32String("0.0.0000-0000000000-000000000");
     const hederaAddress = ethers.utils.formatBytes32String("0.0.0000");
+    const wrappedId = ethers.utils.formatBytes32String("0.0.0001");
     const receiver = nonMember.address;
     const amount = ethers.utils.parseEther("100");
     const txCost = ethers.utils.parseEther("10");
@@ -47,7 +48,8 @@ describe("Router", function () {
             Bridge,
             {},
             whbarInstance.contractAddress,
-            serviceFee
+            serviceFee,
+            wrappedId
         );
 
         routerInstance = await deployer.deploy(Router);
