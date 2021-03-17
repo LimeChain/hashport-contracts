@@ -1,23 +1,21 @@
 const etherlime = require("etherlime-lib");
-const Bridge = require("../build/Bridge");
+const Controller = require("../build/Controller");
 const WHBAR = require("../build/WHBAR");
-const Router = require("../build/BridgeRouter");
+const Router = require("../build/Router");
 
 const ethers = require("ethers");
 
-describe("Bridge", function () {
+describe("Controller", function () {
     this.timeout(10000);
 
     let owner = accounts[9];
     let aliceMember = accounts[1].signer;
-    let bobMember = accounts[2].signer;
-    let carlMember = accounts[3].signer;
     let nonMember = accounts[4].signer;
     let notAdmin = accounts[5].signer;
     let mockRouter = accounts[6].signer;
 
     let routerInstance;
-    let bridgeInstance;
+    let controllerInstance;
     let whbarInstance;
 
     const name = "WrapedHBAR";
@@ -46,8 +44,8 @@ describe("Bridge", function () {
             decimals
         );
 
-        bridgeInstance = await deployer.deploy(
-            Bridge,
+        controllerInstance = await deployer.deploy(
+            Controller,
             {},
             whbarInstance.contractAddress,
             serviceFee,
@@ -56,31 +54,31 @@ describe("Bridge", function () {
 
         routerInstance = await deployer.deploy(Router);
 
-        await whbarInstance.setControllerAddress(bridgeInstance.contractAddress);
+        await whbarInstance.setControllerAddress(controllerInstance.contractAddress);
     });
 
     describe("Contract Setup", function () {
 
-        it("Should deploy Bridge contract", async () => {
+        it("Should deploy Controller contract", async () => {
             assert.isAddress(
-                bridgeInstance.contractAddress,
+                controllerInstance.contractAddress,
                 "The contract was not deployed"
             );
-            const tokenAddress = await bridgeInstance.wrappedToken();
+            const tokenAddress = await controllerInstance.wrappedToken();
             assert.equal(tokenAddress, whbarInstance.contractAddress);
-            const _serviceFee = await bridgeInstance.serviceFee();
+            const _serviceFee = await controllerInstance.serviceFee();
             assert(_serviceFee.eq(serviceFee));
         });
 
         it("Should set router contract", async () => {
-            await bridgeInstance.setRouterContract(routerInstance.contractAddress);
-            const router = await bridgeInstance.routerContract();
+            await controllerInstance.setRouterContract(routerInstance.contractAddress);
+            const router = await controllerInstance.routerContract();
             assert.equal(router, routerInstance.contractAddress);
         });
 
         it("Should revert if not owner tries to set router contract", async () => {
             const expectedRevertMessage = "Ownable: caller is not the owner";
-            await assert.revertWith(bridgeInstance.from(notAdmin).setRouterContract(routerInstance.contractAddress), expectedRevertMessage);
+            await assert.revertWith(controllerInstance.from(notAdmin).setRouterContract(routerInstance.contractAddress), expectedRevertMessage);
 
         });
 
@@ -88,7 +86,7 @@ describe("Bridge", function () {
             const expectedEvent = "RouterContractSet";
 
             await assert.emit(
-                bridgeInstance.setRouterContract(routerInstance.contractAddress),
+                controllerInstance.setRouterContract(routerInstance.contractAddress),
                 expectedEvent
             );
         });
@@ -96,7 +94,7 @@ describe("Bridge", function () {
         it("Should emit RouterContractSet event arguments", async () => {
             const expectedEvent = "RouterContractSet";
             await assert.emitWithArgs(
-                bridgeInstance.setRouterContract(routerInstance.contractAddress),
+                controllerInstance.setRouterContract(routerInstance.contractAddress),
                 expectedEvent,
                 [
                     routerInstance.contractAddress,
@@ -107,8 +105,8 @@ describe("Bridge", function () {
 
         it("Should set a service fee", async () => {
             const newFee = 7000;
-            await bridgeInstance.setServiceFee(newFee);
-            const newServiceFee = await bridgeInstance.serviceFee();
+            await controllerInstance.setServiceFee(newFee);
+            const newServiceFee = await controllerInstance.serviceFee();
             assert.equal(newServiceFee, newFee);
         });
 
@@ -117,7 +115,7 @@ describe("Bridge", function () {
 
             const expectedEvent = "ServiceFeeSet";
             await assert.emit(
-                bridgeInstance.setServiceFee(newFee),
+                controllerInstance.setServiceFee(newFee),
                 expectedEvent
             );
         });
@@ -127,7 +125,7 @@ describe("Bridge", function () {
 
             const expectedEvent = "ServiceFeeSet";
             await assert.emitWithArgs(
-                bridgeInstance.setServiceFee(newFee),
+                controllerInstance.setServiceFee(newFee),
                 expectedEvent,
                 [
                     owner.signer.address,
@@ -140,14 +138,16 @@ describe("Bridge", function () {
             const newFee = 7000;
 
             const expectedRevertMessage = "Ownable: caller is not the owner";
-            await assert.revertWith(bridgeInstance.from(aliceMember).setServiceFee(newFee), expectedRevertMessage);
+            await assert.revertWith(controllerInstance.from(aliceMember).setServiceFee(newFee), expectedRevertMessage);
         });
 
         it("Should revertWith if service fee is equal or above 100%", async () => {
             const newFee = precision;
-            const expectedRevertMessage = "Bridge: Service fee cannot exceed 100%";
-            await assert.revertWith(bridgeInstance.setServiceFee(newFee), expectedRevertMessage);
+            const expectedRevertMessage = "Controller: Service fee cannot exceed 100%";
+            await assert.revertWith(controllerInstance.setServiceFee(newFee), expectedRevertMessage);
         });
+
+        
     });
 
 
@@ -155,41 +155,41 @@ describe("Bridge", function () {
 
         beforeEach(async () => {
 
-            await bridgeInstance.setRouterContract(mockRouter.address);
+            await controllerInstance.setRouterContract(mockRouter.address);
         });
 
         it("Should execute mint transaction", async () => {
 
-            const expectedCheckpoints = await bridgeInstance.totalCheckpoints();
+            const expectedCheckpoints = await controllerInstance.totalCheckpoints();
 
-            const feesAccruedForCheckpointBeforeMint = await bridgeInstance.checkpointServiceFeesAccrued(expectedCheckpoints);
+            const feesAccruedForCheckpointBeforeMint = await controllerInstance.checkpointServiceFeesAccrued(expectedCheckpoints);
 
-            await bridgeInstance.from(mockRouter).mint(receiver, amount, txCost, transactionId, aliceMember.address);
+            await controllerInstance.from(mockRouter).mint(receiver, amount, txCost, transactionId, aliceMember.address);
 
             const balanceOFReciever = await whbarInstance.balanceOf(receiver);
             assert(balanceOFReciever.eq(amount.sub(txCost).sub(expectedMintServiceFee)));
 
-            const totalClaimableFees = await bridgeInstance.totalClaimableFees();
+            const totalClaimableFees = await controllerInstance.totalClaimableFees();
 
             assert(totalClaimableFees.eq(expectedMintServiceFee.add(txCost)));
 
-            const totalCheckpoints = await bridgeInstance.totalCheckpoints();
+            const totalCheckpoints = await controllerInstance.totalCheckpoints();
             assert(expectedCheckpoints.eq(totalCheckpoints));
 
             const expectedFeesAccruedForCheckpoint = feesAccruedForCheckpointBeforeMint.add(expectedMintServiceFee);
-            const feesAccruedForCheckpointAfterMint = await bridgeInstance.checkpointServiceFeesAccrued(totalCheckpoints);
+            const feesAccruedForCheckpointAfterMint = await controllerInstance.checkpointServiceFeesAccrued(totalCheckpoints);
             assert(expectedFeesAccruedForCheckpoint.eq(feesAccruedForCheckpointAfterMint));
         });
 
         it("Should emit Mint event", async () => {
             const expectedEvent = "Mint";
-            await assert.emit(bridgeInstance.from(mockRouter).mint(receiver, amount, txCost, transactionId, aliceMember.address), expectedEvent);
+            await assert.emit(controllerInstance.from(mockRouter).mint(receiver, amount, txCost, transactionId, aliceMember.address), expectedEvent);
         });
 
 
         it("Should not execute mint transaction from other than router contract", async () => {
-            const expectedRevertMessage = "Bridge: Only executable from the router contract";
-            await assert.revertWith(bridgeInstance.mint(receiver, amount, txCost, transactionId, aliceMember.address), expectedRevertMessage);
+            const expectedRevertMessage = "Controller: Only executable from the router contract";
+            await assert.revertWith(controllerInstance.mint(receiver, amount, txCost, transactionId, aliceMember.address), expectedRevertMessage);
         });
 
     });
@@ -197,27 +197,27 @@ describe("Bridge", function () {
     describe("Burn", function () {
 
         beforeEach(async () => {
-            await bridgeInstance.setRouterContract(mockRouter.address);
+            await controllerInstance.setRouterContract(mockRouter.address);
             await mint();
         });
 
         it("Should burn tokens", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await whbarInstance.from(nonMember).approve(bridgeInstance.contractAddress, amountToBurn);
+            await whbarInstance.from(nonMember).approve(controllerInstance.contractAddress, amountToBurn);
 
             const balanceOFReciever = await whbarInstance.balanceOf(receiver);
-            const totalClaimableFees = await bridgeInstance.totalClaimableFees();
+            const totalClaimableFees = await controllerInstance.totalClaimableFees();
 
-            const expectedTotalCheckpoints = await bridgeInstance.totalCheckpoints();
-            const feesAccruedForCheckpointBeforeMint = await bridgeInstance.checkpointServiceFeesAccrued(expectedTotalCheckpoints);
+            const expectedTotalCheckpoints = await controllerInstance.totalCheckpoints();
+            const feesAccruedForCheckpointBeforeMint = await controllerInstance.checkpointServiceFeesAccrued(expectedTotalCheckpoints);
 
-            await bridgeInstance.from(mockRouter).burn(receiver, amountToBurn, hederaAddress);
+            await controllerInstance.from(mockRouter).burn(receiver, amountToBurn, hederaAddress);
 
             const balanceOFRecieverAfter = await whbarInstance.balanceOf(receiver);
-            const totalClaimableFeesAfter = await bridgeInstance.totalClaimableFees();
+            const totalClaimableFeesAfter = await controllerInstance.totalClaimableFees();
 
             const feeAmount = amountToBurn.mul(serviceFee).div(precision);
-            const feesAccruedForCheckpointAfterMint = await bridgeInstance.checkpointServiceFeesAccrued(expectedTotalCheckpoints);
+            const feesAccruedForCheckpointAfterMint = await controllerInstance.checkpointServiceFeesAccrued(expectedTotalCheckpoints);
 
             assert(balanceOFRecieverAfter.eq(balanceOFReciever.sub(amountToBurn)));
 
@@ -227,23 +227,23 @@ describe("Bridge", function () {
 
         it("Should emit burn event", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await whbarInstance.from(nonMember).approve(bridgeInstance.contractAddress, amountToBurn);
+            await whbarInstance.from(nonMember).approve(controllerInstance.contractAddress, amountToBurn);
 
             const expectedEvent = "Burn";
 
-            await assert.emit(bridgeInstance.from(mockRouter).burn(receiver, amountToBurn, hederaAddress), expectedEvent);
+            await assert.emit(controllerInstance.from(mockRouter).burn(receiver, amountToBurn, hederaAddress), expectedEvent);
         });
 
         it("Should emit burn event arguments", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
             const expectedServiceFee = amountToBurn.mul(serviceFee).div(precision);
             const expectedAmount = amountToBurn.sub(expectedServiceFee);
-            await whbarInstance.from(nonMember).approve(bridgeInstance.contractAddress, amountToBurn);
+            await whbarInstance.from(nonMember).approve(controllerInstance.contractAddress, amountToBurn);
 
             const expectedEvent = "Burn";
 
             await assert.emitWithArgs(
-                bridgeInstance.from(mockRouter).burn(receiver, amountToBurn, hederaAddress),
+                controllerInstance.from(mockRouter).burn(receiver, amountToBurn, hederaAddress),
                 expectedEvent,
                 [
                     nonMember.address,
@@ -257,57 +257,57 @@ describe("Bridge", function () {
             const amountToBurn = ethers.utils.parseEther("5");
 
             const expectedRevertMessage = "ERC20: burn amount exceeds allowance";
-            await assert.revertWith(bridgeInstance.from(mockRouter).burn(receiver, amountToBurn, hederaAddress), expectedRevertMessage);
+            await assert.revertWith(controllerInstance.from(mockRouter).burn(receiver, amountToBurn, hederaAddress), expectedRevertMessage);
         });
 
         it("Should revert if invoker has no tokens", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await whbarInstance.from(aliceMember).approve(bridgeInstance.contractAddress, amountToBurn);
+            await whbarInstance.from(aliceMember).approve(controllerInstance.contractAddress, amountToBurn);
 
             const expectedRevertMessage = "ERC20: burn amount exceeds balance";
-            await assert.revertWith(bridgeInstance.from(mockRouter).burn(aliceMember.address, amountToBurn, hederaAddress), expectedRevertMessage);
+            await assert.revertWith(controllerInstance.from(mockRouter).burn(aliceMember.address, amountToBurn, hederaAddress), expectedRevertMessage);
         });
 
         it("Should revert if deprecated", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await whbarInstance.from(nonMember).approve(bridgeInstance.contractAddress, amountToBurn);
+            await whbarInstance.from(nonMember).approve(controllerInstance.contractAddress, amountToBurn);
 
-            await bridgeInstance.from(mockRouter).deprecate();
+            await controllerInstance.from(mockRouter).deprecate();
 
             const expectedRevertMessage = "Pausable: paused";
-            await assert.revertWith(bridgeInstance.from(mockRouter).burn(receiver, amountToBurn, hederaAddress), expectedRevertMessage);
+            await assert.revertWith(controllerInstance.from(mockRouter).burn(receiver, amountToBurn, hederaAddress), expectedRevertMessage);
         });
     });
 
     describe("Deprecate", function () {
 
         beforeEach(async () => {
-            await bridgeInstance.setRouterContract(mockRouter.address);
+            await controllerInstance.setRouterContract(mockRouter.address);
             await mint();
         });
 
-        it("Should deprecate Bridge", async () => {
-            let isPaused = await bridgeInstance.paused();
+        it("Should deprecate Controller", async () => {
+            let isPaused = await controllerInstance.paused();
             assert.ok(!isPaused);
-            await bridgeInstance.from(mockRouter).deprecate();
-            const balanceOfBridge = await whbarInstance.balanceOf(bridgeInstance.contractAddress);
+            await controllerInstance.from(mockRouter).deprecate();
+            const balanceOfcontroller = await whbarInstance.balanceOf(controllerInstance.contractAddress);
             const expectedBalance = amount.sub(txCost).mul(serviceFee).div(precision).add(txCost);
-            assert(balanceOfBridge.eq(expectedBalance));
+            assert(balanceOfcontroller.eq(expectedBalance));
 
-            isPaused = await bridgeInstance.paused();
+            isPaused = await controllerInstance.paused();
             assert.ok(isPaused);
         });
 
         it("Should emit Deprecate event", async () => {
             const expectedEvent = "Deprecate";
-            await assert.emit(bridgeInstance.from(mockRouter).deprecate(), expectedEvent);
+            await assert.emit(controllerInstance.from(mockRouter).deprecate(), expectedEvent);
         });
 
         it("Should emit Deprecate event arguments", async () => {
-            const expectedAmount = await bridgeInstance.totalClaimableFees();
+            const expectedAmount = await controllerInstance.totalClaimableFees();
             const expectedEvent = "Deprecate";
             await assert.emitWithArgs(
-                bridgeInstance.from(mockRouter).deprecate(),
+                controllerInstance.from(mockRouter).deprecate(),
                 expectedEvent,
                 [
                     mockRouter.address,
@@ -315,26 +315,26 @@ describe("Bridge", function () {
                 ]);
         });
 
-        it("Should not deprecate Bridge if already deprecated", async () => {
-            await bridgeInstance.from(mockRouter).deprecate();
+        it("Should not deprecate Controller if already deprecated", async () => {
+            await controllerInstance.from(mockRouter).deprecate();
             const expectedRevertMessage = "Pausable: paused";
-            await assert.revertWith(bridgeInstance.from(mockRouter).deprecate(), expectedRevertMessage);
+            await assert.revertWith(controllerInstance.from(mockRouter).deprecate(), expectedRevertMessage);
         });
 
-        it("Should not deprecate Bridge if not called from owner", async () => {
-            const expectedRevertMessage = "Bridge: Only executable from the router contract";
-            await assert.revertWith(bridgeInstance.from(aliceMember).deprecate(), expectedRevertMessage);
+        it("Should not deprecate Controller if not called from owner", async () => {
+            const expectedRevertMessage = "Controller: Only executable from the router contract";
+            await assert.revertWith(controllerInstance.from(aliceMember).deprecate(), expectedRevertMessage);
         });
 
         it("Should not allow mint transaction if deprecated", async () => {
-            await bridgeInstance.from(mockRouter).deprecate();
+            await controllerInstance.from(mockRouter).deprecate();
 
             const expectedRevertMessage = "Pausable: paused";
-            await assert.revertWith(bridgeInstance.from(mockRouter).mint(receiver, amount, txCost, transactionId, aliceMember.address), expectedRevertMessage);
+            await assert.revertWith(controllerInstance.from(mockRouter).mint(receiver, amount, txCost, transactionId, aliceMember.address), expectedRevertMessage);
         });
     });
     async function mint() {
-        await bridgeInstance.from(mockRouter).mint(receiver, amount, txCost, transactionId, aliceMember.address);
+        await controllerInstance.from(mockRouter).mint(receiver, amount, txCost, transactionId, aliceMember.address);
     }
 });
 

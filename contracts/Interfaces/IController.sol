@@ -1,6 +1,6 @@
 pragma solidity ^0.6.0;
 
-interface IBridge {
+interface IController {
     function mint(
         address receiver,
         uint256 amount,

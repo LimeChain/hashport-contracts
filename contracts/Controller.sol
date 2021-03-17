@@ -7,9 +7,9 @@ import "./FeeDistributor.sol";
 
 /**
  *  @author LimeChain Dev team
- *  @title HBAR Bridge Contract
+ *  @title HBAR Controller Contract
  */
-contract Bridge is FeeDistributor, Pausable {
+contract Controller is FeeDistributor, Pausable {
     using SafeMath for uint256;
 
     /// @notice The configured wrappedToken
@@ -56,7 +56,7 @@ contract Bridge is FeeDistributor, Pausable {
     event Deprecate(address account, uint256 amount);
 
     /**
-     *  @notice Construct a new Bridge contract
+     *  @notice Construct a new Controller contract
      *  @param _wrappedToken The address of the ERC20 Wrapped token
      *  @param _serviceFee The initial service fee
      *  @param _wrappedId The address of the wrapped id
@@ -75,7 +75,7 @@ contract Bridge is FeeDistributor, Pausable {
     modifier onlyValidServiceFee(uint256 _serviceFee) {
         require(
             _serviceFee < PRECISION,
-            "Bridge: Service fee cannot exceed 100%"
+            "Controller: Service fee cannot exceed 100%"
         );
         _;
     }
@@ -84,7 +84,7 @@ contract Bridge is FeeDistributor, Pausable {
     modifier onlyRouterContract() {
         require(
             msg.sender == routerContract,
-            "Bridge: Only executable from the router contract"
+            "Controller: Only executable from the router contract"
         );
         _;
     }
@@ -160,7 +160,7 @@ contract Bridge is FeeDistributor, Pausable {
 
         require(
             _amount > 0 && _amount <= claimableFees[msg.sender],
-            "Bridge: msg.sender has nothing to claim"
+            "Controller: msg.sender has nothing to claim"
         );
         claimableFees[msg.sender] = claimableFees[msg.sender].sub(_amount);
 
@@ -173,7 +173,7 @@ contract Bridge is FeeDistributor, Pausable {
         emit Claim(msg.sender, _amount);
     }
 
-    /// @notice Deprecates the contract. The outstanding, non-claimed fees are minted to the bridge contract for members to claim
+    /// @notice Deprecates the contract. The outstanding, non-claimed fees are minted to the controller contract for members to claim
     function deprecate() public onlyRouterContract returns (bool) {
         wrappedToken.mint(address(this), totalClaimableFees);
         _pause();
