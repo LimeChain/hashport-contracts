@@ -41,6 +41,15 @@ contract Router is Governance {
         _;
     }
 
+    /// @notice Require controller address to be an existing one
+    modifier containsController(address controller) {
+        require(
+            controllersSet.contains(controller),
+            "Router: controller contract not active"
+        );
+        _;
+    }
+
     /**
      * @notice Mints `amount - fees` WHBARs to the `receiver` address. Must be authorised by `signatures` from the `members` set
      * @param transactionId The Hedera Transaction ID
@@ -62,6 +71,7 @@ contract Router is Governance {
         onlyValidTxId(transactionId)
         onlyMember
         onlyValidSignatures(signatures.length)
+        containsController(controller)
     {
         bytes32 ethHash =
             _computeMessage(
@@ -102,6 +112,7 @@ contract Router is Governance {
         public
         onlyValidTxId(transactionId)
         onlyValidSignatures(signatures.length)
+        containsController(controller)
     {
         bytes32 ethHash =
             _computeMessage(transactionId, controller, receiver, amount);
@@ -136,11 +147,6 @@ contract Router is Governance {
         uint256 txCost,
         bytes[] memory signatures
     ) private {
-        require(
-            controllersSet.contains(controller),
-            "Router: controller contract not active"
-        );
-
         Transaction storage transaction = mintTransfers[transactionId];
 
         for (uint256 i = 0; i < signatures.length; i++) {
