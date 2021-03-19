@@ -79,7 +79,10 @@ contract WHBAR is ERC20Pausable, Ownable {
 
     /// @notice Changes the controller address
     function setControllerAddress(address _controllerAddress) public onlyOwner {
-        require(_controllerAddress != address(0));
+        require(
+            _controllerAddress != address(0),
+            "WHBAR: Controller address cannot be zero"
+        );
         controllerAddress = _controllerAddress;
         emit SetControllerAddress(controllerAddress);
     }

@@ -5,7 +5,7 @@
 </div>
 
 This repository contains the smart contracts for the Hedera <-> Ethereum bridge.
-Contracts consist of the ERC20 WHBAR and the Bridge contract responsible for the minting/burning of tokens.
+Contracts consist of the ERC20 WHBAR and the Controller contract responsible for the minting/burning of tokens.
 
 ## Contract Addresses & ABI
 
@@ -43,7 +43,7 @@ etherlime deploy --network 'network' --secret '0x..'
 -   Generates three member accounts and send them 0.1 ethers
 
 -   Sets the required validators to be members of the Governance contract
--   Prints out WHBAR, Bridge, Alice, Bob and Carol Wallets
+-   Prints out WHBAR, Controller, Alice, Bob and Carol Wallets
 
 #### How to run:
 
