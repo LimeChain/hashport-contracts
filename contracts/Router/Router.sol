@@ -219,9 +219,9 @@ contract Router is FeeCalculator {
                 assetsSet.remove(newAsset),
                 "Router: Failed to remove asset contract"
             );
-            for (uint256 i = 0; i < assetsCount(); i++) {
+            for (uint256 i = 0; i < membersCount(); i++) {
                 uint256 claimableAmount =
-                    calculateClaimableAmount(msg.sender, assetAt(i));
+                    calculateClaimableAmount(memberAt(i), newAsset);
                 IWrappedToken(assetAt(i)).mint(msg.sender, claimableAmount);
             }
         }

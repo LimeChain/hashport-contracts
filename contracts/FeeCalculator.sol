@@ -84,6 +84,12 @@ abstract contract FeeCalculator is Governance {
             .claimedRewardsPerAccount[claimer]
             .add(claimableAmount);
 
+        claimableAmount = claimableAmount.add(
+            assetData.txCostsPerMember[claimer]
+        );
+
+        assetData.txCostsPerMember[claimer] = 0;
+
         return claimableAmount;
     }
 
