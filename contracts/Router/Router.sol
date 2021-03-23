@@ -1,16 +1,18 @@
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
-import "../Interfaces/IController.sol";
-import "../Governance.sol";
-import "@openzeppelin/contracts/utils/EnumerableSet.sol";
+import "../Interfaces/IWrappedToken.sol";
+import "../FeeCalculator.sol";
 import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 
-contract Router is Governance {
+contract Router is FeeCalculator {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    /// @notice Iterable set of controller contracts
-    EnumerableSet.AddressSet private controllersSet;
+    /// @notice Iterable set of asset contracts
+    EnumerableSet.AddressSet private assetsSet;
+
+    /// @notice Storage metadata for hedera -> eth transactions. Key bytes represents Hedera TransactionID
+    mapping(bytes => Transaction) public mintTransfers;
 
     /// @notice Struct containing necessary metadata for a given transaction
     struct Transaction {
@@ -18,11 +20,30 @@ contract Router is Governance {
         mapping(address => bool) signatures;
     }
 
-    /// @notice Storage metadata for hedera -> eth transactions. Key bytes represents Hedera TransactionID
-    mapping(bytes => Transaction) public mintTransfers;
+    /// @notice An event emitted once asset contract is set
+    event AssetContractSet(address newAsset, bool isActive);
 
-    /// @notice An event emitted once controller contract is set
-    event ControllerContractSet(address newController, bool isActive);
+    /// @notice An event emitted once a Mint transaction is executed
+    event Mint(
+        address indexed account,
+        uint256 amount,
+        uint256 txCost,
+        bytes indexed transactionId
+    );
+
+    /// @notice An event emitted once a Burn transaction is executed
+    event Burn(
+        address indexed account,
+        uint256 amount,
+        uint256 serviceFee,
+        bytes receiver
+    );
+
+    /// @notice An event emitted once Member claims fees accredited to him
+    event Claim(address indexed account, uint256 amount);
+
+    /// @notice An event emitted once this contract is deprecated by the owner
+    event Deprecate(address account, uint256 amount);
 
     /// @notice Accepts number of signatures in the range (n/2; n] where n is the number of members
     modifier onlyValidSignatures(uint256 n) {
@@ -41,27 +62,24 @@ contract Router is Governance {
         _;
     }
 
-    /// @notice Require controller address to be an existing one
-    modifier containsController(address controller) {
-        require(
-            controllersSet.contains(controller),
-            "Router: controller contract not active"
-        );
+    /// @notice Require the asset address to be an existing one
+    modifier containsAsset(address asset) {
+        require(isAsset(asset), "Router: asset contract not active");
         _;
     }
 
     /**
-     * @notice Mints `amount - fees` WHBARs to the `receiver` address. Must be authorised by `signatures` from the `members` set
+     * @notice Mints `amount - fees` WHBARs to the `receiver` address. Must be authorised by `signatures` from the `members` set, distribute fees
      * @param transactionId The Hedera Transaction ID
-     * @param controller The corresponding controller contract
+     * @param asset The corresponding asset contract
      * @param receiver The address receiving the tokens
      * @param amount The desired minting amount
      * @param txCost The amount of WHBARs reimbursed to `msg.sender`
      * @param signatures The array of signatures from the members, authorising the operation
      */
-    function mintWithReimbursement(
+    function mint(
         bytes memory transactionId,
-        address controller,
+        address asset,
         address receiver,
         uint256 amount,
         uint256 txCost,
@@ -71,80 +89,163 @@ contract Router is Governance {
         onlyValidTxId(transactionId)
         onlyMember
         onlyValidSignatures(signatures.length)
-        containsController(controller)
+        containsAsset(asset)
     {
         bytes32 ethHash =
             _computeMessage(
                 transactionId,
-                controller,
+                asset,
                 receiver,
                 amount,
                 txCost,
                 tx.gasprice
             );
 
-        _mint(
-            transactionId,
-            ethHash,
-            controller,
-            receiver,
-            amount,
-            txCost,
-            signatures
-        );
+        validateAndStoreTx(transactionId, ethHash, signatures);
+
+        uint256 serviceFeeInWTokens =
+            amount.sub(txCost).mul(serviceFee).div(PRECISION);
+
+        distributeRewards(asset, txCost, serviceFeeInWTokens, msg.sender);
+
+        uint256 amountToMint = amount.sub(txCost).sub(serviceFeeInWTokens);
+
+        IWrappedToken(asset).mint(receiver, amountToMint);
+        emit Mint(receiver, amount, txCost, transactionId);
     }
 
     /**
-     * @notice Mints `amount - fees` WHBARs to the `receiver` address. Must be authorised by `signatures` from the `members` set
-     * @param transactionId The Hedera Transaction ID
-     * @param controller The corresponding controller contract
-     * @param receiver The address receiving the tokens
-     * @param amount The desired minting amount
-     * @param signatures The array of signatures from the members, authorising the operation
+     * @notice call burn of the given asset contract `amount` WHBARs from `msg.sender`, distributes fees
+     * @param amount The amount of WHBARs to be bridged
+     * @param receiver The Hedera account to receive the HBARs
+     * @param asset contract The corresponding asset contract
      */
-    function mint(
-        bytes memory transactionId,
-        address controller,
-        address receiver,
+    function burn(
         uint256 amount,
-        bytes[] memory signatures
-    )
-        public
-        onlyValidTxId(transactionId)
-        onlyValidSignatures(signatures.length)
-        containsController(controller)
-    {
-        bytes32 ethHash =
-            _computeMessage(transactionId, controller, receiver, amount);
+        bytes memory receiver,
+        address asset
+    ) public {
+        require(isAsset(asset), "Router: invalid asset address");
+        require(receiver.length > 0, "Router: invalid receiver value");
 
-        _mint(
-            transactionId,
-            ethHash,
-            controller,
-            receiver,
-            amount,
-            0,
-            signatures
-        );
+        uint256 serviceFeeInWTokens = amount.mul(serviceFee).div(PRECISION);
+
+        distributeRewards(asset, serviceFeeInWTokens);
+
+        IWrappedToken(asset).burnFrom(msg.sender, amount);
+        uint256 bridgedAmount = amount.sub(serviceFeeInWTokens);
+
+        emit Burn(msg.sender, bridgedAmount, serviceFeeInWTokens, receiver);
+    }
+
+    function claim(address asset) public onlyMember {
+        uint256 claimableAmount = calculateClaimableAmount(asset, msg.sender);
     }
 
     /**
-     * @notice _mint calls mint on the controller contract
-     * @param transactionId The Hedera Transaction ID
-     * @param ethHash The hashed data
-     * @param controller The corresponding controller contract
-     * @param receiver The address receiving the tokens
-     * @param amount The desired minting amount
-     * @param txCost The amount of WHBARs reimbursed to `msg.sender`
-     * @param signatures The array of signatures from the members, authorising the operation
+     * @notice Adds/removes a member account. Not idempotent
+     * @param account The account to be modified
+     * @param isMember Whether the account will be set as member or not
      */
-    function _mint(
+    function updateMember(address account, bool isMember) public onlyOwner {
+        if (isMember) {
+            for (uint256 i = 0; i < assetsCount(); i++) {
+                AssetData storage assetData = assetsData[assetAt(i)];
+                assetData.claimedRewardsPerAccount[account] = assetData
+                    .accumulator;
+            }
+        } else {
+            for (uint256 i = 0; i < assetsCount(); i++) {
+                // TODO: Transfer all tokens or do nothing?
+            }
+        }
+        _updateMember(account, isMember);
+    }
+
+    /**
+     * @notice Adds/Removes asset contracts
+     * @param newAsset The address of the asset contract
+     * @param isActive Shows the status of the contract
+     */
+    function setAssetContract(address newAsset, bool isActive)
+        public
+        onlyOwner
+    {
+        require(newAsset != address(0));
+        if (isActive) {
+            require(
+                assetsSet.add(newAsset),
+                "Router: Failed to add asset contract"
+            );
+        } else {
+            require(
+                assetsSet.remove(newAsset),
+                "Router: Failed to remove asset contract"
+            );
+        }
+
+        emit AssetContractSet(newAsset, isActive);
+    }
+
+    /// @notice Returns true/false depending on whether a given address is active asset or not
+    function isAsset(address asset) public view returns (bool) {
+        return assetsSet.contains(asset);
+    }
+
+    /// @notice Returns the count of the assets
+    function assetsCount() public view returns (uint256) {
+        return assetsSet.length();
+    }
+
+    /// @notice Returns the address of a asset at a given index
+    function assetAt(uint256 index) public view returns (address) {
+        return assetsSet.at(index);
+    }
+
+    /// @notice Computes the bytes32 ethereum signed message hash of the signature
+    function _computeMessage(
         bytes memory transactionId,
-        bytes32 ethHash,
-        address controller,
+        address asset,
+        address receiver,
+        uint256 amount
+    ) private pure returns (bytes32) {
+        bytes32 hashedData =
+            keccak256(abi.encode(transactionId, asset, receiver, amount));
+        return ECDSA.toEthSignedMessageHash(hashedData);
+    }
+
+    /// @notice Computes the bytes32 ethereum signed message hash of the signature with txCost and gascost
+    function _computeMessage(
+        bytes memory transactionId,
+        address asset,
         address receiver,
         uint256 amount,
         uint256 txCost,
+        uint256 gascost
+    ) private pure returns (bytes32) {
+        bytes32 hashedData =
+            keccak256(
+                abi.encode(
+                    transactionId,
+                    asset,
+                    receiver,
+                    amount,
+                    txCost,
+                    gascost
+                )
+            );
+        return ECDSA.toEthSignedMessageHash(hashedData);
+    }
+
+    /**
+     * @notice validateAndStoreTx validates the signatures and the data and saves the transaction
+     * @param transactionId The Hedera Transaction ID
+     * @param ethHash The hashed data
+     * @param signatures The array of signatures from the members, authorising the operation
+     */
+    function validateAndStoreTx(
+        bytes memory transactionId,
+        bytes32 ethHash,
         bytes[] memory signatures
     ) private {
         Transaction storage transaction = mintTransfers[transactionId];
@@ -159,137 +260,5 @@ contract Router is Governance {
             transaction.signatures[signer] = true;
         }
         transaction.isExecuted = true;
-
-        require(
-            IController(controller).mint(
-                receiver,
-                amount,
-                txCost,
-                transactionId,
-                msg.sender
-            ),
-            "Router: Failed to mint tokens"
-        );
-    }
-
-    /**
-     * @notice call burn of the given controller contract `amount` WHBARs from `msg.sender`, distributes fees
-     * @param amount The amount of WHBARs to be bridged
-     * @param receiver The Hedera account to receive the HBARs
-     * @param controller contract The corresponding controller contract
-     */
-    function burn(
-        uint256 amount,
-        bytes memory receiver,
-        address controller
-    ) public {
-        require(
-            controllersSet.contains(controller),
-            "Router: invalid controller address"
-        );
-        require(receiver.length > 0, "Router: invalid receiver value");
-        require(
-            IController(controller).burn(msg.sender, amount, receiver),
-            "Router: Failed to burn tokens"
-        );
-    }
-
-    /**
-     * @notice Adds/removes a member account. Not idempotent
-     * call createNewCheckpoint() for all linked controller contracts
-     * @param account The account to be modified
-     * @param isMember Whether the account will be set as member or not
-     */
-    function updateMember(address account, bool isMember) public onlyOwner {
-        for (uint256 i = 0; i < controllersSet.length(); i++) {
-            require(
-                IController(controllersSet.at(i)).createNewCheckpoint(),
-                "Router: Failed to create checkpoint"
-            );
-        }
-        _updateMember(account, isMember);
-    }
-
-    /**
-     * @notice Adds/Removes Controller contracts
-     * @param newController The address of the controller contract
-     * @param isActive Shows the status of the contract
-     */
-    function setControllerContract(address newController, bool isActive)
-        public
-        onlyOwner
-    {
-        require(newController != address(0));
-        if (isActive) {
-            require(
-                controllersSet.add(newController),
-                "Router: Failed to add controller contract"
-            );
-        } else {
-            require(
-                controllersSet.remove(newController),
-                "Router: Failed to remove controller contract"
-            );
-        }
-
-        emit ControllerContractSet(newController, isActive);
-    }
-
-    /// @notice Deprecates the contract. The outstanding, non-claimed fees are minted to the controller contract for members to claim
-    function deprecate(address controller) public onlyOwner {
-        require(
-            IController(controller).deprecate(),
-            "Router: Failed to depecate controller"
-        );
-    }
-
-    /// @notice Returns true/false depending on whether a given address is active controller or not
-    function isController(address controller) public view returns (bool) {
-        return controllersSet.contains(controller);
-    }
-
-    /// @notice Returns the count of the controllers
-    function controllersCount() public view returns (uint256) {
-        return controllersSet.length();
-    }
-
-    /// @notice Returns the address of a controller at a given index
-    function controllerAt(uint256 index) public view returns (address) {
-        return controllersSet.at(index);
-    }
-
-    /// @notice Computes the bytes32 ethereum signed message hash of the signature
-    function _computeMessage(
-        bytes memory transactionId,
-        address controller,
-        address receiver,
-        uint256 amount
-    ) private pure returns (bytes32) {
-        bytes32 hashedData =
-            keccak256(abi.encode(transactionId, controller, receiver, amount));
-        return ECDSA.toEthSignedMessageHash(hashedData);
-    }
-
-    /// @notice Computes the bytes32 ethereum signed message hash of the signature with txCost and gascost
-    function _computeMessage(
-        bytes memory transactionId,
-        address controller,
-        address receiver,
-        uint256 amount,
-        uint256 txCost,
-        uint256 gascost
-    ) private pure returns (bytes32) {
-        bytes32 hashedData =
-            keccak256(
-                abi.encode(
-                    transactionId,
-                    controller,
-                    receiver,
-                    amount,
-                    txCost,
-                    gascost
-                )
-            );
-        return ECDSA.toEthSignedMessageHash(hashedData);
     }
 }
