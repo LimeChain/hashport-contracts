@@ -46,7 +46,8 @@ abstract contract FeeCalculator is Governance {
     ) internal {
         AssetData storage assetData = assetsData[asset];
 
-        distributeRewards(asset, serviceFeeInWTokens);
+        assetData.feesAccrued = assetData.feesAccrued.add(serviceFeeInWTokens);
+
         assetData.txCostsPerMember[memberAddress] = assetData.txCostsPerMember[
             memberAddress
         ]
@@ -56,13 +57,12 @@ abstract contract FeeCalculator is Governance {
     function distributeRewards(address asset, uint256 serviceFeeInWTokens)
         internal
     {
-        AssetData storage assetData = assetsData[asset];
-
-        assetData.previousAccrued = assetData.feesAccrued;
-        assetData.feesAccrued = assetData.feesAccrued.add(serviceFeeInWTokens);
+        assetsData[asset].feesAccrued = assetsData[asset].feesAccrued.add(
+            serviceFeeInWTokens
+        );
     }
 
-    function calculateClaimableAmount(address asset, address claimer)
+    function calculateClaimableAmount(address claimer, address asset)
         internal
         returns (uint256)
     {
@@ -72,16 +72,24 @@ abstract contract FeeCalculator is Governance {
                 membersCount()
             );
 
+        assetData.previousAccrued = assetData.feesAccrued;
         assetData.accumulator = assetData.accumulator.add(amount);
 
         uint256 claimableAmount =
-            assetData.claimedRewardsPerAccount[claimer].sub(amount);
+            assetData.accumulator.sub(
+                assetData.claimedRewardsPerAccount[claimer]
+            );
 
         assetData.claimedRewardsPerAccount[claimer] = assetData
             .claimedRewardsPerAccount[claimer]
-            .add(amount);
+            .add(claimableAmount);
 
         return claimableAmount;
+    }
+
+    function setClaimedReward(address account, address asset) internal {
+        assetsData[asset].claimedRewardsPerAccount[account] = assetsData[asset]
+            .accumulator;
     }
 
     /**

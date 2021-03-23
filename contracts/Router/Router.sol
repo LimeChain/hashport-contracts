@@ -74,6 +74,41 @@ contract Router is FeeCalculator {
      * @param asset The corresponding asset contract
      * @param receiver The address receiving the tokens
      * @param amount The desired minting amount
+     * @param signatures The array of signatures from the members, authorising the operation
+     */
+    function mint(
+        bytes memory transactionId,
+        address asset,
+        address receiver,
+        uint256 amount,
+        bytes[] memory signatures
+    )
+        public
+        onlyValidTxId(transactionId)
+        onlyValidSignatures(signatures.length)
+        containsAsset(asset)
+    {
+        bytes32 ethHash =
+            _computeMessage(transactionId, asset, receiver, amount);
+
+        validateAndStoreTx(transactionId, ethHash, signatures);
+
+        uint256 serviceFeeInWTokens = amount.mul(serviceFee).div(PRECISION);
+
+        distributeRewards(asset, serviceFeeInWTokens);
+
+        uint256 amountToMint = amount.sub(serviceFeeInWTokens);
+
+        IWrappedToken(asset).mint(receiver, amountToMint);
+        emit Mint(receiver, amount, 0, transactionId);
+    }
+
+    /**
+     * @notice Mints `amount - fees` WHBARs to the `receiver` address. Must be authorised by `signatures` from the `members` set, distribute fees
+     * @param transactionId The Hedera Transaction ID
+     * @param asset The corresponding asset contract
+     * @param receiver The address receiving the tokens
+     * @param amount The desired minting amount
      * @param txCost The amount of WHBARs reimbursed to `msg.sender`
      * @param signatures The array of signatures from the members, authorising the operation
      */
@@ -124,8 +159,7 @@ contract Router is FeeCalculator {
         uint256 amount,
         bytes memory receiver,
         address asset
-    ) public {
-        require(isAsset(asset), "Router: invalid asset address");
+    ) public containsAsset(asset) {
         require(receiver.length > 0, "Router: invalid receiver value");
 
         uint256 serviceFeeInWTokens = amount.mul(serviceFee).div(PRECISION);
@@ -139,7 +173,9 @@ contract Router is FeeCalculator {
     }
 
     function claim(address asset) public onlyMember {
-        uint256 claimableAmount = calculateClaimableAmount(asset, msg.sender);
+        uint256 claimableAmount = calculateClaimableAmount(msg.sender, asset);
+        IWrappedToken(asset).mint(msg.sender, claimableAmount);
+        emit Claim(msg.sender, claimableAmount);
     }
 
     /**
@@ -150,13 +186,14 @@ contract Router is FeeCalculator {
     function updateMember(address account, bool isMember) public onlyOwner {
         if (isMember) {
             for (uint256 i = 0; i < assetsCount(); i++) {
-                AssetData storage assetData = assetsData[assetAt(i)];
-                assetData.claimedRewardsPerAccount[account] = assetData
-                    .accumulator;
+                setClaimedReward(account, assetAt(i));
             }
         } else {
             for (uint256 i = 0; i < assetsCount(); i++) {
-                // TODO: Transfer all tokens or do nothing?
+                uint256 claimableFees =
+                    calculateClaimableAmount(account, assetAt(i));
+
+                IWrappedToken(assetAt(i)).mint(account, claimableFees);
             }
         }
         _updateMember(account, isMember);
@@ -182,6 +219,11 @@ contract Router is FeeCalculator {
                 assetsSet.remove(newAsset),
                 "Router: Failed to remove asset contract"
             );
+            for (uint256 i = 0; i < assetsCount(); i++) {
+                uint256 claimableAmount =
+                    calculateClaimableAmount(msg.sender, assetAt(i));
+                IWrappedToken(assetAt(i)).mint(msg.sender, claimableAmount);
+            }
         }
 
         emit AssetContractSet(newAsset, isActive);
