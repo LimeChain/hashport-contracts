@@ -16,6 +16,7 @@ abstract contract FeeCalculator is Governance {
     /// @notice Value of the service fee in percentage. Range 0% to 99.999% multiplied my 1000
     uint256 public serviceFee;
 
+    /// @notice Storage asset address -> asset metadata structure.
     mapping(address => AssetData) public assetsData;
 
     struct AssetData {
@@ -38,6 +39,13 @@ abstract contract FeeCalculator is Governance {
     /// @notice An event emitted once the service fee is modified
     event ServiceFeeSet(address account, uint256 newServiceFee);
 
+    /**
+     * @notice DistributeRewards distribute rewards and transaction cost among members
+     * @param asset The address of the asset
+     * @param txCost The cost of the transaction
+     * @param serviceFeeInWTokens The servive fee in tokens
+     * @param memberAddress The address of the member which executes the transaction
+     */
     function distributeRewards(
         address asset,
         uint256 txCost,
@@ -54,6 +62,11 @@ abstract contract FeeCalculator is Governance {
             .add(txCost);
     }
 
+    /**
+     * @notice DistributeRewards distribute rewards and transaction cost among members
+     * @param asset The address of the asset
+     * @param serviceFeeInWTokens The servive fee in tokens
+     */
     function distributeRewards(address asset, uint256 serviceFeeInWTokens)
         internal
     {
@@ -62,7 +75,12 @@ abstract contract FeeCalculator is Governance {
         );
     }
 
-    function calculateClaimableAmount(address claimer, address asset)
+    /**
+     * @notice _claimAsset Make calculations based on fee distribution and returns the claimable amount
+     * @param claimer The address of the claimer
+     * @param asset The address of the asset
+     */
+    function _claimAsset(address claimer, address asset)
         internal
         returns (uint256)
     {
@@ -93,7 +111,12 @@ abstract contract FeeCalculator is Governance {
         return claimableAmount;
     }
 
-    function setClaimedReward(address account, address asset) internal {
+    /**
+     * @notice addNewMember Sets the initial claimed rewards for new members
+     * @param account The address of the new member
+     * @param asset The address of the asset
+     */
+    function addNewMember(address account, address asset) internal {
         assetsData[asset].claimedRewardsPerAccount[account] = assetsData[asset]
             .accumulator;
     }

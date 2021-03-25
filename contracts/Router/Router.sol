@@ -14,6 +14,12 @@ contract Router is FeeCalculator {
     /// @notice Storage metadata for hedera -> eth transactions. Key bytes represents Hedera TransactionID
     mapping(bytes => Transaction) public mintTransfers;
 
+    /// @notice Storage hedera token id -> asset address.
+    mapping(bytes => address) public tokenIdToAsset;
+
+    /// @notice Storage asset address -> hedera token id.
+    mapping(address => bytes) public assetToTokenId;
+
     /// @notice Struct containing necessary metadata for a given transaction
     struct Transaction {
         bool isExecuted;
@@ -27,6 +33,7 @@ contract Router is FeeCalculator {
     event Mint(
         address indexed account,
         uint256 amount,
+        uint256 serviceFeeInWTokens,
         uint256 txCost,
         bytes indexed transactionId
     );
@@ -69,7 +76,7 @@ contract Router is FeeCalculator {
     }
 
     /**
-     * @notice Mints `amount - fees` WHBARs to the `receiver` address. Must be authorised by `signatures` from the `members` set, distribute fees
+     * @notice Mints `amount - fees` assetss to the `receiver` address. Must be authorised by `signatures` from the `members` set, distribute fees
      * @param transactionId The Hedera Transaction ID
      * @param asset The corresponding asset contract
      * @param receiver The address receiving the tokens
@@ -100,16 +107,16 @@ contract Router is FeeCalculator {
         uint256 amountToMint = amount.sub(serviceFeeInWTokens);
 
         IWrappedToken(asset).mint(receiver, amountToMint);
-        emit Mint(receiver, amount, 0, transactionId);
+        emit Mint(receiver, amount, serviceFeeInWTokens, 0, transactionId);
     }
 
     /**
-     * @notice Mints `amount - fees` WHBARs to the `receiver` address. Must be authorised by `signatures` from the `members` set, distribute fees
+     * @notice Mints `amount - fees` assetss to the `receiver` address. Must be authorised by `signatures` from the `members` set, distribute fees
      * @param transactionId The Hedera Transaction ID
      * @param asset The corresponding asset contract
      * @param receiver The address receiving the tokens
      * @param amount The desired minting amount
-     * @param txCost The amount of WHBARs reimbursed to `msg.sender`
+     * @param txCost The amount of assetss reimbursed to `msg.sender`
      * @param signatures The array of signatures from the members, authorising the operation
      */
     function mint(
@@ -146,12 +153,12 @@ contract Router is FeeCalculator {
         uint256 amountToMint = amount.sub(txCost).sub(serviceFeeInWTokens);
 
         IWrappedToken(asset).mint(receiver, amountToMint);
-        emit Mint(receiver, amount, txCost, transactionId);
+        emit Mint(receiver, amount, serviceFeeInWTokens, txCost, transactionId);
     }
 
     /**
-     * @notice call burn of the given asset contract `amount` WHBARs from `msg.sender`, distributes fees
-     * @param amount The amount of WHBARs to be bridged
+     * @notice call burn of the given asset contract `amount` assetss from `msg.sender`, distributes fees
+     * @param amount The amount of assetss to be bridged
      * @param receiver The Hedera account to receive the HBARs
      * @param asset contract The corresponding asset contract
      */
@@ -173,7 +180,7 @@ contract Router is FeeCalculator {
     }
 
     function claim(address asset) public onlyMember {
-        uint256 claimableAmount = calculateClaimableAmount(msg.sender, asset);
+        uint256 claimableAmount = _claimAsset(msg.sender, asset);
         IWrappedToken(asset).mint(msg.sender, claimableAmount);
         emit Claim(msg.sender, claimableAmount);
     }
@@ -186,12 +193,11 @@ contract Router is FeeCalculator {
     function updateMember(address account, bool isMember) public onlyOwner {
         if (isMember) {
             for (uint256 i = 0; i < assetsCount(); i++) {
-                setClaimedReward(account, assetAt(i));
+                addNewMember(account, assetAt(i));
             }
         } else {
             for (uint256 i = 0; i < assetsCount(); i++) {
-                uint256 claimableFees =
-                    calculateClaimableAmount(account, assetAt(i));
+                uint256 claimableFees = _claimAsset(account, assetAt(i));
 
                 IWrappedToken(assetAt(i)).mint(account, claimableFees);
             }
@@ -202,26 +208,30 @@ contract Router is FeeCalculator {
     /**
      * @notice Adds/Removes asset contracts
      * @param newAsset The address of the asset contract
+     * @param tokenID The id of the hedera token
      * @param isActive Shows the status of the contract
      */
-    function setAssetContract(address newAsset, bool isActive)
-        public
-        onlyOwner
-    {
-        require(newAsset != address(0));
+    function updateAsset(
+        address newAsset,
+        bytes memory tokenID,
+        bool isActive
+    ) public onlyOwner {
+        require(newAsset != address(0), "Router: asset address can't be zero");
+        require(tokenID.length > 0, "Router: invalid tokenID value");
         if (isActive) {
             require(
                 assetsSet.add(newAsset),
                 "Router: Failed to add asset contract"
             );
+            tokenIdToAsset[tokenID] = newAsset;
+            assetToTokenId[newAsset] = tokenID;
         } else {
             require(
                 assetsSet.remove(newAsset),
                 "Router: Failed to remove asset contract"
             );
             for (uint256 i = 0; i < membersCount(); i++) {
-                uint256 claimableAmount =
-                    calculateClaimableAmount(memberAt(i), newAsset);
+                uint256 claimableAmount = _claimAsset(memberAt(i), newAsset);
                 IWrappedToken(assetAt(i)).mint(msg.sender, claimableAmount);
             }
         }
