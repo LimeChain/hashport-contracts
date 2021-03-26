@@ -52,6 +52,12 @@ contract Router is FeeCalculator {
     /// @notice An event emitted once this contract is deprecated by the owner
     event Deprecate(address account, uint256 amount);
 
+    /**
+     *  @notice Passes an argument for constructing a new FeeCalculator contract
+     *  @param _serviceFee The initial service fee in percentage. Range 0% to 99.999% multiplied my 1000.
+     */
+    constructor(uint256 _serviceFee) public FeeCalculator(_serviceFee) {}
+
     /// @notice Accepts number of signatures in the range (n/2; n] where n is the number of members
     modifier onlyValidSignatures(uint256 n) {
         uint256 members = membersCount();
@@ -119,7 +125,7 @@ contract Router is FeeCalculator {
      * @param txCost The amount of assetss reimbursed to `msg.sender`
      * @param signatures The array of signatures from the members, authorising the operation
      */
-    function mint(
+    function mintWithReimbursement(
         bytes memory transactionId,
         address asset,
         address receiver,

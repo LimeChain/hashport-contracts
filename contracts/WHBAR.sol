@@ -12,7 +12,7 @@ contract WHBAR is ERC20Pausable, Ownable {
     address public routerAddress;
 
     /// @notice An event emitted once the router address is changed
-    event SetRouterAddress(address newRouterAddress);
+    event RouterAddressSet(address newRouterAddress);
 
     /// @notice Allows only router contract for msg.sender
     modifier onlyRouterCountract() {
@@ -81,6 +81,6 @@ contract WHBAR is ERC20Pausable, Ownable {
             "WHBAR: router address cannot be zero"
         );
         routerAddress = _routerAddress;
-        emit SetRouterAddress(routerAddress);
+        emit RouterAddressSet(routerAddress);
     }
 }

@@ -27,6 +27,17 @@ abstract contract FeeCalculator is Governance {
         mapping(address => uint256) txCostsPerMember;
     }
 
+    /// @notice An event emitted once the service fee is modified
+    event ServiceFeeSet(address account, uint256 newServiceFee);
+
+    /**
+     *  @notice Construct a new FeeCalculator contract
+     *  @param _serviceFee The initial service fee in percentage. Range 0% to 99.999% multiplied my 1000.
+     */
+    constructor(uint256 _serviceFee) public {
+        serviceFee = _serviceFee;
+    }
+
     /// @notice Accepts only service fee between 0 and PRECISION
     modifier onlyValidServiceFee(uint256 _serviceFee) {
         require(
@@ -35,9 +46,6 @@ abstract contract FeeCalculator is Governance {
         );
         _;
     }
-
-    /// @notice An event emitted once the service fee is modified
-    event ServiceFeeSet(address account, uint256 newServiceFee);
 
     /**
      * @notice DistributeRewards distribute rewards and transaction cost among members
