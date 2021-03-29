@@ -165,7 +165,7 @@ contract Router is FeeCalculator {
     /**
      * @notice call burn of the given asset contract `amount` assetss from `msg.sender`, distributes fees
      * @param amount The amount of assetss to be bridged
-     * @param receiver The Hedera account to receive the HBARs
+     * @param receiver The Hedera account to receive the assets
      * @param asset contract The corresponding asset contract
      */
     function burn(

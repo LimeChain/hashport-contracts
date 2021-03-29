@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20Pausable.sol";
 
 /**
  *  @author LimeChain Dev team
- *  @title ERC20 WHBAR contract
+ *  @title ERC20 WrappedToken contract
  */
 contract WrappedToken is ERC20Pausable, Ownable {
     /// @notice The router address of the contract
@@ -18,13 +18,13 @@ contract WrappedToken is ERC20Pausable, Ownable {
     modifier onlyRouterCountract() {
         require(
             msg.sender == routerAddress,
-            "WHBAR: Not called by the router contract"
+            "WrappedToken: Not called by the router contract"
         );
         _;
     }
 
     /**
-     *  @notice Construct a new WHBAR contract
+     *  @notice Construct a new WrappedToken contract
      *  @param tokenName The EIP-20 token name
      *  @param tokenSymbol The EIP-20 token symbol
      */
@@ -78,7 +78,7 @@ contract WrappedToken is ERC20Pausable, Ownable {
     function setRouterAddress(address _routerAddress) public onlyOwner {
         require(
             _routerAddress != address(0),
-            "WHBAR: router address cannot be zero"
+            "WrappedToken: router address cannot be zero"
         );
         routerAddress = _routerAddress;
         emit RouterAddressSet(routerAddress);

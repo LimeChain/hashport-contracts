@@ -15,7 +15,7 @@ describe("Router", function () {
     let notAdmin = accounts[5].signer;
 
     let routerInstance;
-    let whbarInstance;
+    let wrappedTokenInstance;
 
     const name = "WrapedHBAR";
     const symbol = "WHBAR";
@@ -37,7 +37,7 @@ describe("Router", function () {
 
     beforeEach(async () => {
         deployer = new etherlime.EtherlimeGanacheDeployer(owner.secretKey);
-        whbarInstance = await deployer.deploy(
+        wrappedTokenInstance = await deployer.deploy(
             WrappedToken,
             {},
             name,
@@ -47,7 +47,7 @@ describe("Router", function () {
 
         routerInstance = await deployer.deploy(Router, {}, serviceFee);
 
-        await whbarInstance.setRouterAddress(routerInstance.contractAddress);
+        await wrappedTokenInstance.setRouterAddress(routerInstance.contractAddress);
     });
 
     describe("Contract Setup", function () {
@@ -213,11 +213,11 @@ describe("Router", function () {
             await routerInstance.updateMember(bobMember.address, true);
             await routerInstance.updateMember(carlMember.address, true);
 
-            await routerInstance.updateAsset(whbarInstance.contractAddress, wrappedId, true);
+            await routerInstance.updateAsset(wrappedTokenInstance.contractAddress, wrappedId, true);
         });
 
         it("Should execute mint with reimbursment transaction", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, whbarInstance.contractAddress, receiver, amount, txCost, gasprice]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, gasprice]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -225,26 +225,26 @@ describe("Router", function () {
             const bobSignature = await bobMember.signMessage(hashData);
             const carlSignature = await carlMember.signMessage(hashData);
 
-            await routerInstance.from(aliceMember).mintWithReimbursement(transactionId, whbarInstance.contractAddress, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature], {
+            await routerInstance.from(aliceMember).mintWithReimbursement(transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature], {
                 gasPrice: gasprice
             });
 
-            const balanceOFReciever = await whbarInstance.balanceOf(receiver);
+            const balanceOFReciever = await wrappedTokenInstance.balanceOf(receiver);
 
             assert(balanceOFReciever.eq(amount.sub(txCost).sub(expectedMintServiceFee)));
 
             const isExecuted = await routerInstance.mintTransfers(transactionId);
             assert.ok(isExecuted);
 
-            const assetData = await routerInstance.assetsData(whbarInstance.contractAddress);
+            const assetData = await routerInstance.assetsData(wrappedTokenInstance.contractAddress);
             assert(assetData.feesAccrued.eq(expectedMintServiceFee));
 
-            const alicetxCosts = await routerInstance.getTxCostsPerMember(whbarInstance.contractAddress, aliceMember.address);
+            const alicetxCosts = await routerInstance.getTxCostsPerMember(wrappedTokenInstance.contractAddress, aliceMember.address);
             assert(alicetxCosts.eq(txCost));
         });
 
         it("Should execute mint", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256"], [transactionId, whbarInstance.contractAddress, receiver, amount]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256"], [transactionId, wrappedTokenInstance.contractAddress, receiver, amount]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -252,9 +252,9 @@ describe("Router", function () {
             const bobSignature = await bobMember.signMessage(hashData);
             const carlSignature = await carlMember.signMessage(hashData);
 
-            await routerInstance.from(aliceMember).mint(transactionId, whbarInstance.contractAddress, receiver, amount, [aliceSignature, bobSignature, carlSignature]);
+            await routerInstance.from(aliceMember).mint(transactionId, wrappedTokenInstance.contractAddress, receiver, amount, [aliceSignature, bobSignature, carlSignature]);
 
-            const balanceOFReciever = await whbarInstance.balanceOf(receiver);
+            const balanceOFReciever = await wrappedTokenInstance.balanceOf(receiver);
 
             expectedMintServiceFee = amount.mul(serviceFee).div(precision);
 
@@ -263,17 +263,17 @@ describe("Router", function () {
             const isExecuted = await routerInstance.mintTransfers(transactionId);
             assert.ok(isExecuted);
 
-            const assetData = await routerInstance.assetsData(whbarInstance.contractAddress);
+            const assetData = await routerInstance.assetsData(wrappedTokenInstance.contractAddress);
             assert(assetData.feesAccrued.eq(expectedMintServiceFee));
 
-            const alicetxCosts = await routerInstance.getTxCostsPerMember(whbarInstance.contractAddress, aliceMember.address);
+            const alicetxCosts = await routerInstance.getTxCostsPerMember(wrappedTokenInstance.contractAddress, aliceMember.address);
             assert(alicetxCosts.eq(0));
         });
 
         it("Should emit Mint event", async () => {
             const expectedEvent = "Mint";
 
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, whbarInstance.contractAddress, receiver, amount, txCost, gasprice]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, gasprice]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -281,13 +281,13 @@ describe("Router", function () {
             const bobSignature = await bobMember.signMessage(hashData);
             const carlSignature = await carlMember.signMessage(hashData);
 
-            await assert.emit(routerInstance.from(aliceMember).mintWithReimbursement(transactionId, whbarInstance.contractAddress, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature], {
+            await assert.emit(routerInstance.from(aliceMember).mintWithReimbursement(transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature], {
                 gasPrice: gasprice
             }), expectedEvent);
         });
 
         it("Should execute mint transaction from not a validator", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256"], [transactionId, whbarInstance.contractAddress, receiver, amount]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256"], [transactionId, wrappedTokenInstance.contractAddress, receiver, amount]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -295,11 +295,11 @@ describe("Router", function () {
             const bobSignature = await bobMember.signMessage(hashData);
             const carlSignature = await carlMember.signMessage(hashData);
 
-            await routerInstance.from(nonMember).mint(transactionId, whbarInstance.contractAddress, receiver, amount, [aliceSignature, bobSignature, carlSignature]);
+            await routerInstance.from(nonMember).mint(transactionId, wrappedTokenInstance.contractAddress, receiver, amount, [aliceSignature, bobSignature, carlSignature]);
 
             const expectedServiceFee = amount.mul(serviceFee).div(precision);
 
-            const balanceOFReciever = await whbarInstance.balanceOf(receiver);
+            const balanceOFReciever = await wrappedTokenInstance.balanceOf(receiver);
             assert(balanceOFReciever.eq(amount.sub(expectedServiceFee)));
 
             const isExecuted = await routerInstance.mintTransfers(transactionId);
@@ -307,7 +307,7 @@ describe("Router", function () {
         });
 
         it("Should not execute same mint transaction twice", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, whbarInstance.contractAddress, receiver, amount, txCost, gasprice]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, gasprice]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -316,31 +316,31 @@ describe("Router", function () {
             const carlSignature = await carlMember.signMessage(hashData);
 
 
-            await routerInstance.from(aliceMember).mintWithReimbursement(transactionId, whbarInstance.contractAddress, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature], {
+            await routerInstance.from(aliceMember).mintWithReimbursement(transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature], {
                 gasPrice: gasprice
             });
 
             const expectedRevertMessage = "Router: txId already submitted";
-            await assert.revertWith(routerInstance.from(aliceMember).mintWithReimbursement(transactionId, whbarInstance.contractAddress, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature], {
+            await assert.revertWith(routerInstance.from(aliceMember).mintWithReimbursement(transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature], {
                 gasPrice: gasprice
             }), expectedRevertMessage);
         });
 
         it("Should not execute mint transaction with less than the half signatures", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, whbarInstance.contractAddress, receiver, amount, txCost, gasprice]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, gasprice]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
             const aliceSignature = await aliceMember.signMessage(hashData);
 
             const expectedRevertMessage = "Router: Invalid number of signatures";
-            await assert.revertWith(routerInstance.from(aliceMember).mintWithReimbursement(transactionId, whbarInstance.contractAddress, receiver, amount, txCost, [aliceSignature], {
+            await assert.revertWith(routerInstance.from(aliceMember).mintWithReimbursement(transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, [aliceSignature], {
                 gasPrice: gasprice
             }), expectedRevertMessage);
         });
 
         it("Should not execute mint transaction from other than a member", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, whbarInstance.contractAddress, receiver, amount, txCost, gasprice]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, gasprice]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -348,13 +348,13 @@ describe("Router", function () {
             const bobSignature = await bobMember.signMessage(hashData);
 
             const expectedRevertMessage = "Governance: msg.sender is not a member";
-            await assert.revertWith(routerInstance.mintWithReimbursement(transactionId, whbarInstance.contractAddress, receiver, amount, txCost, [aliceSignature, bobSignature], {
+            await assert.revertWith(routerInstance.mintWithReimbursement(transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, [aliceSignature, bobSignature], {
                 gasPrice: gasprice
             }), expectedRevertMessage);
         });
 
         it("Should not execute mint transaction signed from non member", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, whbarInstance.contractAddress, receiver, amount, txCost, gasprice]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, gasprice]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -362,20 +362,20 @@ describe("Router", function () {
             const nonMemberSignature = await nonMember.signMessage(hashData);
 
             const expectedRevertMessage = "Router: invalid signer";
-            await assert.revertWith(routerInstance.from(aliceMember).mintWithReimbursement(transactionId, whbarInstance.contractAddress, receiver, amount, txCost, [aliceSignature, nonMemberSignature], {
+            await assert.revertWith(routerInstance.from(aliceMember).mintWithReimbursement(transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, [aliceSignature, nonMemberSignature], {
                 gasPrice: gasprice
             }), expectedRevertMessage);
         });
 
         it("Should not execute mint transaction with identical signatures", async () => {
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, whbarInstance.contractAddress, receiver, amount, txCost, gasprice]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, gasprice]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
             const aliceSignature = await aliceMember.signMessage(hashData);
 
             const expectedRevertMessage = "Router: signature already set";
-            await assert.revertWith(routerInstance.from(aliceMember).mintWithReimbursement(transactionId, whbarInstance.contractAddress, receiver, amount, txCost, [aliceSignature, aliceSignature], {
+            await assert.revertWith(routerInstance.from(aliceMember).mintWithReimbursement(transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, [aliceSignature, aliceSignature], {
                 gasPrice: gasprice
             }), expectedRevertMessage);
         });
@@ -383,7 +383,7 @@ describe("Router", function () {
         it("Should not execute mint transaction with wrong data", async () => {
             const wrongAmount = ethers.utils.parseEther("200");
 
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, whbarInstance.contractAddress, receiver, amount, txCost, gasprice]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, gasprice]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -391,7 +391,7 @@ describe("Router", function () {
             const bobSignature = await bobMember.signMessage(hashData);
 
             const expectedRevertMessage = "Router: invalid signer";
-            await assert.revertWith(routerInstance.from(aliceMember).mintWithReimbursement(transactionId, whbarInstance.contractAddress, receiver, wrongAmount, txCost, [aliceSignature, bobSignature], {
+            await assert.revertWith(routerInstance.from(aliceMember).mintWithReimbursement(transactionId, wrappedTokenInstance.contractAddress, receiver, wrongAmount, txCost, [aliceSignature, bobSignature], {
                 gasPrice: gasprice
             }), expectedRevertMessage);
         });
@@ -405,18 +405,18 @@ describe("Router", function () {
 
         it("Should burn tokens", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await whbarInstance.from(nonMember).approve(routerInstance.contractAddress, amountToBurn);
+            await wrappedTokenInstance.from(nonMember).approve(routerInstance.contractAddress, amountToBurn);
 
-            const balanceOFReciever = await whbarInstance.balanceOf(receiver);
+            const balanceOFReciever = await wrappedTokenInstance.balanceOf(receiver);
 
-            let assetsData = await routerInstance.assetsData(whbarInstance.contractAddress);
+            let assetsData = await routerInstance.assetsData(wrappedTokenInstance.contractAddress);
             const totalClaimableFees = assetsData.feesAccrued;
 
-            await routerInstance.from(nonMember).burn(amountToBurn, hederaAddress, whbarInstance.contractAddress);
+            await routerInstance.from(nonMember).burn(amountToBurn, hederaAddress, wrappedTokenInstance.contractAddress);
 
-            const balanceOFRecieverAfter = await whbarInstance.balanceOf(receiver);
+            const balanceOFRecieverAfter = await wrappedTokenInstance.balanceOf(receiver);
 
-            assetsData = await routerInstance.assetsData(whbarInstance.contractAddress);
+            assetsData = await routerInstance.assetsData(wrappedTokenInstance.contractAddress);
             const totalClaimableFeesAfter = assetsData.feesAccrued;
 
             const feeAmount = amountToBurn.mul(serviceFee).div(precision);
@@ -428,17 +428,17 @@ describe("Router", function () {
 
         it("Should revert if hederaAddress is invalid", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await whbarInstance.from(nonMember).approve(routerInstance.contractAddress, amountToBurn);
+            await wrappedTokenInstance.from(nonMember).approve(routerInstance.contractAddress, amountToBurn);
 
             const invalidHederaAddress = [];
 
             const expectedRevertMessage = "Router: invalid receiver value";
-            await assert.revertWith(routerInstance.from(nonMember).burn(amountToBurn, invalidHederaAddress, whbarInstance.contractAddress), expectedRevertMessage);
+            await assert.revertWith(routerInstance.from(nonMember).burn(amountToBurn, invalidHederaAddress, wrappedTokenInstance.contractAddress), expectedRevertMessage);
         });
 
         it("Should revert if called with invalid controller address", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await whbarInstance.from(nonMember).approve(routerInstance.contractAddress, amountToBurn);
+            await wrappedTokenInstance.from(nonMember).approve(routerInstance.contractAddress, amountToBurn);
 
             const notValidAsset = accounts[7].signer.address;
             const expectedRevertMessage = "Router: asset contract not active";
@@ -447,23 +447,23 @@ describe("Router", function () {
 
         it("Should emit burn event", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await whbarInstance.from(nonMember).approve(routerInstance.contractAddress, amountToBurn);
+            await wrappedTokenInstance.from(nonMember).approve(routerInstance.contractAddress, amountToBurn);
 
             const expectedEvent = "Burn";
 
-            await assert.emit(routerInstance.from(nonMember).burn(amountToBurn, hederaAddress, whbarInstance.contractAddress), expectedEvent);
+            await assert.emit(routerInstance.from(nonMember).burn(amountToBurn, hederaAddress, wrappedTokenInstance.contractAddress), expectedEvent);
         });
 
         it("Should emit burn event arguments", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
             const expectedServiceFee = amountToBurn.mul(serviceFee).div(precision);
             const expectedAmount = amountToBurn.sub(expectedServiceFee);
-            await whbarInstance.from(nonMember).approve(routerInstance.contractAddress, amountToBurn);
+            await wrappedTokenInstance.from(nonMember).approve(routerInstance.contractAddress, amountToBurn);
 
             const expectedEvent = "Burn";
 
             await assert.emitWithArgs(
-                routerInstance.from(nonMember).burn(amountToBurn, hederaAddress, whbarInstance.contractAddress),
+                routerInstance.from(nonMember).burn(amountToBurn, hederaAddress, wrappedTokenInstance.contractAddress),
                 expectedEvent,
                 [
                     receiver,
@@ -477,15 +477,15 @@ describe("Router", function () {
             const amountToBurn = ethers.utils.parseEther("5");
 
             const expectedRevertMessage = "ERC20: burn amount exceeds allowance";
-            await assert.revertWith(routerInstance.from(nonMember).burn(amountToBurn, hederaAddress, whbarInstance.contractAddress), expectedRevertMessage);
+            await assert.revertWith(routerInstance.from(nonMember).burn(amountToBurn, hederaAddress, wrappedTokenInstance.contractAddress), expectedRevertMessage);
         });
 
         it("Should revert if invoker has no tokens", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await whbarInstance.from(aliceMember).approve(routerInstance.contractAddress, amountToBurn);
+            await wrappedTokenInstance.from(aliceMember).approve(routerInstance.contractAddress, amountToBurn);
 
             const expectedRevertMessage = "ERC20: burn amount exceeds balance";
-            await assert.revertWith(routerInstance.from(aliceMember).burn(amountToBurn, hederaAddress, whbarInstance.contractAddress), expectedRevertMessage);
+            await assert.revertWith(routerInstance.from(aliceMember).burn(amountToBurn, hederaAddress, wrappedTokenInstance.contractAddress), expectedRevertMessage);
         });
     });
 
@@ -498,19 +498,19 @@ describe("Router", function () {
         it("Should claim service fees", async () => {
             expectedMintServiceFee = amount.sub(txCost).mul(serviceFee).div(precision);
 
-            await routerInstance.from(aliceMember.address).claim(whbarInstance.contractAddress);
-            await routerInstance.from(bobMember.address).claim(whbarInstance.contractAddress);
-            await routerInstance.from(carlMember.address).claim(whbarInstance.contractAddress);
+            await routerInstance.from(aliceMember.address).claim(wrappedTokenInstance.contractAddress);
+            await routerInstance.from(bobMember.address).claim(wrappedTokenInstance.contractAddress);
+            await routerInstance.from(carlMember.address).claim(wrappedTokenInstance.contractAddress);
 
-            const aliceBalance = await whbarInstance.balanceOf(aliceMember.address);
-            const bobBalance = await whbarInstance.balanceOf(bobMember.address);
-            const carlBalance = await whbarInstance.balanceOf(carlMember.address);
+            const aliceBalance = await wrappedTokenInstance.balanceOf(aliceMember.address);
+            const bobBalance = await wrappedTokenInstance.balanceOf(bobMember.address);
+            const carlBalance = await wrappedTokenInstance.balanceOf(carlMember.address);
 
             assert(aliceBalance.eq(expectedMintServiceFee.div(3).add(txCost)));
             assert(bobBalance.eq(expectedMintServiceFee.div(3)));
             assert(carlBalance.eq(expectedMintServiceFee.div(3)));
 
-            const assetData = await routerInstance.assetsData(whbarInstance.contractAddress);
+            const assetData = await routerInstance.assetsData(wrappedTokenInstance.contractAddress);
             assert(assetData.feesAccrued.eq(assetData.previousAccrued));
             assert(assetData.accumulator.eq(expectedMintServiceFee.div(3)));
         });
@@ -519,7 +519,7 @@ describe("Router", function () {
             expectedMintServiceFee = amount.sub(txCost).mul(serviceFee).div(precision).mul(2);
 
             const newTransactionId = ethers.utils.formatBytes32String("0.0.0000-0000000000-000000003");
-            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [newTransactionId, whbarInstance.contractAddress, receiver, amount, txCost, gasprice]);
+            const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [newTransactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, gasprice]);
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -527,37 +527,37 @@ describe("Router", function () {
             const bobSignature = await bobMember.signMessage(hashData);
             const carlSignature = await carlMember.signMessage(hashData);
 
-            await routerInstance.from(bobMember).mintWithReimbursement(newTransactionId, whbarInstance.contractAddress, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature], {
+            await routerInstance.from(bobMember).mintWithReimbursement(newTransactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature], {
                 gasPrice: gasprice
             });
 
-            await routerInstance.from(aliceMember.address).claim(whbarInstance.contractAddress);
-            await routerInstance.from(bobMember.address).claim(whbarInstance.contractAddress);
-            await routerInstance.from(carlMember.address).claim(whbarInstance.contractAddress);
+            await routerInstance.from(aliceMember.address).claim(wrappedTokenInstance.contractAddress);
+            await routerInstance.from(bobMember.address).claim(wrappedTokenInstance.contractAddress);
+            await routerInstance.from(carlMember.address).claim(wrappedTokenInstance.contractAddress);
 
-            const aliceBalance = await whbarInstance.balanceOf(aliceMember.address);
-            const bobBalance = await whbarInstance.balanceOf(bobMember.address);
-            const carlBalance = await whbarInstance.balanceOf(carlMember.address);
+            const aliceBalance = await wrappedTokenInstance.balanceOf(aliceMember.address);
+            const bobBalance = await wrappedTokenInstance.balanceOf(bobMember.address);
+            const carlBalance = await wrappedTokenInstance.balanceOf(carlMember.address);
 
             assert(aliceBalance.eq(expectedMintServiceFee.div(3).add(txCost)));
             assert(bobBalance.eq(expectedMintServiceFee.div(3).add(txCost)));
             assert(carlBalance.eq(expectedMintServiceFee.div(3)));
 
-            const assetData = await routerInstance.assetsData(whbarInstance.contractAddress);
+            const assetData = await routerInstance.assetsData(wrappedTokenInstance.contractAddress);
             assert(assetData.feesAccrued.eq(assetData.previousAccrued));
             assert(assetData.accumulator.eq(expectedMintServiceFee.div(3)));
         });
 
         it("Should emit claim event", async () => {
             const expectedEvent = "Claim";
-            await assert.emit(routerInstance.from(aliceMember.address).claim(whbarInstance.contractAddress), expectedEvent);
+            await assert.emit(routerInstance.from(aliceMember.address).claim(wrappedTokenInstance.contractAddress), expectedEvent);
         });
 
         it("Should emit claim event arguments", async () => {
             expectedMintServiceFee = amount.sub(txCost).mul(serviceFee).div(precision);
             const expectedEvent = "Claim";
             await assert.emitWithArgs(
-                routerInstance.from(aliceMember.address).claim(whbarInstance.contractAddress),
+                routerInstance.from(aliceMember.address).claim(wrappedTokenInstance.contractAddress),
                 expectedEvent,
                 [
                     aliceMember.address,
@@ -567,12 +567,12 @@ describe("Router", function () {
 
         it("Should revertWith if user without balance tries to claim", async () => {
             const expectedRevertMessage = "Governance: msg.sender is not a member";
-            await assert.revertWith(routerInstance.from(nonMember).claim(whbarInstance.contractAddress), expectedRevertMessage);
+            await assert.revertWith(routerInstance.from(nonMember).claim(wrappedTokenInstance.contractAddress), expectedRevertMessage);
         });
 
         it("Should be able to claim after member is removed", async () => {
             await routerInstance.updateMember(aliceMember.address, false);
-            const aliceBalance = await whbarInstance.balanceOf(aliceMember.address);
+            const aliceBalance = await wrappedTokenInstance.balanceOf(aliceMember.address);
 
             const expectedAliceBalance = amount.sub(txCost).mul(serviceFee).div(precision).div(3).add(txCost);
             assert(aliceBalance.eq(expectedAliceBalance));
@@ -584,9 +584,9 @@ describe("Router", function () {
         await routerInstance.updateMember(bobMember.address, true);
         await routerInstance.updateMember(carlMember.address, true);
 
-        await routerInstance.updateAsset(whbarInstance.contractAddress, wrappedId, true);
+        await routerInstance.updateAsset(wrappedTokenInstance.contractAddress, wrappedId, true);
 
-        const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, whbarInstance.contractAddress, receiver, amount, txCost, gasprice]);
+        const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, gasprice]);
         const hashMsg = ethers.utils.keccak256(encodeData);
         const hashData = ethers.utils.arrayify(hashMsg);
 
@@ -594,7 +594,7 @@ describe("Router", function () {
         const bobSignature = await bobMember.signMessage(hashData);
         const carlSignature = await carlMember.signMessage(hashData);
 
-        await routerInstance.from(aliceMember).mintWithReimbursement(transactionId, whbarInstance.contractAddress, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature], {
+        await routerInstance.from(aliceMember).mintWithReimbursement(transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, [aliceSignature, bobSignature, carlSignature], {
             gasPrice: gasprice
         });
     }
