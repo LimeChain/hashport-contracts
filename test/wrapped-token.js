@@ -1,5 +1,5 @@
 const etherlime = require("etherlime-lib");
-const WHBAR = require("../build/WHBAR");
+const WrappedToken = require("../build/WrappedToken");
 const ethers = require("ethers");
 
 describe("WHBAR", function () {
@@ -16,7 +16,7 @@ describe("WHBAR", function () {
     beforeEach(async () => {
         deployer = new etherlime.EtherlimeGanacheDeployer(owner.secretKey);
         whbarInstace = await deployer.deploy(
-            WHBAR,
+            WrappedToken,
             {},
             name,
             symbol,
@@ -64,32 +64,32 @@ describe("WHBAR", function () {
     });
 
     it("Should set bridge contract address as controller", async () => {
-        await whbarInstace.setControllerAddress(
+        await whbarInstace.setRouterAddress(
             controller.address
         );
-        const controllerAddress = await whbarInstace.controllerAddress();
-        assert.strictEqual(controllerAddress, controller.address, "The bridge address was not set corectly");
+        const routerAddress = await whbarInstace.routerAddress();
+        assert.strictEqual(routerAddress, controller.address, "The bridge address was not set corectly");
     });
 
-    it("Should emit SetControllerAddress event", async () => {
-        const expectedEvent = "SetControllerAddress";
-        await assert.emit(whbarInstace.setControllerAddress(controller.address), expectedEvent);
+    it("Should emit setRouterAddress event", async () => {
+        const expectedEvent = "RouterAddressSet";
+        await assert.emit(whbarInstace.setRouterAddress(controller.address), expectedEvent);
     });
 
-    it("Should emit SetControllerAddress event arguments", async () => {
-        const expectedEvent = "SetControllerAddress";
+    it("Should emit setRouterAddress event arguments", async () => {
+        const expectedEvent = "RouterAddressSet";
         const expectedEventArgs = [controller.address];
-        await assert.emitWithArgs(whbarInstace.setControllerAddress(controller.address), expectedEvent, expectedEventArgs);
+        await assert.emitWithArgs(whbarInstace.setRouterAddress(controller.address), expectedEvent, expectedEventArgs);
     });
 
     it("Should revert if not owner tries to set bridge contract address", async () => {
         const expectedRevertMessage = "Ownable: caller is not the owner";
 
-        await assert.revertWith(whbarInstace.from(alice).setControllerAddress(controller.address), expectedRevertMessage);
+        await assert.revertWith(whbarInstace.from(alice).setRouterAddress(controller.address), expectedRevertMessage);
     });
 
     it("Should mint tokens from controller", async () => {
-        await whbarInstace.setControllerAddress(
+        await whbarInstace.setRouterAddress(
             controller.address,
         );
         const mintAmount = ethers.utils.parseEther("153");
@@ -100,8 +100,8 @@ describe("WHBAR", function () {
     });
 
     it("Should revert if not controller tries to mint", async () => {
-        const expectedRevertMessage = "WHBAR: Not called by the controller contract";
-        await whbarInstace.setControllerAddress(
+        const expectedRevertMessage = "WHBAR: Not called by the router contract";
+        await whbarInstace.setRouterAddress(
             controller.address,
         );
         const mintAmount = ethers.utils.parseEther("153");
@@ -109,7 +109,7 @@ describe("WHBAR", function () {
     });
 
     it("Should burn tokens from controller", async () => {
-        await whbarInstace.setControllerAddress(
+        await whbarInstace.setRouterAddress(
             controller.address,
         );
         const mintAmount = ethers.utils.parseEther("153");
@@ -125,9 +125,9 @@ describe("WHBAR", function () {
     });
 
     it("Should revert if not controller tries to burn", async () => {
-        const expectedRevertMessage = "WHBAR: Not called by the controller contract";
+        const expectedRevertMessage = "WHBAR: Not called by the router contract";
 
-        await whbarInstace.setControllerAddress(
+        await whbarInstace.setRouterAddress(
             controller.address,
         );
         const mintAmount = ethers.utils.parseEther("153");
@@ -142,7 +142,7 @@ describe("WHBAR", function () {
     it("Should revert if there is no allowance", async () => {
         const expectedRevertMessage = "ERC20: burn amount exceeds allowance";
 
-        await whbarInstace.setControllerAddress(
+        await whbarInstace.setRouterAddress(
             controller.address,
         );
         const mintAmount = ethers.utils.parseEther("153");
@@ -155,7 +155,7 @@ describe("WHBAR", function () {
 
 
     it("Should not mint if token is paused", async () => {
-        await whbarInstace.setControllerAddress(
+        await whbarInstace.setRouterAddress(
             controller.address,
         );
         await whbarInstace.from(owner).pause();
@@ -167,7 +167,7 @@ describe("WHBAR", function () {
     });
 
     it("Should not burn if token is paused", async () => {
-        await whbarInstace.setControllerAddress(
+        await whbarInstace.setRouterAddress(
             controller.address,
         );
 

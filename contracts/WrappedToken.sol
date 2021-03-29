@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20Pausable.sol";
  *  @author LimeChain Dev team
  *  @title ERC20 WHBAR contract
  */
-contract WHBAR is ERC20Pausable, Ownable {
+contract WrappedToken is ERC20Pausable, Ownable {
     /// @notice The router address of the contract
     address public routerAddress;
 

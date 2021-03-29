@@ -47,6 +47,14 @@ abstract contract FeeCalculator is Governance {
         _;
     }
 
+    function getTxCostsPerMember(address asset, address member)
+        public
+        view
+        returns (uint256)
+    {
+        return assetsData[asset].txCostsPerMember[member];
+    }
+
     /**
      * @notice DistributeRewards distribute rewards and transaction cost among members
      * @param asset The address of the asset

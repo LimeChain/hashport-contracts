@@ -6,7 +6,7 @@ const Router = require("../build/Router.json");
 const INFURA_PROVIDER = "14ac2dd6bdcb485bb22ed4aa76d681ae";
 // NOTE: Set the correct multisig owner of the contracts
 const multisigWallet = "0x39F00e926DeE09De7f44646a640e83fd912Bec17";
-const wrappedId = ethers.utils.formatBytes32String("0.0.0001");
+const wrappedId = ethers.utils.formatBytes32String("hbar");
 
 // 5% multiplied by 1000
 const serviceFee = "5000";
