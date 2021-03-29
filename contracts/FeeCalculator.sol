@@ -16,10 +16,10 @@ abstract contract FeeCalculator is Governance {
     /// @notice Value of the service fee in percentage. Range 0% to 99.999% multiplied my 1000
     uint256 public serviceFee;
 
-    /// @notice Storage asset address -> asset metadata structure.
-    mapping(address => AssetData) public assetsData;
+    /// @notice Storage wrappedToken address -> wrappedToken metadata structure.
+    mapping(address => WrappedTokenData) public wrappedTokensData;
 
-    struct AssetData {
+    struct WrappedTokenData {
         uint256 feesAccrued;
         uint256 previousAccrued;
         uint256 accumulator;
@@ -47,82 +47,89 @@ abstract contract FeeCalculator is Governance {
         _;
     }
 
-    function getTxCostsPerMember(address asset, address member)
+    function getTxCostsPerMember(address wrappedToken, address member)
         public
         view
         returns (uint256)
     {
-        return assetsData[asset].txCostsPerMember[member];
+        return wrappedTokensData[wrappedToken].txCostsPerMember[member];
     }
 
     /**
      * @notice DistributeRewards distribute rewards and transaction cost among members
-     * @param asset The address of the asset
+     * @param wrappedToken The address of the wrappedToken
      * @param txCost The cost of the transaction
      * @param serviceFeeInWTokens The servive fee in tokens
      * @param memberAddress The address of the member which executes the transaction
      */
     function distributeRewards(
-        address asset,
+        address wrappedToken,
         uint256 txCost,
         uint256 serviceFeeInWTokens,
         address memberAddress
     ) internal {
-        AssetData storage assetData = assetsData[asset];
+        WrappedTokenData storage wrappedTokenData =
+            wrappedTokensData[wrappedToken];
 
-        assetData.feesAccrued = assetData.feesAccrued.add(serviceFeeInWTokens);
+        wrappedTokenData.feesAccrued = wrappedTokenData.feesAccrued.add(
+            serviceFeeInWTokens
+        );
 
-        assetData.txCostsPerMember[memberAddress] = assetData.txCostsPerMember[
-            memberAddress
-        ]
+        wrappedTokenData.txCostsPerMember[memberAddress] = wrappedTokenData
+            .txCostsPerMember[memberAddress]
             .add(txCost);
     }
 
     /**
      * @notice DistributeRewards distribute rewards and transaction cost among members
-     * @param asset The address of the asset
+     * @param wrappedToken The address of the wrappedToken
      * @param serviceFeeInWTokens The servive fee in tokens
      */
-    function distributeRewards(address asset, uint256 serviceFeeInWTokens)
-        internal
-    {
-        assetsData[asset].feesAccrued = assetsData[asset].feesAccrued.add(
-            serviceFeeInWTokens
-        );
+    function distributeRewards(
+        address wrappedToken,
+        uint256 serviceFeeInWTokens
+    ) internal {
+        wrappedTokensData[wrappedToken].feesAccrued = wrappedTokensData[
+            wrappedToken
+        ]
+            .feesAccrued
+            .add(serviceFeeInWTokens);
     }
 
     /**
-     * @notice _claimAsset Make calculations based on fee distribution and returns the claimable amount
+     * @notice _claimWrappedToken Make calculations based on fee distribution and returns the claimable amount
      * @param claimer The address of the claimer
-     * @param asset The address of the asset
+     * @param wrappedToken The address of the wrapped token
      */
-    function _claimAsset(address claimer, address asset)
+    function _claimWrappedToken(address claimer, address wrappedToken)
         internal
         returns (uint256)
     {
-        AssetData storage assetData = assetsData[asset];
+        WrappedTokenData storage wrappedTokenData =
+            wrappedTokensData[wrappedToken];
         uint256 amount =
-            assetData.feesAccrued.sub(assetData.previousAccrued).div(
-                membersCount()
-            );
+            wrappedTokenData
+                .feesAccrued
+                .sub(wrappedTokenData.previousAccrued)
+                .div(membersCount());
 
-        assetData.previousAccrued = assetData.feesAccrued;
-        assetData.accumulator = assetData.accumulator.add(amount);
+        wrappedTokenData.previousAccrued = wrappedTokenData.feesAccrued;
+        wrappedTokenData.accumulator = wrappedTokenData.accumulator.add(amount);
 
         uint256 claimableAmount =
-            assetData.accumulator.sub(
-                assetData.claimedRewardsPerAccount[claimer]
+            wrappedTokenData.accumulator.sub(
+                wrappedTokenData.claimedRewardsPerAccount[claimer]
             );
 
-        assetData.claimedRewardsPerAccount[claimer] = assetData
+        wrappedTokenData.claimedRewardsPerAccount[claimer] = wrappedTokenData
             .claimedRewardsPerAccount[claimer]
             .add(claimableAmount);
 
         claimableAmount = claimableAmount.add(
-            assetData.txCostsPerMember[claimer]
+            wrappedTokenData.txCostsPerMember[claimer]
         );
 
-        assetData.txCostsPerMember[claimer] = 0;
+        wrappedTokenData.txCostsPerMember[claimer] = 0;
 
         return claimableAmount;
     }
@@ -130,11 +137,12 @@ abstract contract FeeCalculator is Governance {
     /**
      * @notice addNewMember Sets the initial claimed rewards for new members
      * @param account The address of the new member
-     * @param asset The address of the asset
+     * @param wrappedToken The address of the wrappedToken
      */
-    function addNewMember(address account, address asset) internal {
-        assetsData[asset].claimedRewardsPerAccount[account] = assetsData[asset]
-            .accumulator;
+    function addNewMember(address account, address wrappedToken) internal {
+        wrappedTokensData[wrappedToken].claimedRewardsPerAccount[
+            account
+        ] = wrappedTokensData[wrappedToken].accumulator;
     }
 
     /**

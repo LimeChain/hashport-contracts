@@ -213,7 +213,7 @@ describe("Router", function () {
             await routerInstance.updateMember(bobMember.address, true);
             await routerInstance.updateMember(carlMember.address, true);
 
-            await routerInstance.updateAsset(wrappedTokenInstance.contractAddress, wrappedId, true);
+            await routerInstance.updateWrappedToken(wrappedTokenInstance.contractAddress, wrappedId, true);
         });
 
         it("Should execute mint with reimbursment transaction", async () => {
@@ -236,8 +236,8 @@ describe("Router", function () {
             const isExecuted = await routerInstance.mintTransfers(transactionId);
             assert.ok(isExecuted);
 
-            const assetData = await routerInstance.assetsData(wrappedTokenInstance.contractAddress);
-            assert(assetData.feesAccrued.eq(expectedMintServiceFee));
+            const wrappedTokensData = await routerInstance.wrappedTokensData(wrappedTokenInstance.contractAddress);
+            assert(wrappedTokensData.feesAccrued.eq(expectedMintServiceFee));
 
             const alicetxCosts = await routerInstance.getTxCostsPerMember(wrappedTokenInstance.contractAddress, aliceMember.address);
             assert(alicetxCosts.eq(txCost));
@@ -263,8 +263,8 @@ describe("Router", function () {
             const isExecuted = await routerInstance.mintTransfers(transactionId);
             assert.ok(isExecuted);
 
-            const assetData = await routerInstance.assetsData(wrappedTokenInstance.contractAddress);
-            assert(assetData.feesAccrued.eq(expectedMintServiceFee));
+            const wrappedTokensData = await routerInstance.wrappedTokensData(wrappedTokenInstance.contractAddress);
+            assert(wrappedTokensData.feesAccrued.eq(expectedMintServiceFee));
 
             const alicetxCosts = await routerInstance.getTxCostsPerMember(wrappedTokenInstance.contractAddress, aliceMember.address);
             assert(alicetxCosts.eq(0));
@@ -409,15 +409,15 @@ describe("Router", function () {
 
             const balanceOFReciever = await wrappedTokenInstance.balanceOf(receiver);
 
-            let assetsData = await routerInstance.assetsData(wrappedTokenInstance.contractAddress);
-            const totalClaimableFees = assetsData.feesAccrued;
+            let wrappedTokensData = await routerInstance.wrappedTokensData(wrappedTokenInstance.contractAddress);
+            const totalClaimableFees = wrappedTokensData.feesAccrued;
 
             await routerInstance.from(nonMember).burn(amountToBurn, hederaAddress, wrappedTokenInstance.contractAddress);
 
             const balanceOFRecieverAfter = await wrappedTokenInstance.balanceOf(receiver);
 
-            assetsData = await routerInstance.assetsData(wrappedTokenInstance.contractAddress);
-            const totalClaimableFeesAfter = assetsData.feesAccrued;
+            wrappedTokensData = await routerInstance.wrappedTokensData(wrappedTokenInstance.contractAddress);
+            const totalClaimableFeesAfter = wrappedTokensData.feesAccrued;
 
             const feeAmount = amountToBurn.mul(serviceFee).div(precision);
 
@@ -441,7 +441,7 @@ describe("Router", function () {
             await wrappedTokenInstance.from(nonMember).approve(routerInstance.contractAddress, amountToBurn);
 
             const notValidAsset = accounts[7].signer.address;
-            const expectedRevertMessage = "Router: asset contract not active";
+            const expectedRevertMessage = "Router: wrappedToken contract not active";
             await assert.revertWith(routerInstance.from(nonMember).burn(amountToBurn, hederaAddress, notValidAsset), expectedRevertMessage);
         });
 
@@ -510,9 +510,9 @@ describe("Router", function () {
             assert(bobBalance.eq(expectedMintServiceFee.div(3)));
             assert(carlBalance.eq(expectedMintServiceFee.div(3)));
 
-            const assetData = await routerInstance.assetsData(wrappedTokenInstance.contractAddress);
-            assert(assetData.feesAccrued.eq(assetData.previousAccrued));
-            assert(assetData.accumulator.eq(expectedMintServiceFee.div(3)));
+            const wrappedTokensData = await routerInstance.wrappedTokensData(wrappedTokenInstance.contractAddress);
+            assert(wrappedTokensData.feesAccrued.eq(wrappedTokensData.previousAccrued));
+            assert(wrappedTokensData.accumulator.eq(expectedMintServiceFee.div(3)));
         });
 
         it("Should claim multiple service fees", async () => {
@@ -543,9 +543,9 @@ describe("Router", function () {
             assert(bobBalance.eq(expectedMintServiceFee.div(3).add(txCost)));
             assert(carlBalance.eq(expectedMintServiceFee.div(3)));
 
-            const assetData = await routerInstance.assetsData(wrappedTokenInstance.contractAddress);
-            assert(assetData.feesAccrued.eq(assetData.previousAccrued));
-            assert(assetData.accumulator.eq(expectedMintServiceFee.div(3)));
+            const wrappedTokensData = await routerInstance.wrappedTokensData(wrappedTokenInstance.contractAddress);
+            assert(wrappedTokensData.feesAccrued.eq(wrappedTokensData.previousAccrued));
+            assert(wrappedTokensData.accumulator.eq(expectedMintServiceFee.div(3)));
         });
 
         it("Should emit claim event", async () => {
@@ -584,7 +584,7 @@ describe("Router", function () {
         await routerInstance.updateMember(bobMember.address, true);
         await routerInstance.updateMember(carlMember.address, true);
 
-        await routerInstance.updateAsset(wrappedTokenInstance.contractAddress, wrappedId, true);
+        await routerInstance.updateWrappedToken(wrappedTokenInstance.contractAddress, wrappedId, true);
 
         const encodeData = ethers.utils.defaultAbiCoder.encode(["bytes", "address", "address", "uint256", "uint256", "uint256"], [transactionId, wrappedTokenInstance.contractAddress, receiver, amount, txCost, gasprice]);
         const hashMsg = ethers.utils.keccak256(encodeData);

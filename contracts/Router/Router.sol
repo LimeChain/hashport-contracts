@@ -8,17 +8,17 @@ import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 contract Router is FeeCalculator {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    /// @notice Iterable set of asset contracts
-    EnumerableSet.AddressSet private assetsSet;
+    /// @notice Iterable set of wrappedToken contracts
+    EnumerableSet.AddressSet private wrappedTokens;
 
     /// @notice Storage metadata for hedera -> eth transactions. Key bytes represents Hedera TransactionID
     mapping(bytes => Transaction) public mintTransfers;
 
-    /// @notice Storage hedera token id -> asset address.
-    mapping(bytes => address) public tokenIdToAsset;
+    /// @notice Storage hedera token id -> wrappedToken address.
+    mapping(bytes => address) public nativeToWrappedToken;
 
-    /// @notice Storage asset address -> hedera token id.
-    mapping(address => bytes) public assetToTokenId;
+    /// @notice Storage wrappedToken address -> hedera token id.
+    mapping(address => bytes) public wrappedToNativeToken;
 
     /// @notice Struct containing necessary metadata for a given transaction
     struct Transaction {
@@ -26,8 +26,8 @@ contract Router is FeeCalculator {
         mapping(address => bool) signatures;
     }
 
-    /// @notice An event emitted once asset contract is set
-    event AssetContractSet(address newAsset, bool isActive);
+    /// @notice An event emitted once wrappedToken contract is set
+    event TokenUpdate(address newWrappedToken, bytes nativeToken, bool isActive);
 
     /// @notice An event emitted once a Mint transaction is executed
     event Mint(
@@ -48,9 +48,6 @@ contract Router is FeeCalculator {
 
     /// @notice An event emitted once Member claims fees accredited to him
     event Claim(address indexed account, uint256 amount);
-
-    /// @notice An event emitted once this contract is deprecated by the owner
-    event Deprecate(address account, uint256 amount);
 
     /**
      *  @notice Passes an argument for constructing a new FeeCalculator contract
@@ -75,23 +72,26 @@ contract Router is FeeCalculator {
         _;
     }
 
-    /// @notice Require the asset address to be an existing one
-    modifier containsAsset(address asset) {
-        require(isAsset(asset), "Router: asset contract not active");
+    /// @notice Require the wrappedToken address to be an existing one
+    modifier supportedToken(address supportedToken) {
+        require(
+            isSupportedToken(supportedToken),
+            "Router: wrappedToken contract not active"
+        );
         _;
     }
 
     /**
-     * @notice Mints `amount - fees` assetss to the `receiver` address. Must be authorised by `signatures` from the `members` set, distribute fees
+     * @notice Mints `amount` wrapped tokens to the `receiver` address. Must be authorised by a supermajority of `signatures` from the `members` set. Distributes service fee to the members.
      * @param transactionId The Hedera Transaction ID
-     * @param asset The corresponding asset contract
+     * @param wrappedToken The corresponding wrappedToken contract
      * @param receiver The address receiving the tokens
      * @param amount The desired minting amount
      * @param signatures The array of signatures from the members, authorising the operation
      */
     function mint(
         bytes memory transactionId,
-        address asset,
+        address wrappedToken,
         address receiver,
         uint256 amount,
         bytes[] memory signatures
@@ -99,35 +99,35 @@ contract Router is FeeCalculator {
         public
         onlyValidTxId(transactionId)
         onlyValidSignatures(signatures.length)
-        containsAsset(asset)
+        supportedToken(wrappedToken)
     {
         bytes32 ethHash =
-            _computeMessage(transactionId, asset, receiver, amount);
+            _computeMessage(transactionId, wrappedToken, receiver, amount);
 
         validateAndStoreTx(transactionId, ethHash, signatures);
 
         uint256 serviceFeeInWTokens = amount.mul(serviceFee).div(PRECISION);
 
-        distributeRewards(asset, serviceFeeInWTokens);
+        distributeRewards(wrappedToken, serviceFeeInWTokens);
 
         uint256 amountToMint = amount.sub(serviceFeeInWTokens);
 
-        IWrappedToken(asset).mint(receiver, amountToMint);
+        IWrappedToken(wrappedToken).mint(receiver, amountToMint);
         emit Mint(receiver, amount, serviceFeeInWTokens, 0, transactionId);
     }
 
     /**
-     * @notice Mints `amount - fees` assetss to the `receiver` address. Must be authorised by `signatures` from the `members` set, distribute fees
+     * @notice Mints `amount - fees` wrapped tokens to the `receiver` address. Must be authorised by a supermajority of `signatures` from the `members` set. Distributes service fee to the members.
      * @param transactionId The Hedera Transaction ID
-     * @param asset The corresponding asset contract
+     * @param wrappedToken The corresponding wrappedToken contract
      * @param receiver The address receiving the tokens
      * @param amount The desired minting amount
-     * @param txCost The amount of assetss reimbursed to `msg.sender`
+     * @param txCost The amount of wrapped tokens reimbursed to `msg.sender`
      * @param signatures The array of signatures from the members, authorising the operation
      */
     function mintWithReimbursement(
         bytes memory transactionId,
-        address asset,
+        address wrappedToken,
         address receiver,
         uint256 amount,
         uint256 txCost,
@@ -137,12 +137,12 @@ contract Router is FeeCalculator {
         onlyValidTxId(transactionId)
         onlyMember
         onlyValidSignatures(signatures.length)
-        containsAsset(asset)
+        supportedToken(wrappedToken)
     {
         bytes32 ethHash =
             _computeMessage(
                 transactionId,
-                asset,
+                wrappedToken,
                 receiver,
                 amount,
                 txCost,
@@ -154,40 +154,40 @@ contract Router is FeeCalculator {
         uint256 serviceFeeInWTokens =
             amount.sub(txCost).mul(serviceFee).div(PRECISION);
 
-        distributeRewards(asset, txCost, serviceFeeInWTokens, msg.sender);
+        distributeRewards(wrappedToken, txCost, serviceFeeInWTokens, msg.sender);
 
         uint256 amountToMint = amount.sub(txCost).sub(serviceFeeInWTokens);
 
-        IWrappedToken(asset).mint(receiver, amountToMint);
+        IWrappedToken(wrappedToken).mint(receiver, amountToMint);
         emit Mint(receiver, amount, serviceFeeInWTokens, txCost, transactionId);
     }
 
     /**
-     * @notice call burn of the given asset contract `amount` assetss from `msg.sender`, distributes fees
-     * @param amount The amount of assetss to be bridged
-     * @param receiver The Hedera account to receive the assets
-     * @param asset contract The corresponding asset contract
+     * @notice call burn of the given wrappedToken contract `amount` wrapped tokens from `msg.sender`, distributes fees
+     * @param amount The amount of wrapped tokens to be bridged
+     * @param receiver The Hedera account to receive the wrapped tokens
+     * @param wrappedToken contract The corresponding wrappedToken contract
      */
     function burn(
         uint256 amount,
         bytes memory receiver,
-        address asset
-    ) public containsAsset(asset) {
+        address wrappedToken
+    ) public supportedToken(wrappedToken) {
         require(receiver.length > 0, "Router: invalid receiver value");
 
         uint256 serviceFeeInWTokens = amount.mul(serviceFee).div(PRECISION);
 
-        distributeRewards(asset, serviceFeeInWTokens);
+        distributeRewards(wrappedToken, serviceFeeInWTokens);
 
-        IWrappedToken(asset).burnFrom(msg.sender, amount);
+        IWrappedToken(wrappedToken).burnFrom(msg.sender, amount);
         uint256 bridgedAmount = amount.sub(serviceFeeInWTokens);
 
         emit Burn(msg.sender, bridgedAmount, serviceFeeInWTokens, receiver);
     }
 
-    function claim(address asset) public onlyMember {
-        uint256 claimableAmount = _claimAsset(msg.sender, asset);
-        IWrappedToken(asset).mint(msg.sender, claimableAmount);
+    function claim(address wrappedToken) public onlyMember {
+        uint256 claimableAmount = _claimWrappedToken(msg.sender, wrappedToken);
+        IWrappedToken(wrappedToken).mint(msg.sender, claimableAmount);
         emit Claim(msg.sender, claimableAmount);
     }
 
@@ -198,84 +198,84 @@ contract Router is FeeCalculator {
      */
     function updateMember(address account, bool isMember) public onlyOwner {
         if (isMember) {
-            for (uint256 i = 0; i < assetsCount(); i++) {
-                addNewMember(account, assetAt(i));
+            for (uint256 i = 0; i < wrappedTokensCount(); i++) {
+                addNewMember(account, wrappedTokenAt(i));
             }
         } else {
-            for (uint256 i = 0; i < assetsCount(); i++) {
-                uint256 claimableFees = _claimAsset(account, assetAt(i));
+            for (uint256 i = 0; i < wrappedTokensCount(); i++) {
+                uint256 claimableFees = _claimWrappedToken(account, wrappedTokenAt(i));
 
-                IWrappedToken(assetAt(i)).mint(account, claimableFees);
+                IWrappedToken(wrappedTokenAt(i)).mint(account, claimableFees);
             }
         }
         _updateMember(account, isMember);
     }
 
     /**
-     * @notice Adds/Removes asset contracts
-     * @param newAsset The address of the asset contract
+     * @notice Adds/Removes wrappedToken contracts
+     * @param newWrappedToken The address of the wrappedToken contract
      * @param tokenID The id of the hedera token
      * @param isActive Shows the status of the contract
      */
-    function updateAsset(
-        address newAsset,
+    function updateWrappedToken(
+        address newWrappedToken,
         bytes memory tokenID,
         bool isActive
     ) public onlyOwner {
-        require(newAsset != address(0), "Router: asset address can't be zero");
+        require(newWrappedToken != address(0), "Router: wrappedToken address can't be zero");
         require(tokenID.length > 0, "Router: invalid tokenID value");
         if (isActive) {
             require(
-                assetsSet.add(newAsset),
-                "Router: Failed to add asset contract"
+                wrappedTokens.add(newWrappedToken),
+                "Router: Failed to add wrappedToken contract"
             );
-            tokenIdToAsset[tokenID] = newAsset;
-            assetToTokenId[newAsset] = tokenID;
+            nativeToWrappedToken[tokenID] = newWrappedToken;
+            wrappedToNativeToken[newWrappedToken] = tokenID;
         } else {
             require(
-                assetsSet.remove(newAsset),
-                "Router: Failed to remove asset contract"
+                wrappedTokens.remove(newWrappedToken),
+                "Router: Failed to remove wrappedToken contract"
             );
             for (uint256 i = 0; i < membersCount(); i++) {
-                uint256 claimableAmount = _claimAsset(memberAt(i), newAsset);
-                IWrappedToken(assetAt(i)).mint(msg.sender, claimableAmount);
+                uint256 claimableAmount = _claimWrappedToken(memberAt(i), newWrappedToken);
+                IWrappedToken(wrappedTokenAt(i)).mint(msg.sender, claimableAmount);
             }
         }
 
-        emit AssetContractSet(newAsset, isActive);
+        emit TokenUpdate(newWrappedToken, tokenID, isActive);
     }
 
-    /// @notice Returns true/false depending on whether a given address is active asset or not
-    function isAsset(address asset) public view returns (bool) {
-        return assetsSet.contains(asset);
+    /// @notice Returns true/false depending on whether a given address is active wrappedToken or not
+    function isSupportedToken(address wrappedToken) public view returns (bool) {
+        return wrappedTokens.contains(wrappedToken);
     }
 
-    /// @notice Returns the count of the assets
-    function assetsCount() public view returns (uint256) {
-        return assetsSet.length();
+    /// @notice Returns the count of the wrapped tokens
+    function wrappedTokensCount() public view returns (uint256) {
+        return wrappedTokens.length();
     }
 
-    /// @notice Returns the address of a asset at a given index
-    function assetAt(uint256 index) public view returns (address) {
-        return assetsSet.at(index);
+    /// @notice Returns the address of a wrappedToken at a given index
+    function wrappedTokenAt(uint256 index) public view returns (address) {
+        return wrappedTokens.at(index);
     }
 
     /// @notice Computes the bytes32 ethereum signed message hash of the signature
     function _computeMessage(
         bytes memory transactionId,
-        address asset,
+        address wrappedToken,
         address receiver,
         uint256 amount
     ) private pure returns (bytes32) {
         bytes32 hashedData =
-            keccak256(abi.encode(transactionId, asset, receiver, amount));
+            keccak256(abi.encode(transactionId, wrappedToken, receiver, amount));
         return ECDSA.toEthSignedMessageHash(hashedData);
     }
 
     /// @notice Computes the bytes32 ethereum signed message hash of the signature with txCost and gascost
     function _computeMessage(
         bytes memory transactionId,
-        address asset,
+        address wrappedToken,
         address receiver,
         uint256 amount,
         uint256 txCost,
@@ -285,7 +285,7 @@ contract Router is FeeCalculator {
             keccak256(
                 abi.encode(
                     transactionId,
-                    asset,
+                    wrappedToken,
                     receiver,
                     amount,
                     txCost,
