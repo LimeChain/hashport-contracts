@@ -1,16 +1,24 @@
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
-import "../Interfaces/IController.sol";
-import "../Governance.sol";
-import "@openzeppelin/contracts/utils/EnumerableSet.sol";
+import "../Interfaces/IWrappedToken.sol";
+import "../FeeCalculator.sol";
 import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 
-contract Router is Governance {
+contract Router is FeeCalculator {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    /// @notice Iterable set of controller contracts
-    EnumerableSet.AddressSet private controllersSet;
+    /// @notice Iterable set of wrappedToken contracts
+    EnumerableSet.AddressSet private wrappedTokens;
+
+    /// @notice Storage metadata for hedera -> eth transactions. Key bytes represents Hedera TransactionID
+    mapping(bytes => Transaction) public mintTransfers;
+
+    /// @notice Storage hedera token id -> wrappedToken address.
+    mapping(bytes => address) public nativeToWrappedToken;
+
+    /// @notice Storage wrappedToken address -> hedera token id.
+    mapping(address => bytes) public wrappedToNativeToken;
 
     /// @notice Struct containing necessary metadata for a given transaction
     struct Transaction {
@@ -18,11 +26,34 @@ contract Router is Governance {
         mapping(address => bool) signatures;
     }
 
-    /// @notice Storage metadata for hedera -> eth transactions. Key bytes represents Hedera TransactionID
-    mapping(bytes => Transaction) public mintTransfers;
+    /// @notice An event emitted once wrappedToken contract is set
+    event TokenUpdate(address newWrappedToken, bytes nativeToken, bool isActive);
 
-    /// @notice An event emitted once controller contract is set
-    event ControllerContractSet(address newController, bool isActive);
+    /// @notice An event emitted once a Mint transaction is executed
+    event Mint(
+        address indexed account,
+        uint256 amount,
+        uint256 serviceFeeInWTokens,
+        uint256 txCost,
+        bytes indexed transactionId
+    );
+
+    /// @notice An event emitted once a Burn transaction is executed
+    event Burn(
+        address indexed account,
+        uint256 amount,
+        uint256 serviceFee,
+        bytes receiver
+    );
+
+    /// @notice An event emitted once Member claims fees accredited to him
+    event Claim(address indexed account, uint256 amount);
+
+    /**
+     *  @notice Passes an argument for constructing a new FeeCalculator contract
+     *  @param _serviceFee The initial service fee in percentage. Range 0% to 99.999% multiplied my 1000.
+     */
+    constructor(uint256 _serviceFee) public FeeCalculator(_serviceFee) {}
 
     /// @notice Accepts number of signatures in the range (n/2; n] where n is the number of members
     modifier onlyValidSignatures(uint256 n) {
@@ -41,27 +72,62 @@ contract Router is Governance {
         _;
     }
 
-    /// @notice Require controller address to be an existing one
-    modifier containsController(address controller) {
+    /// @notice Require the wrappedToken address to be an existing one
+    modifier supportedToken(address supportedToken) {
         require(
-            controllersSet.contains(controller),
-            "Router: controller contract not active"
+            isSupportedToken(supportedToken),
+            "Router: wrappedToken contract not active"
         );
         _;
     }
 
     /**
-     * @notice Mints `amount - fees` WHBARs to the `receiver` address. Must be authorised by `signatures` from the `members` set
+     * @notice Mints `amount` wrapped tokens to the `receiver` address. Must be authorised by a supermajority of `signatures` from the `members` set. Distributes service fee to the members.
      * @param transactionId The Hedera Transaction ID
-     * @param controller The corresponding controller contract
+     * @param wrappedToken The corresponding wrappedToken contract
      * @param receiver The address receiving the tokens
      * @param amount The desired minting amount
-     * @param txCost The amount of WHBARs reimbursed to `msg.sender`
+     * @param signatures The array of signatures from the members, authorising the operation
+     */
+    function mint(
+        bytes memory transactionId,
+        address wrappedToken,
+        address receiver,
+        uint256 amount,
+        bytes[] memory signatures
+    )
+        public
+        onlyValidTxId(transactionId)
+        onlyValidSignatures(signatures.length)
+        supportedToken(wrappedToken)
+    {
+        bytes32 ethHash =
+            _computeMessage(transactionId, wrappedToken, receiver, amount);
+
+        validateAndStoreTx(transactionId, ethHash, signatures);
+
+        uint256 serviceFeeInWTokens = amount.mul(serviceFee).div(PRECISION);
+
+        distributeRewards(wrappedToken, serviceFeeInWTokens);
+
+        uint256 amountToMint = amount.sub(serviceFeeInWTokens);
+
+        IWrappedToken(wrappedToken).mint(receiver, amountToMint);
+        emit Mint(receiver, amount, serviceFeeInWTokens, 0, transactionId);
+    }
+
+    /**
+     * @notice Mints `amount - fees` wrapped tokens to the `receiver` address. Must be authorised by a supermajority of `signatures` from the `members` set. Distributes service fee to the members.
+     * @param transactionId The Hedera Transaction ID
+     * @param wrappedToken The corresponding wrappedToken contract
+     * @param receiver The address receiving the tokens
+     * @param amount The desired minting amount
+     * @param txCost The amount of wrapped tokens reimbursed to `msg.sender`
      * @param signatures The array of signatures from the members, authorising the operation
      */
     function mintWithReimbursement(
         bytes memory transactionId,
-        address controller,
+        address wrappedToken,
         address receiver,
         uint256 amount,
         uint256 txCost,
@@ -71,80 +137,173 @@ contract Router is Governance {
         onlyValidTxId(transactionId)
         onlyMember
         onlyValidSignatures(signatures.length)
-        containsController(controller)
+        supportedToken(wrappedToken)
     {
         bytes32 ethHash =
             _computeMessage(
                 transactionId,
-                controller,
+                wrappedToken,
                 receiver,
                 amount,
                 txCost,
                 tx.gasprice
             );
 
-        _mint(
-            transactionId,
-            ethHash,
-            controller,
-            receiver,
-            amount,
-            txCost,
-            signatures
-        );
+        validateAndStoreTx(transactionId, ethHash, signatures);
+
+        uint256 serviceFeeInWTokens =
+            amount.sub(txCost).mul(serviceFee).div(PRECISION);
+
+        distributeRewards(wrappedToken, txCost, serviceFeeInWTokens, msg.sender);
+
+        uint256 amountToMint = amount.sub(txCost).sub(serviceFeeInWTokens);
+
+        IWrappedToken(wrappedToken).mint(receiver, amountToMint);
+        emit Mint(receiver, amount, serviceFeeInWTokens, txCost, transactionId);
     }
 
     /**
-     * @notice Mints `amount - fees` WHBARs to the `receiver` address. Must be authorised by `signatures` from the `members` set
-     * @param transactionId The Hedera Transaction ID
-     * @param controller The corresponding controller contract
-     * @param receiver The address receiving the tokens
-     * @param amount The desired minting amount
-     * @param signatures The array of signatures from the members, authorising the operation
+     * @notice call burn of the given wrappedToken contract `amount` wrapped tokens from `msg.sender`, distributes fees
+     * @param amount The amount of wrapped tokens to be bridged
+     * @param receiver The Hedera account to receive the wrapped tokens
+     * @param wrappedToken contract The corresponding wrappedToken contract
      */
-    function mint(
-        bytes memory transactionId,
-        address controller,
-        address receiver,
+    function burn(
         uint256 amount,
-        bytes[] memory signatures
-    )
-        public
-        onlyValidTxId(transactionId)
-        onlyValidSignatures(signatures.length)
-        containsController(controller)
-    {
-        bytes32 ethHash =
-            _computeMessage(transactionId, controller, receiver, amount);
+        bytes memory receiver,
+        address wrappedToken
+    ) public supportedToken(wrappedToken) {
+        require(receiver.length > 0, "Router: invalid receiver value");
 
-        _mint(
-            transactionId,
-            ethHash,
-            controller,
-            receiver,
-            amount,
-            0,
-            signatures
-        );
+        uint256 serviceFeeInWTokens = amount.mul(serviceFee).div(PRECISION);
+
+        distributeRewards(wrappedToken, serviceFeeInWTokens);
+
+        IWrappedToken(wrappedToken).burnFrom(msg.sender, amount);
+        uint256 bridgedAmount = amount.sub(serviceFeeInWTokens);
+
+        emit Burn(msg.sender, bridgedAmount, serviceFeeInWTokens, receiver);
+    }
+
+    function claim(address wrappedToken) public onlyMember {
+        uint256 claimableAmount = _claimWrappedToken(msg.sender, wrappedToken);
+        IWrappedToken(wrappedToken).mint(msg.sender, claimableAmount);
+        emit Claim(msg.sender, claimableAmount);
     }
 
     /**
-     * @notice _mint calls mint on the controller contract
-     * @param transactionId The Hedera Transaction ID
-     * @param ethHash The hashed data
-     * @param controller The corresponding controller contract
-     * @param receiver The address receiving the tokens
-     * @param amount The desired minting amount
-     * @param txCost The amount of WHBARs reimbursed to `msg.sender`
-     * @param signatures The array of signatures from the members, authorising the operation
+     * @notice Adds/removes a member account. Not idempotent
+     * @param account The account to be modified
+     * @param isMember Whether the account will be set as member or not
      */
-    function _mint(
+    function updateMember(address account, bool isMember) public onlyOwner {
+        if (isMember) {
+            for (uint256 i = 0; i < wrappedTokensCount(); i++) {
+                addNewMember(account, wrappedTokenAt(i));
+            }
+        } else {
+            for (uint256 i = 0; i < wrappedTokensCount(); i++) {
+                uint256 claimableFees = _claimWrappedToken(account, wrappedTokenAt(i));
+
+                IWrappedToken(wrappedTokenAt(i)).mint(account, claimableFees);
+            }
+        }
+        _updateMember(account, isMember);
+    }
+
+    /**
+     * @notice Adds/Removes wrappedToken contracts
+     * @param newWrappedToken The address of the wrappedToken contract
+     * @param tokenID The id of the hedera token
+     * @param isActive Shows the status of the contract
+     */
+    function updateWrappedToken(
+        address newWrappedToken,
+        bytes memory tokenID,
+        bool isActive
+    ) public onlyOwner {
+        require(newWrappedToken != address(0), "Router: wrappedToken address can't be zero");
+        require(tokenID.length > 0, "Router: invalid tokenID value");
+        if (isActive) {
+            require(
+                wrappedTokens.add(newWrappedToken),
+                "Router: Failed to add wrappedToken contract"
+            );
+            nativeToWrappedToken[tokenID] = newWrappedToken;
+            wrappedToNativeToken[newWrappedToken] = tokenID;
+        } else {
+            require(
+                wrappedTokens.remove(newWrappedToken),
+                "Router: Failed to remove wrappedToken contract"
+            );
+            for (uint256 i = 0; i < membersCount(); i++) {
+                uint256 claimableAmount = _claimWrappedToken(memberAt(i), newWrappedToken);
+                IWrappedToken(wrappedTokenAt(i)).mint(msg.sender, claimableAmount);
+            }
+        }
+
+        emit TokenUpdate(newWrappedToken, tokenID, isActive);
+    }
+
+    /// @notice Returns true/false depending on whether a given address is active wrappedToken or not
+    function isSupportedToken(address wrappedToken) public view returns (bool) {
+        return wrappedTokens.contains(wrappedToken);
+    }
+
+    /// @notice Returns the count of the wrapped tokens
+    function wrappedTokensCount() public view returns (uint256) {
+        return wrappedTokens.length();
+    }
+
+    /// @notice Returns the address of a wrappedToken at a given index
+    function wrappedTokenAt(uint256 index) public view returns (address) {
+        return wrappedTokens.at(index);
+    }
+
+    /// @notice Computes the bytes32 ethereum signed message hash of the signature
+    function _computeMessage(
         bytes memory transactionId,
-        bytes32 ethHash,
-        address controller,
+        address wrappedToken,
+        address receiver,
+        uint256 amount
+    ) private pure returns (bytes32) {
+        bytes32 hashedData =
+            keccak256(abi.encode(transactionId, wrappedToken, receiver, amount));
+        return ECDSA.toEthSignedMessageHash(hashedData);
+    }
+
+    /// @notice Computes the bytes32 ethereum signed message hash of the signature with txCost and gascost
+    function _computeMessage(
+        bytes memory transactionId,
+        address wrappedToken,
         address receiver,
         uint256 amount,
         uint256 txCost,
+        uint256 gascost
+    ) private pure returns (bytes32) {
+        bytes32 hashedData =
+            keccak256(
+                abi.encode(
+                    transactionId,
+                    wrappedToken,
+                    receiver,
+                    amount,
+                    txCost,
+                    gascost
+                )
+            );
+        return ECDSA.toEthSignedMessageHash(hashedData);
+    }
+
+    /**
+     * @notice validateAndStoreTx validates the signatures and the data and saves the transaction
+     * @param transactionId The Hedera Transaction ID
+     * @param ethHash The hashed data
+     * @param signatures The array of signatures from the members, authorising the operation
+     */
+    function validateAndStoreTx(
+        bytes memory transactionId,
+        bytes32 ethHash,
         bytes[] memory signatures
     ) private {
         Transaction storage transaction = mintTransfers[transactionId];
@@ -159,137 +318,5 @@ contract Router is Governance {
             transaction.signatures[signer] = true;
         }
         transaction.isExecuted = true;
-
-        require(
-            IController(controller).mint(
-                receiver,
-                amount,
-                txCost,
-                transactionId,
-                msg.sender
-            ),
-            "Router: Failed to mint tokens"
-        );
-    }
-
-    /**
-     * @notice call burn of the given controller contract `amount` WHBARs from `msg.sender`, distributes fees
-     * @param amount The amount of WHBARs to be bridged
-     * @param receiver The Hedera account to receive the HBARs
-     * @param controller contract The corresponding controller contract
-     */
-    function burn(
-        uint256 amount,
-        bytes memory receiver,
-        address controller
-    ) public {
-        require(
-            controllersSet.contains(controller),
-            "Router: invalid controller address"
-        );
-        require(receiver.length > 0, "Router: invalid receiver value");
-        require(
-            IController(controller).burn(msg.sender, amount, receiver),
-            "Router: Failed to burn tokens"
-        );
-    }
-
-    /**
-     * @notice Adds/removes a member account. Not idempotent
-     * call createNewCheckpoint() for all linked controller contracts
-     * @param account The account to be modified
-     * @param isMember Whether the account will be set as member or not
-     */
-    function updateMember(address account, bool isMember) public onlyOwner {
-        for (uint256 i = 0; i < controllersSet.length(); i++) {
-            require(
-                IController(controllersSet.at(i)).createNewCheckpoint(),
-                "Router: Failed to create checkpoint"
-            );
-        }
-        _updateMember(account, isMember);
-    }
-
-    /**
-     * @notice Adds/Removes Controller contracts
-     * @param newController The address of the controller contract
-     * @param isActive Shows the status of the contract
-     */
-    function setControllerContract(address newController, bool isActive)
-        public
-        onlyOwner
-    {
-        require(newController != address(0));
-        if (isActive) {
-            require(
-                controllersSet.add(newController),
-                "Router: Failed to add controller contract"
-            );
-        } else {
-            require(
-                controllersSet.remove(newController),
-                "Router: Failed to remove controller contract"
-            );
-        }
-
-        emit ControllerContractSet(newController, isActive);
-    }
-
-    /// @notice Deprecates the contract. The outstanding, non-claimed fees are minted to the controller contract for members to claim
-    function deprecate(address controller) public onlyOwner {
-        require(
-            IController(controller).deprecate(),
-            "Router: Failed to depecate controller"
-        );
-    }
-
-    /// @notice Returns true/false depending on whether a given address is active controller or not
-    function isController(address controller) public view returns (bool) {
-        return controllersSet.contains(controller);
-    }
-
-    /// @notice Returns the count of the controllers
-    function controllersCount() public view returns (uint256) {
-        return controllersSet.length();
-    }
-
-    /// @notice Returns the address of a controller at a given index
-    function controllerAt(uint256 index) public view returns (address) {
-        return controllersSet.at(index);
-    }
-
-    /// @notice Computes the bytes32 ethereum signed message hash of the signature
-    function _computeMessage(
-        bytes memory transactionId,
-        address controller,
-        address receiver,
-        uint256 amount
-    ) private pure returns (bytes32) {
-        bytes32 hashedData =
-            keccak256(abi.encode(transactionId, controller, receiver, amount));
-        return ECDSA.toEthSignedMessageHash(hashedData);
-    }
-
-    /// @notice Computes the bytes32 ethereum signed message hash of the signature with txCost and gascost
-    function _computeMessage(
-        bytes memory transactionId,
-        address controller,
-        address receiver,
-        uint256 amount,
-        uint256 txCost,
-        uint256 gascost
-    ) private pure returns (bytes32) {
-        bytes32 hashedData =
-            keccak256(
-                abi.encode(
-                    transactionId,
-                    controller,
-                    receiver,
-                    amount,
-                    txCost,
-                    gascost
-                )
-            );
-        return ECDSA.toEthSignedMessageHash(hashedData);
     }
 }

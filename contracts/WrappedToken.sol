@@ -5,17 +5,26 @@ import "@openzeppelin/contracts/token/ERC20/ERC20Pausable.sol";
 
 /**
  *  @author LimeChain Dev team
- *  @title ERC20 WHBAR contract
+ *  @title ERC20 WrappedToken contract
  */
-contract WHBAR is ERC20Pausable, Ownable {
-    /// @notice The controller address of the contract
-    address public controllerAddress;
+contract WrappedToken is ERC20Pausable, Ownable {
+    /// @notice The router address of the contract
+    address public routerAddress;
 
-    /// @notice An event emitted once the controller address is changed
-    event SetControllerAddress(address newControllerAddress);
+    /// @notice An event emitted once the router address is changed
+    event RouterAddressSet(address newRouterAddress);
+
+    /// @notice Allows only router contract for msg.sender
+    modifier onlyRouterCountract() {
+        require(
+            msg.sender == routerAddress,
+            "WrappedToken: Not called by the router contract"
+        );
+        _;
+    }
 
     /**
-     *  @notice Construct a new WHBAR contract
+     *  @notice Construct a new WrappedToken contract
      *  @param tokenName The EIP-20 token name
      *  @param tokenSymbol The EIP-20 token symbol
      */
@@ -27,24 +36,12 @@ contract WHBAR is ERC20Pausable, Ownable {
         super._setupDecimals(decimals);
     }
 
-    /// @notice Allows only controller contract for msg.sender
-    modifier onlyControllerContract() {
-        require(
-            msg.sender == controllerAddress,
-            "WHBAR: Not called by the controller contract"
-        );
-        _;
-    }
-
     /**
      * @notice Mints `amount` of tokens to the `account` address
      * @param account The address to which the tokens will be minted
      * @param amount The amount to be minted
      */
-    function mint(address account, uint256 amount)
-        public
-        onlyControllerContract
-    {
+    function mint(address account, uint256 amount) public onlyRouterCountract {
         super._mint(account, amount);
     }
 
@@ -55,7 +52,7 @@ contract WHBAR is ERC20Pausable, Ownable {
      */
     function burnFrom(address account, uint256 amount)
         public
-        onlyControllerContract
+        onlyRouterCountract
     {
         uint256 decreasedAllowance =
             allowance(account, _msgSender()).sub(
@@ -77,13 +74,13 @@ contract WHBAR is ERC20Pausable, Ownable {
         super._unpause();
     }
 
-    /// @notice Changes the controller address
-    function setControllerAddress(address _controllerAddress) public onlyOwner {
+    /// @notice Changes the router address
+    function setRouterAddress(address _routerAddress) public onlyOwner {
         require(
-            _controllerAddress != address(0),
-            "WHBAR: Controller address cannot be zero"
+            _routerAddress != address(0),
+            "WrappedToken: router address cannot be zero"
         );
-        controllerAddress = _controllerAddress;
-        emit SetControllerAddress(controllerAddress);
+        routerAddress = _routerAddress;
+        emit RouterAddressSet(routerAddress);
     }
 }

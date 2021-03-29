@@ -11,6 +11,6 @@
     "dependencies": {
         "@hashgraph/sdk": "^2.0.7",
         "@openzeppelin/contracts": "^3.3.0",
-        "etherlime-lib": "^1.2.3"
+        "etherlime-lib": "^1.2.5"
     }
 }
