@@ -1,6 +1,6 @@
 const etherlime = require("etherlime-lib");
 const ethers = require("ethers");
-const WHBAR = require("../build/WHBAR.json");
+const WrappedToken = require("../build/WrappedToken.json");
 const Router = require("../build/Router.json");
 
 const INFURA_PROVIDER = "14ac2dd6bdcb485bb22ed4aa76d681ae";
@@ -20,10 +20,12 @@ const deploy = async (network, secret) => {
         deployer = new etherlime.InfuraPrivateKeyDeployer(secret, network, INFURA_PROVIDER);
     }
 
-    whbarInstance = await deployer.deploy(WHBAR, {}, "Wrapped HBAR", "WHBAR", 8);
+    whbarInstance = await deployer.deploy(WrappedToken, {}, "Wrapped HBAR", "WHBAR", 8);
     routerInstance = await deployer.deploy(Router, {}, serviceFee);
 
-    await routerInstance.updateAsset(whbarInstance.contractAddress, wrappedId, true);
+    await whbarInstance.setRouterAddress(routerInstance.contractAddress);
+    const updateWrapperTokenTx = await routerInstance.updateWrappedToken(whbarInstance.contractAddress, wrappedId, true);
+    await updateWrapperTokenTx.wait();
 
     await routerInstance.updateMember("0x7BB03D96f9D0e233bfF99eC6aa1c5d035Cd3d1c1", true);
     await routerInstance.updateMember("0x4fA67c4ebC625B496eFC85c3ebf757551Da88dED", true);

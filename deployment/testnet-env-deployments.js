@@ -1,12 +1,13 @@
 const etherlime = require("etherlime-lib");
-const WHBAR = require("../build/WHBAR.json");
-const Bridge = require("../build/Bridge.json");
+const WrappedToken = require("../build/WrappedToken.json");
+const Router = require("../build/Router.json");
 const ethers = require("ethers");
 
 const INFURA_PROVIDER = "14ac2dd6bdcb485bb22ed4aa76d681ae";
 
 const serviceFee = "5000";
 const membersSendAmount = ethers.utils.parseEther("0.1");
+const wrappedId = ethers.utils.formatBytes32String("hbar");
 
 const deploy = async (network, secret) => {
     let deployer;
@@ -17,10 +18,13 @@ const deploy = async (network, secret) => {
         deployer = new etherlime.InfuraPrivateKeyDeployer(secret, network, INFURA_PROVIDER);
     }
 
-    whbarInstance = await deployer.deploy(WHBAR, {}, "Wrapped HBAR", "WHBAR", 8);
-    bridgeInstance = await deployer.deploy(Bridge, {}, whbarInstance.contractAddress, serviceFee);
+    whbarInstance = await deployer.deploy(WrappedToken, {}, "Wrapped HBAR", "WHBAR", 8);
+    routerInstance = await deployer.deploy(Router, {}, serviceFee);
 
-    await whbarInstance.setControllerAddress(bridgeInstance.contractAddress);
+    await whbarInstance.setRouterAddress(routerInstance.contractAddress);
+
+    const updateWrappedTokenTx = await routerInstance.updateWrappedToken(whbarInstance.contractAddress, wrappedId, true);
+    await updateWrappedTokenTx.wait();
 
     const aliceWallet = new ethers.Wallet.createRandom();
     console.log("Alice Wallet: ");
@@ -40,9 +44,9 @@ const deploy = async (network, secret) => {
     console.log("Address: ", carolWallet.address);
     console.log('----------------->');
 
-    await bridgeInstance.updateMember(aliceWallet.address, true);
-    await bridgeInstance.updateMember(bobWallet.address, true);
-    await bridgeInstance.updateMember(carolWallet.address, true);
+    await routerInstance.updateMember(aliceWallet.address, true);
+    await routerInstance.updateMember(bobWallet.address, true);
+    await routerInstance.updateMember(carolWallet.address, true);
 
 
     const adminWallet = new ethers.Wallet(secret, deployer.provider);
