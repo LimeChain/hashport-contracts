@@ -1,12 +1,16 @@
 const etherlime = require("etherlime-lib");
-const WHBAR = require("../build/WHBAR.json");
-const Bridge = require("../build/Bridge.json");
+const WrappedToken = require("../build/WrappedToken.json");
+const Router = require("../build/Router.json");
+const Controller = require("../build/Controller.json");
 const ethers = require("ethers");
 
 const INFURA_PROVIDER = "14ac2dd6bdcb485bb22ed4aa76d681ae";
 
 const serviceFee = "5000";
 const membersSendAmount = ethers.utils.parseEther("0.1");
+const wrappedTokenId = ethers.utils.formatBytes32String("0.0.468145");
+const wrappedId = ethers.utils.formatBytes32String("HBAR");
+
 
 const deploy = async (network, secret) => {
     let deployer;
@@ -17,10 +21,19 @@ const deploy = async (network, secret) => {
         deployer = new etherlime.InfuraPrivateKeyDeployer(secret, network, INFURA_PROVIDER);
     }
 
-    whbarInstance = await deployer.deploy(WHBAR, {}, "Wrapped HBAR", "WHBAR", 8);
-    bridgeInstance = await deployer.deploy(Bridge, {}, whbarInstance.contractAddress, serviceFee);
+    controllerInstance = await deployer.deploy(Controller);
 
-    await whbarInstance.setControllerAddress(bridgeInstance.contractAddress);
+    whbarInstance = await deployer.deploy(WrappedToken, {}, "Wrapped HBAR", "WHBAR", 8);
+    wtokenInstance = await deployer.deploy(WrappedToken, {}, "Wrapped Token", "WTKN", 8);
+    routerInstance = await deployer.deploy(Router, {}, serviceFee, controllerInstance.contractAddress);
+
+    await whbarInstance.setControllerAddress(controllerInstance.contractAddress);
+    await wtokenInstance.setControllerAddress(controllerInstance.contractAddress);
+
+    await controllerInstance.setRouterAddress(routerInstance.contractAddress);
+
+    await routerInstance.updateWrappedToken(whbarInstance.contractAddress, wrappedId, true);
+    await routerInstance.updateWrappedToken(wtokenInstance.contractAddress, wrappedTokenId, true);
 
     const aliceWallet = new ethers.Wallet.createRandom();
     console.log("Alice Wallet: ");
@@ -40,10 +53,15 @@ const deploy = async (network, secret) => {
     console.log("Address: ", carolWallet.address);
     console.log('----------------->');
 
-    await bridgeInstance.updateMember(aliceWallet.address, true);
-    await bridgeInstance.updateMember(bobWallet.address, true);
-    await bridgeInstance.updateMember(carolWallet.address, true);
-
+    await routerInstance.updateMember(aliceWallet.address, true, {
+        gasLimit: 3000000
+    });
+    await routerInstance.updateMember(bobWallet.address, true, {
+        gasLimit: 3000000
+    });
+    await routerInstance.updateMember(carolWallet.address, true, {
+        gasLimit: 3000000
+    });
 
     const adminWallet = new ethers.Wallet(secret, deployer.provider);
 
