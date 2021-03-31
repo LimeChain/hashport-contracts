@@ -3,14 +3,19 @@ const WrappedToken = require("../build/WrappedToken.json");
 const Router = require("../build/Router.json");
 const Controller = require("../build/Controller.json");
 const ethers = require("ethers");
+const yargs = require('yargs');
 
 const INFURA_PROVIDER = "14ac2dd6bdcb485bb22ed4aa76d681ae";
 
 const serviceFee = "5000";
 const membersSendAmount = ethers.utils.parseEther("0.1");
-const wrappedTokenId = ethers.utils.formatBytes32String("0.0.468145");
 const wrappedId = ethers.utils.formatBytes32String("HBAR");
 
+const argv = yargs.option('deployToken', {
+    alias: 't',
+    description: 'Deploy wrapped token',
+    type: 'string',
+}).argv;
 
 const deploy = async (network, secret) => {
     let deployer;
@@ -24,16 +29,20 @@ const deploy = async (network, secret) => {
     controllerInstance = await deployer.deploy(Controller);
 
     whbarInstance = await deployer.deploy(WrappedToken, {}, "Wrapped HBAR", "WHBAR", 8);
-    wtokenInstance = await deployer.deploy(WrappedToken, {}, "Wrapped Token", "WTKN", 8);
     routerInstance = await deployer.deploy(Router, {}, serviceFee, controllerInstance.contractAddress);
 
     await whbarInstance.setControllerAddress(controllerInstance.contractAddress);
-    await wtokenInstance.setControllerAddress(controllerInstance.contractAddress);
 
     await controllerInstance.setRouterAddress(routerInstance.contractAddress);
 
     await routerInstance.updateWrappedToken(whbarInstance.contractAddress, wrappedId, true);
-    await routerInstance.updateWrappedToken(wtokenInstance.contractAddress, wrappedTokenId, true);
+
+    if (argv.deployToken) {
+        wtokenInstance = await deployer.deploy(WrappedToken, {}, "Wrapped Token", "WTKN", 8);
+        await wtokenInstance.setControllerAddress(controllerInstance.contractAddress);
+        const wrappedTokenId = ethers.utils.formatBytes32String(argv.deployToken);
+        await routerInstance.updateWrappedToken(wtokenInstance.contractAddress, wrappedTokenId, true);
+    }
 
     const aliceWallet = new ethers.Wallet.createRandom();
     console.log("Alice Wallet: ");

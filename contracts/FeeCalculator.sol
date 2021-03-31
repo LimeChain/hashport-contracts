@@ -34,7 +34,7 @@ abstract contract FeeCalculator is Governance {
      *  @notice Construct a new FeeCalculator contract
      *  @param _serviceFee The initial service fee in percentage. Range 0% to 99.999% multiplied my 1000.
      */
-    constructor(uint256 _serviceFee) public {
+    constructor(uint256 _serviceFee) public onlyValidServiceFee(_serviceFee) {
         serviceFee = _serviceFee;
     }
 
