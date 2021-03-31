@@ -52,7 +52,7 @@ etherlime compile --solcVersion 0.6.0
 ```
 
 ```
-etherlime deploy ./deployment/testnet-env-deployments.js --compile false --network /network name or id/ --secret /your private key/ --deployToken /hedera token id, optional for deploing custom token/
+etherlime deploy ./deployment/testnet-env-deployments.js --compile false --network /network name or id/ --secret /your private key/ --deployToken /hedera token id, optional for deploying custom token/
 ```
 
 ## Diagrams
