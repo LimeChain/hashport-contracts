@@ -5,7 +5,7 @@
 </div>
 
 This repository contains the smart contracts for the Hedera <-> Ethereum bridge.
-Contracts consist of the ERC20 WHBAR and the Controller contract responsible for the minting/burning of tokens.
+Contracts consist of `ERC20` representaitons of Hedera Assets and `Router` contract, responsible for the minting/burning of tokens.
 
 ## Contract Addresses & ABI
 
@@ -39,11 +39,11 @@ etherlime deploy --network 'network' --secret '0x..'
 
 ### Deploy for testnet with three members
 
--   Deploys the WHBAR token and Governance contracts
--   Generates three member accounts and send them 0.1 ethers
+-   Deploys the ERC20 representation of HBAR Asset (WHBAR) and Router contract
+-   Generates three member accounts and sends them 0.1 ethers
 
--   Sets the required validators to be members of the Governance contract
--   Prints out WHBAR, Controller, Alice, Bob and Carol Wallets
+-   Sets the required validators to be members of the Router contract
+-   Prints out WHBAR, Router, Alice, Bob and Carol Wallets
 
 #### How to run:
 
