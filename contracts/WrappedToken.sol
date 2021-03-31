@@ -15,7 +15,7 @@ contract WrappedToken is ERC20Pausable, Ownable {
     event ControllerAddressSet(address newRouterAddress);
 
     /// @notice Allows only router contract for msg.sender
-    modifier onlyControllerCountract() {
+    modifier onlyController() {
         require(
             msg.sender == controllerAddress,
             "WrappedToken: Not called by the controller contract"
@@ -43,7 +43,7 @@ contract WrappedToken is ERC20Pausable, Ownable {
      */
     function mint(address account, uint256 amount)
         public
-        onlyControllerCountract
+        onlyController
     {
         super._mint(account, amount);
     }
@@ -55,7 +55,7 @@ contract WrappedToken is ERC20Pausable, Ownable {
      */
     function burnFrom(address account, uint256 amount)
         public
-        onlyControllerCountract
+        onlyController
     {
         uint256 decreasedAllowance =
             allowance(account, _msgSender()).sub(
