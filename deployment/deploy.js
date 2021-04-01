@@ -1,7 +1,9 @@
 const etherlime = require("etherlime-lib");
 const ethers = require("ethers");
-const WrappedToken = require("../build/WrappedToken.json");
+const WHBAR = require("../build/WrappedToken.json");
 const Router = require("../build/Router.json");
+const Controller = require("../build/Controller.json");
+
 
 const INFURA_PROVIDER = "14ac2dd6bdcb485bb22ed4aa76d681ae";
 // NOTE: Set the correct multisig owner of the contracts
@@ -12,6 +14,7 @@ const wrappedId = ethers.utils.formatBytes32String("hbar");
 const serviceFee = "5000";
 
 const deploy = async (network, secret) => {
+
     let deployer;
 
     if (!network) {
@@ -20,16 +23,12 @@ const deploy = async (network, secret) => {
         deployer = new etherlime.InfuraPrivateKeyDeployer(secret, network, INFURA_PROVIDER);
     }
 
-    whbarInstance = await deployer.deploy(WrappedToken, {}, "Wrapped HBAR", "WHBAR", 8);
-    routerInstance = await deployer.deploy(Router, {}, serviceFee);
+    controllerInstance = await deployer.deploy(Controller);
+    whbarInstance = await deployer.deploy(WHBAR, {}, "Wrapped HBAR", "WHBAR", 8);
+    routerInstance = await deployer.deploy(Router, {}, serviceFee, controllerInstance.contractAddress);
 
-    await whbarInstance.setRouterAddress(routerInstance.contractAddress);
-    const updateWrapperTokenTx = await routerInstance.updateWrappedToken(whbarInstance.contractAddress, wrappedId, true);
-    await updateWrapperTokenTx.wait();
-
-    await routerInstance.updateMember("0x7BB03D96f9D0e233bfF99eC6aa1c5d035Cd3d1c1", true);
-    await routerInstance.updateMember("0x4fA67c4ebC625B496eFC85c3ebf757551Da88dED", true);
-    await routerInstance.updateMember("0x8f35870Df31C5C3b9f7772f3dA20EB580e865AB3", true);
+    await routerInstance.updateWrappedToken(whbarInstance.contractAddress, wrappedId, true);
+    await whbarInstance.setControllerAddress(controllerInstance.contractAddress);
 
     // TODO: uncomment for prod
     // await whbarInstance.transferOwnership(multisigWallet);

@@ -64,32 +64,32 @@ describe("WrappedToken", function () {
     });
 
     it("Should set bridge contract address as controller", async () => {
-        await wrappedTokenInstance.setRouterAddress(
+        await wrappedTokenInstance.setControllerAddress(
             controller.address
         );
-        const routerAddress = await wrappedTokenInstance.routerAddress();
-        assert.strictEqual(routerAddress, controller.address, "The bridge address was not set corectly");
+        const controllerAddress = await wrappedTokenInstance.controllerAddress();
+        assert.strictEqual(controllerAddress, controller.address, "The bridge address was not set corectly");
     });
 
-    it("Should emit setRouterAddress event", async () => {
-        const expectedEvent = "RouterAddressSet";
-        await assert.emit(wrappedTokenInstance.setRouterAddress(controller.address), expectedEvent);
+    it("Should emit ControllerAddressSet event", async () => {
+        const expectedEvent = "ControllerAddressSet";
+        await assert.emit(wrappedTokenInstance.setControllerAddress(controller.address), expectedEvent);
     });
 
-    it("Should emit setRouterAddress event arguments", async () => {
-        const expectedEvent = "RouterAddressSet";
+    it("Should emit ControllerAddressSet event arguments", async () => {
+        const expectedEvent = "ControllerAddressSet";
         const expectedEventArgs = [controller.address];
-        await assert.emitWithArgs(wrappedTokenInstance.setRouterAddress(controller.address), expectedEvent, expectedEventArgs);
+        await assert.emitWithArgs(wrappedTokenInstance.setControllerAddress(controller.address), expectedEvent, expectedEventArgs);
     });
 
     it("Should revert if not owner tries to set bridge contract address", async () => {
         const expectedRevertMessage = "Ownable: caller is not the owner";
 
-        await assert.revertWith(wrappedTokenInstance.from(alice).setRouterAddress(controller.address), expectedRevertMessage);
+        await assert.revertWith(wrappedTokenInstance.from(alice).setControllerAddress(controller.address), expectedRevertMessage);
     });
 
     it("Should mint tokens from controller", async () => {
-        await wrappedTokenInstance.setRouterAddress(
+        await wrappedTokenInstance.setControllerAddress(
             controller.address,
         );
         const mintAmount = ethers.utils.parseEther("153");
@@ -100,8 +100,8 @@ describe("WrappedToken", function () {
     });
 
     it("Should revert if not controller tries to mint", async () => {
-        const expectedRevertMessage = "WrappedToken: Not called by the router contract";
-        await wrappedTokenInstance.setRouterAddress(
+        const expectedRevertMessage = "WrappedToken: Not called by the controller contract";
+        await wrappedTokenInstance.setControllerAddress(
             controller.address,
         );
         const mintAmount = ethers.utils.parseEther("153");
@@ -109,7 +109,7 @@ describe("WrappedToken", function () {
     });
 
     it("Should burn tokens from controller", async () => {
-        await wrappedTokenInstance.setRouterAddress(
+        await wrappedTokenInstance.setControllerAddress(
             controller.address,
         );
         const mintAmount = ethers.utils.parseEther("153");
@@ -125,9 +125,9 @@ describe("WrappedToken", function () {
     });
 
     it("Should revert if not controller tries to burn", async () => {
-        const expectedRevertMessage = "WrappedToken: Not called by the router contract";
+        const expectedRevertMessage = "WrappedToken: Not called by the controller contract";
 
-        await wrappedTokenInstance.setRouterAddress(
+        await wrappedTokenInstance.setControllerAddress(
             controller.address,
         );
         const mintAmount = ethers.utils.parseEther("153");
@@ -142,7 +142,7 @@ describe("WrappedToken", function () {
     it("Should revert if there is no allowance", async () => {
         const expectedRevertMessage = "ERC20: burn amount exceeds allowance";
 
-        await wrappedTokenInstance.setRouterAddress(
+        await wrappedTokenInstance.setControllerAddress(
             controller.address,
         );
         const mintAmount = ethers.utils.parseEther("153");
@@ -155,7 +155,7 @@ describe("WrappedToken", function () {
 
 
     it("Should not mint if token is paused", async () => {
-        await wrappedTokenInstance.setRouterAddress(
+        await wrappedTokenInstance.setControllerAddress(
             controller.address,
         );
         await wrappedTokenInstance.from(owner).pause();
@@ -167,7 +167,7 @@ describe("WrappedToken", function () {
     });
 
     it("Should not burn if token is paused", async () => {
-        await wrappedTokenInstance.setRouterAddress(
+        await wrappedTokenInstance.setControllerAddress(
             controller.address,
         );
 

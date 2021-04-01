@@ -1,6 +1,7 @@
 const etherlime = require("etherlime-lib");
 const WrappedToken = require("../build/WrappedToken");
 const Router = require("../build/Router");
+const Controller = require("../build/Controller.json");
 const ethers = require("ethers");
 
 
@@ -45,9 +46,12 @@ describe("Router", function () {
             decimals
         );
 
-        routerInstance = await deployer.deploy(Router, {}, serviceFee);
+        controllerInstance = await deployer.deploy(Controller);
 
-        await wrappedTokenInstance.setRouterAddress(routerInstance.contractAddress);
+        routerInstance = await deployer.deploy(Router, {}, serviceFee, controllerInstance.contractAddress);
+
+        await wrappedTokenInstance.setControllerAddress(controllerInstance.contractAddress);
+        await controllerInstance.setRouterAddress(routerInstance.contractAddress);
     });
 
     describe("Contract Setup", function () {
@@ -57,6 +61,12 @@ describe("Router", function () {
                 routerInstance.contractAddress,
                 "The contract was not deployed"
             );
+
+            const serviceFeeSet = await routerInstance.serviceFee();
+            assert(serviceFeeSet.eq(serviceFee));
+
+            const controllerAddress = await routerInstance.controllerAddress();
+            assert.equal(controllerAddress, controllerInstance.contractAddress);
         });
 
         it("Should set a member", async () => {
@@ -405,7 +415,7 @@ describe("Router", function () {
 
         it("Should burn tokens", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await wrappedTokenInstance.from(nonMember).approve(routerInstance.contractAddress, amountToBurn);
+            await wrappedTokenInstance.from(nonMember).approve(controllerInstance.contractAddress, amountToBurn);
 
             const balanceOFReciever = await wrappedTokenInstance.balanceOf(receiver);
 
@@ -428,7 +438,7 @@ describe("Router", function () {
 
         it("Should revert if hederaAddress is invalid", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await wrappedTokenInstance.from(nonMember).approve(routerInstance.contractAddress, amountToBurn);
+            await wrappedTokenInstance.from(nonMember).approve(controllerInstance.contractAddress, amountToBurn);
 
             const invalidHederaAddress = [];
 
@@ -438,7 +448,7 @@ describe("Router", function () {
 
         it("Should revert if called with invalid controller address", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await wrappedTokenInstance.from(nonMember).approve(routerInstance.contractAddress, amountToBurn);
+            await wrappedTokenInstance.from(nonMember).approve(controllerInstance.contractAddress, amountToBurn);
 
             const notValidAsset = accounts[7].signer.address;
             const expectedRevertMessage = "Router: wrappedToken contract not active";
@@ -447,7 +457,7 @@ describe("Router", function () {
 
         it("Should emit burn event", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await wrappedTokenInstance.from(nonMember).approve(routerInstance.contractAddress, amountToBurn);
+            await wrappedTokenInstance.from(nonMember).approve(controllerInstance.contractAddress, amountToBurn);
 
             const expectedEvent = "Burn";
 
@@ -458,7 +468,7 @@ describe("Router", function () {
             const amountToBurn = ethers.utils.parseEther("5");
             const expectedServiceFee = amountToBurn.mul(serviceFee).div(precision);
             const expectedAmount = amountToBurn.sub(expectedServiceFee);
-            await wrappedTokenInstance.from(nonMember).approve(routerInstance.contractAddress, amountToBurn);
+            await wrappedTokenInstance.from(nonMember).approve(controllerInstance.contractAddress, amountToBurn);
 
             const expectedEvent = "Burn";
 
@@ -482,7 +492,7 @@ describe("Router", function () {
 
         it("Should revert if invoker has no tokens", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
-            await wrappedTokenInstance.from(aliceMember).approve(routerInstance.contractAddress, amountToBurn);
+            await wrappedTokenInstance.from(aliceMember).approve(controllerInstance.contractAddress, amountToBurn);
 
             const expectedRevertMessage = "ERC20: burn amount exceeds balance";
             await assert.revertWith(routerInstance.from(aliceMember).burn(amountToBurn, hederaAddress, wrappedTokenInstance.contractAddress), expectedRevertMessage);

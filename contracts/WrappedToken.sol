@@ -8,17 +8,17 @@ import "@openzeppelin/contracts/token/ERC20/ERC20Pausable.sol";
  *  @title ERC20 WrappedToken contract
  */
 contract WrappedToken is ERC20Pausable, Ownable {
-    /// @notice The router address of the contract
-    address public routerAddress;
+    /// @notice The address of the controller contract
+    address public controllerAddress;
 
-    /// @notice An event emitted once the router address is changed
-    event RouterAddressSet(address newRouterAddress);
+    /// @notice An event emitted once the controller address is changed
+    event ControllerAddressSet(address newRouterAddress);
 
     /// @notice Allows only router contract for msg.sender
-    modifier onlyRouterCountract() {
+    modifier onlyController() {
         require(
-            msg.sender == routerAddress,
-            "WrappedToken: Not called by the router contract"
+            msg.sender == controllerAddress,
+            "WrappedToken: Not called by the controller contract"
         );
         _;
     }
@@ -41,7 +41,10 @@ contract WrappedToken is ERC20Pausable, Ownable {
      * @param account The address to which the tokens will be minted
      * @param amount The amount to be minted
      */
-    function mint(address account, uint256 amount) public onlyRouterCountract {
+    function mint(address account, uint256 amount)
+        public
+        onlyController
+    {
         super._mint(account, amount);
     }
 
@@ -52,7 +55,7 @@ contract WrappedToken is ERC20Pausable, Ownable {
      */
     function burnFrom(address account, uint256 amount)
         public
-        onlyRouterCountract
+        onlyController
     {
         uint256 decreasedAllowance =
             allowance(account, _msgSender()).sub(
@@ -74,13 +77,13 @@ contract WrappedToken is ERC20Pausable, Ownable {
         super._unpause();
     }
 
-    /// @notice Changes the router address
-    function setRouterAddress(address _routerAddress) public onlyOwner {
+    /// @notice Changes the controller address
+    function setControllerAddress(address _controllerAddress) public onlyOwner {
         require(
-            _routerAddress != address(0),
-            "WrappedToken: router address cannot be zero"
+            _controllerAddress != address(0),
+            "WrappedToken: controller address cannot be zero"
         );
-        routerAddress = _routerAddress;
-        emit RouterAddressSet(routerAddress);
+        controllerAddress = _controllerAddress;
+        emit ControllerAddressSet(controllerAddress);
     }
 }

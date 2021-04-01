@@ -1,12 +1,15 @@
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
-import "../Interfaces/IWrappedToken.sol";
+import "../Interfaces/IController.sol";
 import "../FeeCalculator.sol";
 import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 
 contract Router is FeeCalculator {
     using EnumerableSet for EnumerableSet.AddressSet;
+
+    /// @notice The address of the controller contract
+    address public controllerAddress;
 
     /// @notice Iterable set of wrappedToken contracts
     EnumerableSet.AddressSet private wrappedTokens;
@@ -27,7 +30,7 @@ contract Router is FeeCalculator {
     }
 
     /// @notice An event emitted once wrappedToken contract is set
-    event TokenUpdate(address newWrappedToken, bytes nativeToken, bool isActive);
+    event TokenUpdate(address wrappedToken, bytes nativeToken, bool isActive);
 
     /// @notice An event emitted once a Mint transaction is executed
     event Mint(
@@ -52,8 +55,15 @@ contract Router is FeeCalculator {
     /**
      *  @notice Passes an argument for constructing a new FeeCalculator contract
      *  @param _serviceFee The initial service fee in percentage. Range 0% to 99.999% multiplied my 1000.
+     *  @param _controllerAddress The address of the controler contract
      */
-    constructor(uint256 _serviceFee) public FeeCalculator(_serviceFee) {}
+    constructor(uint256 _serviceFee, address _controllerAddress)
+        public
+        FeeCalculator(_serviceFee)
+    {
+        require(_controllerAddress != address(0));
+        controllerAddress = _controllerAddress;
+    }
 
     /// @notice Accepts number of signatures in the range (n/2; n] where n is the number of members
     modifier onlyValidSignatures(uint256 n) {
@@ -73,9 +83,9 @@ contract Router is FeeCalculator {
     }
 
     /// @notice Require the wrappedToken address to be an existing one
-    modifier supportedToken(address supportedToken) {
+    modifier supportedToken(address _supportedToken) {
         require(
-            isSupportedToken(supportedToken),
+            isSupportedToken(_supportedToken),
             "Router: wrappedToken contract not active"
         );
         _;
@@ -112,7 +122,11 @@ contract Router is FeeCalculator {
 
         uint256 amountToMint = amount.sub(serviceFeeInWTokens);
 
-        IWrappedToken(wrappedToken).mint(receiver, amountToMint);
+        IController(controllerAddress).mint(
+            wrappedToken,
+            receiver,
+            amountToMint
+        );
         emit Mint(receiver, amount, serviceFeeInWTokens, 0, transactionId);
     }
 
@@ -154,11 +168,20 @@ contract Router is FeeCalculator {
         uint256 serviceFeeInWTokens =
             amount.sub(txCost).mul(serviceFee).div(PRECISION);
 
-        distributeRewards(wrappedToken, txCost, serviceFeeInWTokens, msg.sender);
+        distributeRewards(
+            wrappedToken,
+            txCost,
+            serviceFeeInWTokens,
+            msg.sender
+        );
 
         uint256 amountToMint = amount.sub(txCost).sub(serviceFeeInWTokens);
 
-        IWrappedToken(wrappedToken).mint(receiver, amountToMint);
+        IController(controllerAddress).mint(
+            wrappedToken,
+            receiver,
+            amountToMint
+        );
         emit Mint(receiver, amount, serviceFeeInWTokens, txCost, transactionId);
     }
 
@@ -179,7 +202,11 @@ contract Router is FeeCalculator {
 
         distributeRewards(wrappedToken, serviceFeeInWTokens);
 
-        IWrappedToken(wrappedToken).burnFrom(msg.sender, amount);
+        IController(controllerAddress).burnFrom(
+            wrappedToken,
+            msg.sender,
+            amount
+        );
         uint256 bridgedAmount = amount.sub(serviceFeeInWTokens);
 
         emit Burn(msg.sender, bridgedAmount, serviceFeeInWTokens, receiver);
@@ -187,7 +214,11 @@ contract Router is FeeCalculator {
 
     function claim(address wrappedToken) public onlyMember {
         uint256 claimableAmount = _claimWrappedToken(msg.sender, wrappedToken);
-        IWrappedToken(wrappedToken).mint(msg.sender, claimableAmount);
+        IController(controllerAddress).mint(
+            wrappedToken,
+            msg.sender,
+            claimableAmount
+        );
         emit Claim(msg.sender, claimableAmount);
     }
 
@@ -203,9 +234,14 @@ contract Router is FeeCalculator {
             }
         } else {
             for (uint256 i = 0; i < wrappedTokensCount(); i++) {
-                uint256 claimableFees = _claimWrappedToken(account, wrappedTokenAt(i));
+                uint256 claimableFees =
+                    _claimWrappedToken(account, wrappedTokenAt(i));
 
-                IWrappedToken(wrappedTokenAt(i)).mint(account, claimableFees);
+                IController(controllerAddress).mint(
+                    wrappedTokenAt(i),
+                    account,
+                    claimableFees
+                );
             }
         }
         _updateMember(account, isMember);
@@ -222,7 +258,10 @@ contract Router is FeeCalculator {
         bytes memory tokenID,
         bool isActive
     ) public onlyOwner {
-        require(newWrappedToken != address(0), "Router: wrappedToken address can't be zero");
+        require(
+            newWrappedToken != address(0),
+            "Router: wrappedToken address can't be zero"
+        );
         require(tokenID.length > 0, "Router: invalid tokenID value");
         if (isActive) {
             require(
@@ -237,8 +276,13 @@ contract Router is FeeCalculator {
                 "Router: Failed to remove wrappedToken contract"
             );
             for (uint256 i = 0; i < membersCount(); i++) {
-                uint256 claimableAmount = _claimWrappedToken(memberAt(i), newWrappedToken);
-                IWrappedToken(wrappedTokenAt(i)).mint(msg.sender, claimableAmount);
+                uint256 claimableAmount =
+                    _claimWrappedToken(memberAt(i), newWrappedToken);
+                IController(controllerAddress).mint(
+                    wrappedTokenAt(i),
+                    msg.sender,
+                    claimableAmount
+                );
             }
         }
 
@@ -268,7 +312,9 @@ contract Router is FeeCalculator {
         uint256 amount
     ) private pure returns (bytes32) {
         bytes32 hashedData =
-            keccak256(abi.encode(transactionId, wrappedToken, receiver, amount));
+            keccak256(
+                abi.encode(transactionId, wrappedToken, receiver, amount)
+            );
         return ECDSA.toEthSignedMessageHash(hashedData);
     }
 

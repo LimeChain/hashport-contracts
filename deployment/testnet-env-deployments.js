@@ -1,13 +1,21 @@
 const etherlime = require("etherlime-lib");
 const WrappedToken = require("../build/WrappedToken.json");
 const Router = require("../build/Router.json");
+const Controller = require("../build/Controller.json");
 const ethers = require("ethers");
+const yargs = require('yargs');
 
 const INFURA_PROVIDER = "14ac2dd6bdcb485bb22ed4aa76d681ae";
 
 const serviceFee = "5000";
 const membersSendAmount = ethers.utils.parseEther("0.1");
-const wrappedId = ethers.utils.formatBytes32String("hbar");
+const wrappedId = ethers.utils.formatBytes32String("HBAR");
+
+const argv = yargs.option('deployToken', {
+    alias: 't',
+    description: 'Deploy wrapped token',
+    type: 'string',
+}).argv;
 
 const deploy = async (network, secret) => {
     let deployer;
@@ -18,13 +26,23 @@ const deploy = async (network, secret) => {
         deployer = new etherlime.InfuraPrivateKeyDeployer(secret, network, INFURA_PROVIDER);
     }
 
+    controllerInstance = await deployer.deploy(Controller);
+
     whbarInstance = await deployer.deploy(WrappedToken, {}, "Wrapped HBAR", "WHBAR", 8);
-    routerInstance = await deployer.deploy(Router, {}, serviceFee);
+    routerInstance = await deployer.deploy(Router, {}, serviceFee, controllerInstance.contractAddress);
 
-    await whbarInstance.setRouterAddress(routerInstance.contractAddress);
+    await whbarInstance.setControllerAddress(controllerInstance.contractAddress);
 
-    const updateWrappedTokenTx = await routerInstance.updateWrappedToken(whbarInstance.contractAddress, wrappedId, true);
-    await updateWrappedTokenTx.wait();
+    await controllerInstance.setRouterAddress(routerInstance.contractAddress);
+
+    await routerInstance.updateWrappedToken(whbarInstance.contractAddress, wrappedId, true);
+
+    if (argv.deployToken) {
+        wtokenInstance = await deployer.deploy(WrappedToken, {}, "Wrapped Token", "WTKN", 8);
+        await wtokenInstance.setControllerAddress(controllerInstance.contractAddress);
+        const wrappedTokenId = ethers.utils.formatBytes32String(argv.deployToken);
+        await routerInstance.updateWrappedToken(wtokenInstance.contractAddress, wrappedTokenId, true);
+    }
 
     const aliceWallet = new ethers.Wallet.createRandom();
     console.log("Alice Wallet: ");
@@ -44,10 +62,15 @@ const deploy = async (network, secret) => {
     console.log("Address: ", carolWallet.address);
     console.log('----------------->');
 
-    await routerInstance.updateMember(aliceWallet.address, true);
-    await routerInstance.updateMember(bobWallet.address, true);
-    await routerInstance.updateMember(carolWallet.address, true);
-
+    await routerInstance.updateMember(aliceWallet.address, true, {
+        gasLimit: 3000000
+    });
+    await routerInstance.updateMember(bobWallet.address, true, {
+        gasLimit: 3000000
+    });
+    await routerInstance.updateMember(carolWallet.address, true, {
+        gasLimit: 3000000
+    });
 
     const adminWallet = new ethers.Wallet(secret, deployer.provider);
 
