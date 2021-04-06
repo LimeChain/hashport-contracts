@@ -1,20 +1,20 @@
 const etherlime = require("etherlime-lib");
-const WrappedToken = require("../build/WrappedToken.json");
-const Router = require("../build/Router.json");
-const Controller = require("../build/Controller.json");
+const WrappedToken = require("../../build/WrappedToken.json");
+const Router = require("../../build/Router.json");
+const Controller = require("../../build/Controller.json");
 const ethers = require("ethers");
-const yargs = require('yargs');
+const yargs = require("yargs");
 
 const INFURA_PROVIDER = "14ac2dd6bdcb485bb22ed4aa76d681ae";
 
 const serviceFee = "5000";
-const membersSendAmount = ethers.utils.parseEther("0.1");
+const membersSendAmount = ethers.utils.parseEther("1");
 const wrappedId = ethers.utils.formatBytes32String("HBAR");
 
-const argv = yargs.option('deployToken', {
-    alias: 't',
-    description: 'Deploy wrapped token',
-    type: 'string',
+const argv = yargs.option("deployToken", {
+    alias: "t",
+    description: "Deploy wrapped token",
+    type: "string",
 }).argv;
 
 const deploy = async (network, secret) => {
@@ -48,19 +48,19 @@ const deploy = async (network, secret) => {
     console.log("Alice Wallet: ");
     console.log("Private Key: ", aliceWallet.privateKey);
     console.log("Address: ", aliceWallet.address);
-    console.log('----------------->');
+    console.log("----------------->");
 
     const bobWallet = new ethers.Wallet.createRandom();
     console.log("Bob Wallet: ");
     console.log("Private Key: ", bobWallet.privateKey);
     console.log("Address: ", bobWallet.address);
-    console.log('----------------->');
+    console.log("----------------->");
 
     const carolWallet = new ethers.Wallet.createRandom();
     console.log("Carol Wallet: ");
     console.log("Private Key: ", carolWallet.privateKey);
     console.log("Address: ", carolWallet.address);
-    console.log('----------------->');
+    console.log("----------------->");
 
     await routerInstance.updateMember(aliceWallet.address, true, {
         gasLimit: 3000000
