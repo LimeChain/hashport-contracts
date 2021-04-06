@@ -35,6 +35,7 @@ contract Router is FeeCalculator {
     /// @notice An event emitted once a Mint transaction is executed
     event Mint(
         address indexed account,
+        address indexed wrappedToken,
         uint256 amount,
         uint256 serviceFeeInWTokens,
         uint256 txCost,
@@ -44,6 +45,7 @@ contract Router is FeeCalculator {
     /// @notice An event emitted once a Burn transaction is executed
     event Burn(
         address indexed account,
+        address indexed wrappedToken,
         uint256 amount,
         uint256 serviceFee,
         bytes receiver
@@ -127,7 +129,14 @@ contract Router is FeeCalculator {
             receiver,
             amountToMint
         );
-        emit Mint(receiver, amount, serviceFeeInWTokens, 0, transactionId);
+        emit Mint(
+            receiver,
+            wrappedToken,
+            amountToMint,
+            serviceFeeInWTokens,
+            0,
+            transactionId
+        );
     }
 
     /**
@@ -182,7 +191,14 @@ contract Router is FeeCalculator {
             receiver,
             amountToMint
         );
-        emit Mint(receiver, amount, serviceFeeInWTokens, txCost, transactionId);
+        emit Mint(
+            receiver,
+            wrappedToken,
+            amountToMint,
+            serviceFeeInWTokens,
+            txCost,
+            transactionId
+        );
     }
 
     /**
@@ -209,7 +225,13 @@ contract Router is FeeCalculator {
         );
         uint256 bridgedAmount = amount.sub(serviceFeeInWTokens);
 
-        emit Burn(msg.sender, bridgedAmount, serviceFeeInWTokens, receiver);
+        emit Burn(
+            msg.sender,
+            wrappedToken,
+            bridgedAmount,
+            serviceFeeInWTokens,
+            receiver
+        );
     }
 
     function claim(address wrappedToken) public onlyMember {

@@ -477,6 +477,7 @@ describe("Router", function () {
                 expectedEvent,
                 [
                     receiver,
+                    wrappedTokenInstance.contractAddress,
                     expectedAmount,
                     expectedServiceFee,
                     hederaAddress
