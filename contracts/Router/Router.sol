@@ -298,11 +298,12 @@ contract Router is FeeCalculator {
                 "Router: Failed to remove wrappedToken contract"
             );
             for (uint256 i = 0; i < membersCount(); i++) {
+                address currentMember = memberAt(i);
                 uint256 claimableAmount =
-                    _claimWrappedToken(memberAt(i), newWrappedToken);
+                    _claimWrappedToken(currentMember, newWrappedToken);
                 IController(controllerAddress).mint(
                     newWrappedToken,
-                    memberAt(i),
+                    currentMember,
                     claimableAmount
                 );
             }
