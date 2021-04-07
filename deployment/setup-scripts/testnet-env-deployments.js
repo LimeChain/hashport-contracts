@@ -8,13 +8,17 @@ const yargs = require("yargs");
 const INFURA_PROVIDER = "14ac2dd6bdcb485bb22ed4aa76d681ae";
 
 const serviceFee = "5000";
-const membersSendAmount = ethers.utils.parseEther("1");
+const membersSendAmount = ethers.utils.parseEther("0.3");
 const wrappedId = ethers.utils.formatBytes32String("HBAR");
 
 const argv = yargs.option("deployToken", {
     alias: "t",
     description: "Deploy wrapped token",
     type: "string",
+}).option("membersCount", {
+    alias: "m",
+    description: "Deploy wrapped token",
+    type: "int",
 }).argv;
 
 const deploy = async (network, secret) => {
@@ -44,50 +48,26 @@ const deploy = async (network, secret) => {
         await routerInstance.updateWrappedToken(wtokenInstance.contractAddress, wrappedTokenId, true);
     }
 
-    const aliceWallet = new ethers.Wallet.createRandom();
-    console.log("Alice Wallet: ");
-    console.log("Private Key: ", aliceWallet.privateKey);
-    console.log("Address: ", aliceWallet.address);
-    console.log("----------------->");
-
-    const bobWallet = new ethers.Wallet.createRandom();
-    console.log("Bob Wallet: ");
-    console.log("Private Key: ", bobWallet.privateKey);
-    console.log("Address: ", bobWallet.address);
-    console.log("----------------->");
-
-    const carolWallet = new ethers.Wallet.createRandom();
-    console.log("Carol Wallet: ");
-    console.log("Private Key: ", carolWallet.privateKey);
-    console.log("Address: ", carolWallet.address);
-    console.log("----------------->");
-
-    await routerInstance.updateMember(aliceWallet.address, true, {
-        gasLimit: 3000000
-    });
-    await routerInstance.updateMember(bobWallet.address, true, {
-        gasLimit: 3000000
-    });
-    await routerInstance.updateMember(carolWallet.address, true, {
-        gasLimit: 3000000
-    });
-
     const adminWallet = new ethers.Wallet(secret, deployer.provider);
 
-    await adminWallet.sendTransaction({
-        to: aliceWallet.address,
-        value: membersSendAmount
-    });
+    for (let i = 0; i < argv.membersCount; i++) {
+        const wallet = new ethers.Wallet.createRandom();
+        console.log(`Wallet ${i}: `);
+        console.log("Private Key: ", wallet.privateKey);
+        console.log("Address: ", wallet.address);
+        console.log("----------------->");
 
-    await adminWallet.sendTransaction({
-        to: bobWallet.address,
-        value: membersSendAmount
-    });
+        let updateMember = await routerInstance.updateMember(wallet.address, true, {
+            gasLimit: 3000000
+        });
+        updateMember.wait();
 
-    await adminWallet.sendTransaction({
-        to: carolWallet.address,
-        value: membersSendAmount
-    });
+        let sendTransaction = await adminWallet.sendTransaction({
+            to: wallet.address,
+            value: membersSendAmount
+        });
+        sendTransaction.wait();
+    }
 };
 
 module.exports = {

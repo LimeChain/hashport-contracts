@@ -1,12 +1,18 @@
-const etherlime = require("etherlime-lib");
-const WrappedToken = require("../../build/WrappedToken.json");
 const Router = require("../../build/Router.json");
 const ethers = require("ethers");
 const yargs = require("yargs");
 
 const INFURA_PROVIDER = "14ac2dd6bdcb485bb22ed4aa76d681ae";
 
-const argv = yargs.option("routerAddress", {
+const argv = yargs.option("secret", {
+    alias: "prk",
+    description: "Wallet private key",
+    type: "string",
+}).option("network", {
+    alias: "n",
+    description: "Ethereum network",
+    type: "string",
+}).option("routerAddress", {
     alias: "r",
     description: "Deployed router token",
     type: "string",
@@ -20,9 +26,9 @@ const argv = yargs.option("routerAddress", {
     type: "boolean",
 }).argv;
 
-const deploy = async (network, secret) => {
-    const provider = new ethers.providers.InfuraProvider(network, INFURA_PROVIDER);
-    const adminWallet = new ethers.Wallet(secret, provider);
+async function updateMember() {
+    const provider = new ethers.providers.InfuraProvider(argv.network, INFURA_PROVIDER);
+    const adminWallet = new ethers.Wallet(argv.secret, provider);
     const routerInstance = new ethers.Contract(argv.routerAddress, Router.abi, adminWallet);
 
     let transaction = await routerInstance.updateMember(argv.memberAddress, argv.memberStatus, {
@@ -31,6 +37,4 @@ const deploy = async (network, secret) => {
     console.log("Transaction hash:", transaction.hash);
 };
 
-module.exports = {
-    deploy
-};
+updateMember();

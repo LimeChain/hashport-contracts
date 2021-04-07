@@ -301,8 +301,8 @@ contract Router is FeeCalculator {
                 uint256 claimableAmount =
                     _claimWrappedToken(memberAt(i), newWrappedToken);
                 IController(controllerAddress).mint(
-                    wrappedTokenAt(i),
-                    msg.sender,
+                    newWrappedToken,
+                    memberAt(i),
                     claimableAmount
                 );
             }
