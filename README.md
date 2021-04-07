@@ -61,16 +61,16 @@ etherlime deploy ./deployment/setup-scripts/testnet-env-deployments.js --compile
 etherlime deploy ./deployment/setup-scripts/deploy-token.js --compile false --network /network name or id/ --secret /your private key/ --controllerAddress=/The address of the deployed controller contract/
 ```
 
-#### Update Token Token
+#### Update Token
 
 ```
-node ./deployment/setup-scripts/update-token.js --compile false --network /network name or id/ --secret /your private key/ --routerAddress=/The address of the deployed router/ --tokenAddress=/The address of the deployed token/ --wrappedToken=/hedera token id/ --tokenStatus=/token status true or false/
+node ./deployment/setup-scripts/update-token.js --network /network name or id/ --secret /your private key/ --routerAddress=/The address of the deployed router/ --tokenAddress=/The address of the deployed token/ --wrappedToken=/hedera token id/ --tokenStatus=/token status true or false/
 ```
 
 #### UpdateMember
 
 ```
-node ./deployment/setup-scripts/update-member.js --compile false --network /network name or id/ --secret /your private key/ --routerAddress /The address of the deployed router contract/ --memberAddress /The address of the member/ --memberStatus /Status of the member/
+node ./deployment/setup-scripts/update-member.js --network /network name or id/ --secret /your private key/ --routerAddress /The address of the deployed router contract/ --memberAddress /The address of the member/ --memberStatus /Status of the member/
 ```
 
 ## Diagrams

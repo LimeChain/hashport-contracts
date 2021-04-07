@@ -60,13 +60,13 @@ const deploy = async (network, secret) => {
         let updateMember = await routerInstance.updateMember(wallet.address, true, {
             gasLimit: 3000000
         });
-        updateMember.wait();
+        await updateMember.wait();
 
         let sendTransaction = await adminWallet.sendTransaction({
             to: wallet.address,
             value: membersSendAmount
         });
-        sendTransaction.wait();
+        await sendTransaction.wait();
     }
 };
 

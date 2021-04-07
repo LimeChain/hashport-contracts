@@ -17,13 +17,13 @@ const argv = yargs.option("secret", {
     alias: "r",
     description: "Deployed router token",
     type: "string",
-}).option("tokenAddress", {
-    alias: "t",
-    description: "Token address",
-    type: "string",
 }).option("wrappedToken", {
     alias: "w",
-    description: "Wrapped token id",
+    description: "Wrapped token address",
+    type: "string",
+}).option("tokenId", {
+    alias: "t",
+    description: "Hedera token id",
     type: "string",
 }).option("tokenStatus", {
     alias: "s",
@@ -36,7 +36,7 @@ async function updateToken() {
     const adminWallet = new ethers.Wallet(argv.secret, provider);
     const routerInstance = new ethers.Contract(argv.routerAddress, Router.abi, adminWallet);
 
-    let transaction = await routerInstance.updateWrappedToken(argv.tokenAddress, argv.tokenAddress, argv.tokenStatus);
+    let transaction = await routerInstance.updateWrappedToken(argv.wrappedToken, argv.tokenId, argv.tokenStatus);
     console.log("Transaction hash:", transaction.hash);
 };
 
