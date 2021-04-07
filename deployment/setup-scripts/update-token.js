@@ -36,7 +36,9 @@ async function updateToken() {
     const adminWallet = new ethers.Wallet(argv.secret, provider);
     const routerInstance = new ethers.Contract(argv.routerAddress, Router.abi, adminWallet);
 
-    let transaction = await routerInstance.updateWrappedToken(argv.wrappedToken, argv.tokenId, argv.tokenStatus);
+    const tokenId = ethers.utils.formatBytes32String(argv.tokenId);
+
+    const transaction = await routerInstance.updateWrappedToken(argv.wrappedToken, tokenId, argv.tokenStatus);
     console.log("Transaction hash:", transaction.hash);
 };
 
