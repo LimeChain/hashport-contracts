@@ -52,7 +52,25 @@ etherlime compile --solcVersion 0.6.0
 ```
 
 ```
-etherlime deploy ./deployment/testnet-env-deployments.js --compile false --network /network name or id/ --secret /your private key/ --deployToken /hedera token id, optional for deploying custom token/
+etherlime deploy ./deployment/setup-scripts/testnet-env-deployments.js --compile false --network /network name or id/ --secret /your private key/ --deployToken /hedera token id, optional for deploying custom token/ --membersCount /The count od the members set in the contract/
+```
+
+#### Deploy Token
+
+```
+etherlime deploy ./deployment/setup-scripts/deploy-token.js --compile false --network /network name or id/ --secret /your private key/ --controllerAddress=/The address of the deployed controller contract/
+```
+
+#### Update Token
+
+```
+node ./deployment/setup-scripts/update-token.js --network /network name or id/ --secret /your private key/ --routerAddress=/The address of the deployed router/ --tokenAddress=/The address of the deployed token/ --wrappedToken=/hedera token id/ --tokenStatus=/token status true or false/
+```
+
+#### UpdateMember
+
+```
+node ./deployment/setup-scripts/update-member.js --network /network name or id/ --secret /your private key/ --routerAddress /The address of the deployed router contract/ --memberAddress /The address of the member/ --memberStatus /Status of the member/
 ```
 
 ## Diagrams

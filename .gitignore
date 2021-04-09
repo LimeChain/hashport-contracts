@@ -109,3 +109,4 @@ dist
 # Etherime store
 .etherlime-store
 build/
+testfile.js
