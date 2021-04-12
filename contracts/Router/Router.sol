@@ -1,9 +1,9 @@
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
-import "./Governance.sol";
+import "../Governance.sol";
 
-import "./Interfaces/IController.sol";
+import "../Interfaces/IController.sol";
 import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 
 contract Router is Governance {
