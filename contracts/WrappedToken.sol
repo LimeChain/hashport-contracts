@@ -9,15 +9,15 @@ import "@openzeppelin/contracts/token/ERC20/ERC20Pausable.sol";
  */
 contract WrappedToken is ERC20Pausable, Ownable {
     /// @notice The address of the controller contract
-    address public controllerAddress;
+    address public controller;
 
     /// @notice An event emitted once the controller address is changed
-    event ControllerAddressSet(address newRouterAddress);
+    event ControllerSet(address newController);
 
     /// @notice Allows only router contract for msg.sender
     modifier onlyController() {
         require(
-            msg.sender == controllerAddress,
+            msg.sender == controller,
             "WrappedToken: Not called by the controller contract"
         );
         _;
@@ -41,10 +41,7 @@ contract WrappedToken is ERC20Pausable, Ownable {
      * @param account The address to which the tokens will be minted
      * @param amount The amount to be minted
      */
-    function mint(address account, uint256 amount)
-        public
-        onlyController
-    {
+    function mint(address account, uint256 amount) public onlyController {
         super._mint(account, amount);
     }
 
@@ -53,10 +50,7 @@ contract WrappedToken is ERC20Pausable, Ownable {
      * @param account The address from which the tokens will be burned
      * @param amount The amount to be burned
      */
-    function burnFrom(address account, uint256 amount)
-        public
-        onlyController
-    {
+    function burnFrom(address account, uint256 amount) public onlyController {
         uint256 decreasedAllowance =
             allowance(account, _msgSender()).sub(
                 amount,
@@ -78,12 +72,12 @@ contract WrappedToken is ERC20Pausable, Ownable {
     }
 
     /// @notice Changes the controller address
-    function setControllerAddress(address _controllerAddress) public onlyOwner {
+    function setController(address _controller) public onlyOwner {
         require(
-            _controllerAddress != address(0),
-            "WrappedToken: controller address cannot be zero"
+            _controller != address(0),
+            "WrappedToken: controller cannot be zero"
         );
-        controllerAddress = _controllerAddress;
-        emit ControllerAddressSet(controllerAddress);
+        controller = _controller;
+        emit ControllerSet(controller);
     }
 }

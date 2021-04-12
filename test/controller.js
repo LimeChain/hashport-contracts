@@ -25,18 +25,18 @@ describe("Controller", function () {
         });
 
         it("Should set a router address", async () => {
-            await controllerInstance.setRouterAddress(routerInstance);
-            const routerAddressSet = await controllerInstance.routerAddress();
+            await controllerInstance.setRouter(routerInstance);
+            const routerAddressSet = await controllerInstance.router();
             assert.equal(routerAddressSet, routerInstance);
         });
 
         it("Should not set a router address if not called from owner", async () => {
-            await assert.revert(controllerInstance.from(notOwner).setRouterAddress(routerInstance));
+            await assert.revert(controllerInstance.from(notOwner).setRouter(routerInstance));
         });
 
         it("Should not set a router address if address = 0x0", async () => {
             const nonValidAddress = ethers.constants.AddressZero;
-            await assert.revert(controllerInstance.setRouterAddress(nonValidAddress));
+            await assert.revert(controllerInstance.setRouter(nonValidAddress));
         });
     });
 });
