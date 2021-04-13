@@ -15,13 +15,13 @@ const serviceFee = "5000";
 
 const deploy = async (network, secret) => {
 
-    let deployer;
+    // let deployer;
 
-    if (!network) {
-        deployer = new etherlime.EtherlimeGanacheDeployer();
-    } else {
-        deployer = new etherlime.InfuraPrivateKeyDeployer(secret, network, INFURA_PROVIDER);
-    }
+    // if (!network) {
+    //     deployer = new etherlime.EtherlimeGanacheDeployer();
+    // } else {
+    //     deployer = new etherlime.InfuraPrivateKeyDeployer(secret, network, INFURA_PROVIDER);
+    // }
 
     controllerInstance = await deployer.deploy(Controller);
     whbarInstance = await deployer.deploy(WHBAR, {}, "Wrapped HBAR", "WHBAR", 8);
