@@ -1,5 +1,5 @@
 {
-    "name": "etherlime-project",
+    "name": "hedera-eth-bridge",
     "version": "1.0.0",
     "description": "This is the default package.json generated for your project",
     "main": "index.js",
