@@ -4,8 +4,20 @@
 require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-waffle");
 
-const INFURA_KEY = "1123123";
-const DEPLOYER_PRIVATE_KEY = "1123123";
+const INFURA_KEY = "14ac2dd6bdcb485bb22ed4aa76d681ae";
+const DEPLOYER_PRIVATE_KEY = "c44377c50845ee070c98c4295bde42f2fbf5a91e81ce2d6d23683291f23dfe0a";
+
+const lazyImport = async (module) => {
+  const importedDefault = await import(module);
+  return importedDefault.default;
+};
+
+task("deploy", "Deploys the hedera eth bridge")
+  .setAction(async taskArgs => {
+    const registryDeployer = await lazyImport('./deployment/deploy.js');
+
+    await registryDeployer();
+  });
 
 module.exports = {
   solidity: {
@@ -29,24 +41,24 @@ module.exports = {
         '5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a'
       ]
     },
-    // rinkeby: {
-    //   url: `https://rinkeby.infura.io/v3/${INFURA_KEY}`,
-    //   accounts: [
-    //     DEPLOYER_PRIVATE_KEY
-    //   ]
-    // },
-    // kovan: {
-    //   url: `https://kovan.infura.io/v3/${INFURA_KEY}`,
-    //   accounts: [
-    //     DEPLOYER_PRIVATE_KEY
-    //   ]
-    // },
-    // mainnet: {
-    //   url: `https://mainnet.infura.io/v3/${INFURA_KEY}`,
-    //   accounts: [
-    //     DEPLOYER_PRIVATE_KEY
-    //   ]
-    // }
+    rinkeby: {
+      url: `https://rinkeby.infura.io/v3/${INFURA_KEY}`,
+      accounts: [
+        DEPLOYER_PRIVATE_KEY
+      ]
+    },
+    kovan: {
+      url: `https://kovan.infura.io/v3/${INFURA_KEY}`,
+      accounts: [
+        DEPLOYER_PRIVATE_KEY
+      ]
+    },
+    mainnet: {
+      url: `https://mainnet.infura.io/v3/${INFURA_KEY}`,
+      accounts: [
+        DEPLOYER_PRIVATE_KEY
+      ]
+    }
   },
   mocha: {
     timeout: 20000
