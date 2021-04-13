@@ -1,34 +1,17 @@
-const etherlime = require("etherlime-lib");
-const WrappedToken = require("../../build/WrappedToken.json");
-const ethers = require("ethers");
-const yargs = require("yargs");
-
-const INFURA_PROVIDER = "14ac2dd6bdcb485bb22ed4aa76d681ae";
-
-const argv = yargs.option("controllerAddress", {
-    alias: "c",
-    description: "Deployed controller address",
-    type: "string",
-}).argv;
-
 const name = "Wrapped Token";
 const symbol = "WTKN";
 const decimals = 8;
 
-const deploy = async (network, secret) => {
-    let deployer;
+const deploy = async (controllerAddress) => {
+    console.log('Deployng Wrapped Token...');
+    const WrappedToken = await ethers.getContractFactory("WrappedToken");
+    const wrappedTokenInstance = await WrappedToken.deploy(name, symbol, decimals);
+    await wrappedTokenInstance.deployed();
+    console.log(`Wrtapped token deployed successfully at address ${wrappedTokenInstance.address}`);
 
-    if (!network) {
-        deployer = new etherlime.EtherlimeGanacheDeployer();
-    } else {
-        deployer = new etherlime.InfuraPrivateKeyDeployer(secret, network, INFURA_PROVIDER);
-    }
-
-    whbarInstance = await deployer.deploy(WrappedToken, {}, name, symbol, decimals);
-
-    await whbarInstance.setControllerAddress(argv.controllerAddress);
+    console.log('Setting up controller address...');
+    await wrappedTokenInstance.setControllerAddress(controllerAddress);
+    console.log('Deployment script finished successfully');
 };
 
-module.exports = {
-    deploy
-};
+module.exports = deploy;
