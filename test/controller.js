@@ -4,7 +4,6 @@ describe("Controller", function () {
 
     let Controller, controllerInstance;
 
-
     beforeEach(async () => {
         [owner, notOwner, routerInstance] = await ethers.getSigners();
         Controller = await ethers.getContractFactory("Controller");
