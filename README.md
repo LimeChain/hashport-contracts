@@ -56,7 +56,7 @@ npx hardhat deploy-testnet --members /The count od the members set in the contra
 #### Deploy Token
 
 ```
-npx hardhat deploy-token --controller /The address of the deployed controller contract/ --network /The name of the network/
+npx hardhat deploy-token --controller /The address of the deployed controller contract/ --name /Token name/ --symbol /Token symbol/ --decimals /Token decimals/ --network /The name of the network/
 ```
 
 #### Update Token

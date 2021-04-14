@@ -32,10 +32,13 @@ task("deploy-testnet", "Deploys the hedera eth bridge on testnet")
 
 task("deploy-token", "Deploys wrapped token")
   .addParam("controller", "The address of the controller contract")
+  .addParam("name", "The name of the token")
+  .addParam("symbol", "The symbol of the token")
+  .addParam("decimals", "Token decimals")
   .setAction(async taskArgs => {
 
     const deploy = await lazyImport("./scripts/deploy-token.js");
-    await deploy(taskArgs.controller);
+    await deploy(taskArgs.controller, taskArgs.name, taskArgs.symbol, taskArgs.decimals);
   });
 
 task("update-member", "Updates member status")

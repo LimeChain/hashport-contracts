@@ -15,7 +15,7 @@ const deploy = async (membersCount) => {
     const Controller = await ethers.getContractFactory("Controller");
     const controllerInstance = await Controller.deploy();
     await controllerInstance.deployed();
-    console.log(`Wrapped HBAR Deployed at ${controllerInstance.address}`);
+    console.log(`Controller deployed at ${controllerInstance.address}`);
 
     console.log('Deployng Wrapped HBAR...');
     const WrappedToken = await ethers.getContractFactory("WrappedToken");
