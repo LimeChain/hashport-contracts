@@ -31,9 +31,15 @@ contract WrappedToken is ERC20Pausable, Ownable {
     constructor(
         string memory tokenName,
         string memory tokenSymbol,
-        uint8 decimals
+        uint8 decimals,
+        address _controllerAddress
     ) public ERC20(tokenName, tokenSymbol) {
+        require(
+            _controllerAddress != address(0),
+            "WrappedToken: controller address cannot be zero"
+        );
         super._setupDecimals(decimals);
+        controllerAddress = _controllerAddress;
     }
 
     /**
@@ -41,10 +47,7 @@ contract WrappedToken is ERC20Pausable, Ownable {
      * @param account The address to which the tokens will be minted
      * @param amount The amount to be minted
      */
-    function mint(address account, uint256 amount)
-        public
-        onlyController
-    {
+    function mint(address account, uint256 amount) public onlyController {
         super._mint(account, amount);
     }
 
@@ -53,10 +56,7 @@ contract WrappedToken is ERC20Pausable, Ownable {
      * @param account The address from which the tokens will be burned
      * @param amount The amount to be burned
      */
-    function burnFrom(address account, uint256 amount)
-        public
-        onlyController
-    {
+    function burnFrom(address account, uint256 amount) public onlyController {
         uint256 decreasedAllowance =
             allowance(account, _msgSender()).sub(
                 amount,

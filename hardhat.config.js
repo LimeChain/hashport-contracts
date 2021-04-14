@@ -9,8 +9,8 @@ require("@nomiclabs/hardhat-waffle");
 /**
  * @dev set your private key and infura api key
  */
-const INFURA_KEY = "";
-const DEPLOYER_PRIVATE_KEY = "";
+const INFURA_KEY = "14ac2dd6bdcb485bb22ed4aa76d681ae";
+const DEPLOYER_PRIVATE_KEY = "c44377c50845ee070c98c4295bde42f2fbf5a91e81ce2d6d23683291f23dfe0a";
 
 const lazyImport = async (module) => {
   const importedDefault = await import(module);
@@ -19,25 +19,24 @@ const lazyImport = async (module) => {
 
 task("deploy", "Deploys the hedera eth bridge")
   .setAction(async taskArgs => {
-    const deploy = await lazyImport("./deployment/deploy.js");
+    const deploy = await lazyImport("./scripts/deploy.js");
 
     await deploy();
   });
 
 task("deploy-testnet", "Deploys the hedera eth bridge on testnet")
-  .addOptionalParam("token", "Deploy wrapped token with id")
   .addParam("members", "The count of the validator members")
   .setAction(async taskArgs => {
 
-    const deploy = await lazyImport("./deployment/setup-scripts/testnet-env-deployments.js");
-    await deploy(taskArgs.token, taskArgs.members);
+    const deploy = await lazyImport("./scripts/setup-scripts/testnet-env-deployments.js");
+    await deploy(taskArgs.members);
   });
 
 task("deploy-token", "Deploys wrapped token")
   .addParam("controller", "The address of the controller contract")
   .setAction(async taskArgs => {
 
-    const deploy = await lazyImport("./deployment/setup-scripts/deploy-token.js");
+    const deploy = await lazyImport("./scripts/setup-scripts/deploy-token.js");
     await deploy(taskArgs.controller);
   });
 
@@ -47,7 +46,7 @@ task("update-member", "Updates member status")
   .addParam("status", "The status of the member")
   .setAction(async taskArgs => {
 
-    const updateMember = await lazyImport("./deployment/setup-scripts/update-member.js");
+    const updateMember = await lazyImport("./scripts/setup-scripts/update-member.js");
     await updateMember(taskArgs.router, taskArgs.member, taskArgs.status);
   });
 
@@ -58,7 +57,7 @@ task("update-token", "Deploys wrapped token")
   .addParam("status", "The status of the member")
   .setAction(async taskArgs => {
 
-    const updateToken = await lazyImport("./deployment/setup-scripts/update-token.js");
+    const updateToken = await lazyImport("./scripts/setup-scripts/update-token.js");
     await updateToken(taskArgs.router, taskArgs.id, taskArgs.token, taskArgs.status);
   });
 

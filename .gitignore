@@ -112,3 +112,5 @@ dist
 .etherlime-store
 build/
 testfile.js
+
+package-lock.json
