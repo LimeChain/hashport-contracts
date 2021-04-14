@@ -1,42 +1,34 @@
-const etherlime = require("etherlime-lib");
-const Controller = require("../build/Controller.json");
-const ethers = require("ethers");
-
+const { expect, assert } = require("chai");
 
 describe("Controller", function () {
-    this.timeout(10000);
 
-    let owner = accounts[9];
-    let notOwner = accounts[8];
-    let routerInstance = accounts[1].signer.address;
+    let Controller, controllerInstance;
+
 
     beforeEach(async () => {
-        deployer = new etherlime.EtherlimeGanacheDeployer(owner.secretKey);
-        controllerInstance = await deployer.deploy(Controller);
+        [owner, notOwner, routerInstance] = await ethers.getSigners();
+        Controller = await ethers.getContractFactory("Controller");
+        controllerInstance = await Controller.deploy();
+        await controllerInstance.deployed();
     });
 
     describe("Contract Setup", function () {
-
-        it("Should deploy Controller contract", async () => {
-            assert.isAddress(
-                controllerInstance.contractAddress,
-                "The contract was not deployed"
-            );
-        });
-
         it("Should set a router address", async () => {
-            await controllerInstance.setRouter(routerInstance);
-            const routerAddressSet = await controllerInstance.router();
-            assert.equal(routerAddressSet, routerInstance);
+            await controllerInstance.setRouterAddress(routerInstance.address);
+            const routerAddressSet = await controllerInstance.routerAddress();
+            expect(routerAddressSet).to.eq(routerInstance.address);
         });
 
         it("Should not set a router address if not called from owner", async () => {
-            await assert.revert(controllerInstance.from(notOwner).setRouter(routerInstance));
+            const expectedRevertMessage = "Ownable: caller is not the owner";
+
+            await expect(controllerInstance.connect(notOwner).setRouterAddress(routerInstance.address)).to.revertedWith(expectedRevertMessage);
         });
 
         it("Should not set a router address if address = 0x0", async () => {
             const nonValidAddress = ethers.constants.AddressZero;
-            await assert.revert(controllerInstance.setRouter(nonValidAddress));
+            const expectedRevertMessage = "WrappedToken: router address cannot be zero";
+            await expect(controllerInstance.setRouterAddress(nonValidAddress)).to.be.revertedWith(expectedRevertMessage);
         });
     });
 });

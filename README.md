@@ -2,6 +2,8 @@
 
 # Hedera <-> Ethereum Bridge Contracts
 
+    [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 </div>
 
 This repository contains the smart contracts for the Hedera <-> Ethereum bridge.
@@ -13,14 +15,14 @@ This is a WIP and the contracts have not been deployed yet.
 
 ## Development
 
-`etherlime` - framework used for the development and testing of the contracts
+`hardhat` - framework used for the development and testing of the contracts
 
 ### Compilation
 
 Before you deploy the contracts, you will need to compile them using:
 
 ```
-etherlime compile --solcVersion 0.6.0
+npx hardhat compile
 ```
 
 ### Scripts
@@ -28,49 +30,46 @@ etherlime compile --solcVersion 0.6.0
 #### Eth deployment - local
 
 ```
-etherlime deploy
+npx hardhat deploy
 ```
 
 #### Eth deployment
 
 ```
-etherlime deploy --network 'network' --secret '0x..'
+npx hardhat deploy --network 'network name or id'
 ```
 
-### Deploy for testnet with three members
+### Deploy for testnet with n members
 
 -   Deploys the ERC20 representation of HBAR Asset (WHBAR) and Router contract
--   Generates three member accounts and sends them 0.1 ethers
+-   Generates three member accounts and sends them 0.3 ethers
 
 -   Sets the required validators to be members of the Router contract
--   Prints out WHBAR, Router, Alice, Bob and Carol Wallets
+-   Prints out WHBAR, Router, members addresses
 
 #### How to run:
 
 ```
-etherlime compile --solcVersion 0.6.0
-```
-
-```
-etherlime deploy ./deployment/setup-scripts/testnet-env-deployments.js --compile false --network /network name or id/ --secret /your private key/ --deployToken /hedera token id, optional for deploying custom token/ --membersCount /The count od the members set in the contract/
+npx hardhat deploy-testnet --members /The count od the members set in the contract/ --token /hedera token id, optional for deploying custom token/ --network /The name of the network/
 ```
 
 #### Deploy Token
 
 ```
-etherlime deploy ./deployment/setup-scripts/deploy-token.js --compile false --network /network name or id/ --secret /your private key/ --controllerAddress=/The address of the deployed controller contract/
+npx hardhat deploy-token --controller /The address of the deployed controller contract/ --network /The name of the network/
 ```
 
 #### Update Token
 
 ```
-node ./deployment/setup-scripts/update-token.js --network /network name or id/ --secret /your private key/ --routerAddress=/The address of the deployed router/ --tokenAddress=/The address of the deployed token/ --wrappedToken=/hedera token id/ --tokenStatus=/token status true or false/
+npx hardhat update-token --router /The address of the deployed router/ --id /hedera token id/ --token /The address of the deployed token/ --status /token status true or false/ --network /The name of the network/
 ```
 
 #### UpdateMember
 
 ```
-node ./deployment/setup-scripts/update-member.js --network /network name or id/ --secret /your private key/ --routerAddress /The address of the deployed router contract/ --memberAddress /The address of the member/ --memberStatus /Status of the member/
+npx hardhat update-member --router /The address of the deployed router contract/ --member /The address of the member/ --status /Status of the member/ --network /The name of the network/
+
 ```
 
 ## Diagrams
