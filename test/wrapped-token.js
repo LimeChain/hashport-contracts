@@ -13,7 +13,7 @@ describe("WrappedToken", function () {
         [owner, alice, controller] = await ethers.getSigners();
 
         WrappedToken = await ethers.getContractFactory("WrappedToken");
-        wrappedTokenInstance = await WrappedToken.deploy(name, symbol, decimals);
+        wrappedTokenInstance = await WrappedToken.deploy(name, symbol, decimals, controller.address);
         await wrappedTokenInstance.deployed();
     });
 

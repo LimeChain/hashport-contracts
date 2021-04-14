@@ -26,13 +26,13 @@ describe("Router", function () {
         [owner, aliceMember, bobMember, carlMember, nonMember, notAdmin, notValidAsset] = await ethers.getSigners();
         receiver = nonMember.address;
 
-        WrappedToken = await ethers.getContractFactory("WrappedToken");
-        wrappedTokenInstance = await WrappedToken.deploy(name, symbol, decimals);
-        await wrappedTokenInstance.deployed();
-
         Controller = await ethers.getContractFactory("Controller");
         controllerInstance = await Controller.deploy();
         await controllerInstance.deployed();
+
+        WrappedToken = await ethers.getContractFactory("WrappedToken");
+        wrappedTokenInstance = await WrappedToken.deploy(name, symbol, decimals, controllerInstance.address);
+        await wrappedTokenInstance.deployed();
 
         Router = await ethers.getContractFactory("Router");
         routerInstance = await Router.deploy(serviceFee, controllerInstance.address);
