@@ -1,5 +1,3 @@
-const { string, int } = require("hardhat/internal/core/params/argumentTypes");
-
 /**
  * @type import("hardhat/config").HardhatUserConfig
  */
@@ -9,8 +7,8 @@ require("@nomiclabs/hardhat-waffle");
 /**
  * @dev set your private key and infura api key
  */
-const INFURA_KEY = "14ac2dd6bdcb485bb22ed4aa76d681ae";
-const DEPLOYER_PRIVATE_KEY = "c44377c50845ee070c98c4295bde42f2fbf5a91e81ce2d6d23683291f23dfe0a";
+const INFURA_KEY = "";
+const DEPLOYER_PRIVATE_KEY = "";
 
 const lazyImport = async (module) => {
   const importedDefault = await import(module);
@@ -28,7 +26,7 @@ task("deploy-testnet", "Deploys the hedera eth bridge on testnet")
   .addParam("members", "The count of the validator members")
   .setAction(async taskArgs => {
 
-    const deploy = await lazyImport("./scripts/setup-scripts/testnet-env-deployments.js");
+    const deploy = await lazyImport("./scripts/deploy-testnet.js");
     await deploy(taskArgs.members);
   });
 
@@ -36,7 +34,7 @@ task("deploy-token", "Deploys wrapped token")
   .addParam("controller", "The address of the controller contract")
   .setAction(async taskArgs => {
 
-    const deploy = await lazyImport("./scripts/setup-scripts/deploy-token.js");
+    const deploy = await lazyImport("./scripts/deploy-token.js");
     await deploy(taskArgs.controller);
   });
 
@@ -46,7 +44,7 @@ task("update-member", "Updates member status")
   .addParam("status", "The status of the member")
   .setAction(async taskArgs => {
 
-    const updateMember = await lazyImport("./scripts/setup-scripts/update-member.js");
+    const updateMember = await lazyImport("./scripts/update-member.js");
     await updateMember(taskArgs.router, taskArgs.member, taskArgs.status);
   });
 
@@ -57,7 +55,7 @@ task("update-token", "Deploys wrapped token")
   .addParam("status", "The status of the member")
   .setAction(async taskArgs => {
 
-    const updateToken = await lazyImport("./scripts/setup-scripts/update-token.js");
+    const updateToken = await lazyImport("./scripts/update-token.js");
     await updateToken(taskArgs.router, taskArgs.id, taskArgs.token, taskArgs.status);
   });
 
@@ -83,30 +81,30 @@ module.exports = {
         "5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
       ]
     },
-    // ropsten: {
-    //   url: `https://ropsten.infura.io/v3/${INFURA_KEY}`,
-    //   accounts: [
-    //     DEPLOYER_PRIVATE_KEY
-    //   ]
-    // },
-    // rinkeby: {
-    //   url: `https://rinkeby.infura.io/v3/${INFURA_KEY}`,
-    //   accounts: [
-    //     DEPLOYER_PRIVATE_KEY
-    //   ]
-    // },
-    // kovan: {
-    //   url: `https://kovan.infura.io/v3/${INFURA_KEY}`,
-    //   accounts: [
-    //     DEPLOYER_PRIVATE_KEY
-    //   ]
-    // },
-    // mainnet: {
-    //   url: `https://mainnet.infura.io/v3/${INFURA_KEY}`,
-    //   accounts: [
-    //     DEPLOYER_PRIVATE_KEY
-    //   ]
-    // }
+    ropsten: {
+      url: `https://ropsten.infura.io/v3/${INFURA_KEY}`,
+      accounts: [
+        DEPLOYER_PRIVATE_KEY
+      ]
+    },
+    rinkeby: {
+      url: `https://rinkeby.infura.io/v3/${INFURA_KEY}`,
+      accounts: [
+        DEPLOYER_PRIVATE_KEY
+      ]
+    },
+    kovan: {
+      url: `https://kovan.infura.io/v3/${INFURA_KEY}`,
+      accounts: [
+        DEPLOYER_PRIVATE_KEY
+      ]
+    },
+    mainnet: {
+      url: `https://mainnet.infura.io/v3/${INFURA_KEY}`,
+      accounts: [
+        DEPLOYER_PRIVATE_KEY
+      ]
+    }
   },
   mocha: {
     timeout: 20000

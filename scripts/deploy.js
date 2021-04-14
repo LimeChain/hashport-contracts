@@ -1,12 +1,8 @@
 // 5% multiplied by 1000
 const serviceFee = "5000";
 
-const name = "WrapedHBAR";
-const symbol = "WHBAR";
-const decimals = 8;
-
 const deploy = async () => {
-    let Router, routerInstance, WrappedToken, wrappedTokenInstance, Controller, controllerInstance, receiver;
+    let Router, routerInstance, Controller, controllerInstance, receiver;
 
     Controller = await ethers.getContractFactory("Controller");
     controllerInstance = await Controller.deploy();

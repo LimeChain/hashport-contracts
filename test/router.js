@@ -37,7 +37,6 @@ describe("Router", function () {
         Router = await ethers.getContractFactory("Router");
         routerInstance = await Router.deploy(serviceFee, controllerInstance.address);
 
-        await wrappedTokenInstance.setControllerAddress(controllerInstance.address);
         await controllerInstance.setRouterAddress(routerInstance.address);
     });
 
