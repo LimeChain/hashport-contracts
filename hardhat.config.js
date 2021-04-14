@@ -84,30 +84,30 @@ module.exports = {
         "5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
       ]
     },
-    ropsten: {
-      url: `https://ropsten.infura.io/v3/${INFURA_KEY}`,
-      accounts: [
-        DEPLOYER_PRIVATE_KEY
-      ]
-    },
-    rinkeby: {
-      url: `https://rinkeby.infura.io/v3/${INFURA_KEY}`,
-      accounts: [
-        DEPLOYER_PRIVATE_KEY
-      ]
-    },
-    kovan: {
-      url: `https://kovan.infura.io/v3/${INFURA_KEY}`,
-      accounts: [
-        DEPLOYER_PRIVATE_KEY
-      ]
-    },
-    mainnet: {
-      url: `https://mainnet.infura.io/v3/${INFURA_KEY}`,
-      accounts: [
-        DEPLOYER_PRIVATE_KEY
-      ]
-    }
+    // ropsten: {
+    //   url: `https://ropsten.infura.io/v3/${INFURA_KEY}`,
+    //   accounts: [
+    //     DEPLOYER_PRIVATE_KEY
+    //   ]
+    // },
+    // rinkeby: {
+    //   url: `https://rinkeby.infura.io/v3/${INFURA_KEY}`,
+    //   accounts: [
+    //     DEPLOYER_PRIVATE_KEY
+    //   ]
+    // },
+    // kovan: {
+    //   url: `https://kovan.infura.io/v3/${INFURA_KEY}`,
+    //   accounts: [
+    //     DEPLOYER_PRIVATE_KEY
+    //   ]
+    // },
+    // mainnet: {
+    //   url: `https://mainnet.infura.io/v3/${INFURA_KEY}`,
+    //   accounts: [
+    //     DEPLOYER_PRIVATE_KEY
+    //   ]
+    // }
   },
   mocha: {
     timeout: 20000
