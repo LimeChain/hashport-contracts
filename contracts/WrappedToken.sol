@@ -32,14 +32,14 @@ contract WrappedToken is ERC20Pausable, Ownable {
         string memory tokenName,
         string memory tokenSymbol,
         uint8 decimals,
-        address _controllerAddress
+        address _controller
     ) public ERC20(tokenName, tokenSymbol) {
         require(
-            _controllerAddress != address(0),
+            _controller != address(0),
             "WrappedToken: controller address cannot be zero"
         );
         super._setupDecimals(decimals);
-        controllerAddress = _controllerAddress;
+        controller = _controller;
     }
 
     /**

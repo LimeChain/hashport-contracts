@@ -56,15 +56,15 @@ describe("WrappedToken", function () {
         await wrappedTokenInstance.setController(
             controller.address
         );
-        const controllerAddress = await wrappedTokenInstance.controllerAddress();
+        const controllerAddress = await wrappedTokenInstance.controller();
         expect(controllerAddress).to.eq(controller.address, "The bridge address was not set corectly");
     });
 
-    it("Should emit ControllerAddressSet event", async () => {
-        const expectedEvent = "ControllerAddressSet";
+    it("Should emit ControllerSet event", async () => {
+        const expectedEvent = "ControllerSet";
         const expectedEventArgs = controller.address;
 
-        await expect(wrappedTokenInstance.setControllerAddress(controller.address))
+        await expect(wrappedTokenInstance.setController(controller.address))
             .to.emit(wrappedTokenInstance, expectedEvent)
             .withArgs(expectedEventArgs);
     });
@@ -72,7 +72,7 @@ describe("WrappedToken", function () {
     it("Should revert if not owner tries to set bridge contract address", async () => {
         const expectedRevertMessage = "Ownable: caller is not the owner";
 
-        await expect(wrappedTokenInstance.connect(alice).setControllerAddress(controller.address)).to.be.revertedWith(expectedRevertMessage);
+        await expect(wrappedTokenInstance.connect(alice).setController(controller.address)).to.be.revertedWith(expectedRevertMessage);
     });
 
     it("Should mint tokens from controller", async () => {

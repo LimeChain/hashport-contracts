@@ -2,7 +2,9 @@
 
 # Hedera <-> Ethereum Bridge Contracts
 
-    [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Compile](https://github.com/LimeChain/hedera-eth-bridge-contracts/actions/workflows/compile.yml/badge.svg?branch=main)](https://github.com/LimeChain/hedera-eth-bridge-contracts/actions/workflows/compile.yml)
+[![Test](https://github.com/LimeChain/hedera-eth-bridge-contracts/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/LimeChain/hedera-eth-bridge-contracts/actions/workflows/test.yml)
 
 </div>
 
@@ -56,7 +58,7 @@ npx hardhat deploy-testnet --members /The count od the members set in the contra
 #### Deploy Token
 
 ```
-npx hardhat deploy-token --controller /The address of the deployed controller contract/ --network /The name of the network/
+npx hardhat deploy-token --controller /The address of the deployed controller contract/ --name /Token name/ --symbol /Token symbol/ --decimals /Token decimals/ --network /The name of the network/
 ```
 
 #### Update Token
