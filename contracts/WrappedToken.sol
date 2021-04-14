@@ -12,7 +12,7 @@ contract WrappedToken is ERC20Pausable, Ownable {
     address public controller;
 
     /// @notice An event emitted once the controller address is changed
-    event ControllerSet(address newController);
+    event ControllerSet(address indexed newController);
 
     /// @notice Allows only router contract for msg.sender
     modifier onlyController() {
@@ -84,6 +84,7 @@ contract WrappedToken is ERC20Pausable, Ownable {
             "WrappedToken: controller cannot be zero"
         );
         controller = _controller;
+
         emit ControllerSet(controller);
     }
 }

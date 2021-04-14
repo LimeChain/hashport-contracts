@@ -17,12 +17,6 @@ abstract contract Governance is Ownable {
     /// @notice An event emitted once member is updated
     event MemberUpdated(address member, bool status);
 
-    /// @notice Accepts only `msg.sender` part of the members
-    modifier onlyMember() {
-        require(isMember(msg.sender), "Governance: msg.sender is not a member");
-        _;
-    }
-
     /**
      * @notice Adds/removes a member account. Not idempotent
      * @param account The account to be modified

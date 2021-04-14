@@ -52,12 +52,21 @@ describe("WrappedToken", function () {
         await expect(wrappedTokenInstance.connect(alice).unpause()).to.be.revertedWith(expectedRevertMessage);
     });
 
-    it("Should set bridge contract address as controller", async () => {
+    it("Should set controller contract address", async () => {
         await wrappedTokenInstance.setController(
             controller.address
         );
         const controllerAddress = await wrappedTokenInstance.controller();
-        expect(controllerAddress).to.eq(controller.address, "The bridge address was not set corectly");
+        expect(controllerAddress).to.eq(controller.address, "The controller address was not set corectly");
+    });
+
+    it("Should revert if tries to set zero address as controller", async () => {
+        const nonValidAddress = ethers.constants.AddressZero;
+        const expectedRevertMessage = "WrappedToken: controller cannot be zero";
+
+        await expect(wrappedTokenInstance.setController(
+            nonValidAddress
+        )).to.be.revertedWith(expectedRevertMessage);
     });
 
     it("Should emit ControllerSet event", async () => {

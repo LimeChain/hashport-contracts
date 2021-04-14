@@ -8,8 +8,8 @@ require("solidity-coverage");
 /**
  * @dev set your private key and infura api key
  */
-const INFURA_KEY = "14ac2dd6bdcb485bb22ed4aa76d681ae";
-const DEPLOYER_PRIVATE_KEY = "c44377c50845ee070c98c4295bde42f2fbf5a91e81ce2d6d23683291f23dfe0a";
+const INFURA_KEY = "";
+const DEPLOYER_PRIVATE_KEY = "";
 
 const lazyImport = async (module) => {
   const importedDefault = await import(module);
@@ -85,30 +85,30 @@ module.exports = {
         "5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
       ]
     },
-    ropsten: {
-      url: `https://ropsten.infura.io/v3/${INFURA_KEY}`,
-      accounts: [
-        DEPLOYER_PRIVATE_KEY
-      ]
-    },
-    rinkeby: {
-      url: `https://rinkeby.infura.io/v3/${INFURA_KEY}`,
-      accounts: [
-        DEPLOYER_PRIVATE_KEY
-      ]
-    },
-    kovan: {
-      url: `https://kovan.infura.io/v3/${INFURA_KEY}`,
-      accounts: [
-        DEPLOYER_PRIVATE_KEY
-      ]
-    },
-    mainnet: {
-      url: `https://mainnet.infura.io/v3/${INFURA_KEY}`,
-      accounts: [
-        DEPLOYER_PRIVATE_KEY
-      ]
-    }
+    // ropsten: {
+    //   url: `https://ropsten.infura.io/v3/${INFURA_KEY}`,
+    //   accounts: [
+    //     DEPLOYER_PRIVATE_KEY
+    //   ]
+    // },
+    // rinkeby: {
+    //   url: `https://rinkeby.infura.io/v3/${INFURA_KEY}`,
+    //   accounts: [
+    //     DEPLOYER_PRIVATE_KEY
+    //   ]
+    // },
+    // kovan: {
+    //   url: `https://kovan.infura.io/v3/${INFURA_KEY}`,
+    //   accounts: [
+    //     DEPLOYER_PRIVATE_KEY
+    //   ]
+    // },
+    // mainnet: {
+    //   url: `https://mainnet.infura.io/v3/${INFURA_KEY}`,
+    //   accounts: [
+    //     DEPLOYER_PRIVATE_KEY
+    //   ]
+    // }
   },
   mocha: {
     timeout: 20000

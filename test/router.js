@@ -13,7 +13,7 @@ describe("Router", function () {
     const amount = ethers.utils.parseEther("100");
 
     beforeEach(async () => {
-        [owner, aliceMember, bobMember, carlMember, nonMember, notAdmin, notValidAsset] = await ethers.getSigners();
+        [owner, aliceMember, bobMember, carlMember, nonMember, notAdmin, notValidAsset, mockAsset, mockNative] = await ethers.getSigners();
         receiver = nonMember.address;
 
         Controller = await ethers.getContractFactory("Controller");
@@ -118,6 +118,108 @@ describe("Router", function () {
 
             const expectedRevertMessage = "Governance: Account is not a member";
             await expect(routerInstance.updateMember(aliceMember.address, false)).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should set asset pair", async () => {
+            await routerInstance.addPair(wrappedId, wrappedTokenInstance.address);
+            const assetsCount = await routerInstance.wrappedAssetsCount();
+            const expectedCount = 1;
+            assert(assetsCount.eq(expectedCount));
+
+            const wrapped = await routerInstance.nativeToWrapped(wrappedId);
+            const native = await routerInstance.wrappedToNative(wrappedTokenInstance.address);
+            expect(wrapped).to.eq(wrappedTokenInstance.address);
+            expect(native).to.eq(wrappedId);
+
+            const wrappedAssetAt = await routerInstance.wrappedAssetAt(0);
+            expect(wrappedAssetAt).to.eq(wrappedTokenInstance.address);
+        });
+
+        it("Should emit PairAdded", async () => {
+            const expectedEvent = "PairAdded";
+            await expect(routerInstance.addPair(wrappedId, wrappedTokenInstance.address))
+                .to.emit(routerInstance, expectedEvent)
+                .withArgs(wrappedId, wrappedTokenInstance.address);
+        });
+
+        it("Should revert if addPair is called from not owner", async () => {
+            expectedRevertMessage = "Ownable: caller is not the owner";
+            await expect(routerInstance.connect(notAdmin).addPair(wrappedId, wrappedTokenInstance.address)).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should revert if native asset already added", async () => {
+            await routerInstance.addPair(wrappedId, wrappedTokenInstance.address);
+            expectedRevertMessage = "Router: Native asset already added";
+            await expect(routerInstance.addPair(wrappedId, mockAsset.address)).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should revert if wrapped token already added", async () => {
+            await routerInstance.addPair(wrappedId, wrappedTokenInstance.address);
+            expectedRevertMessage = "Router: Wrapped asset already added";
+            await expect(routerInstance.addPair(mockNative.address, wrappedTokenInstance.address)).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should revert if add same pair twice", async () => {
+            await routerInstance.addPair(wrappedId, wrappedTokenInstance.address);
+            expectedRevertMessage = "Router: Native asset already added";
+            await expect(routerInstance.addPair(wrappedId, wrappedTokenInstance.address)).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should remove asset pair", async () => {
+            await routerInstance.addPair(wrappedId, wrappedTokenInstance.address);
+            await routerInstance.removePair(wrappedId, wrappedTokenInstance.address);
+
+            const assetsCount = await routerInstance.wrappedAssetsCount();
+            const expectedCount = 0;
+            assert(assetsCount.eq(expectedCount));
+
+            const addressZero = ethers.constants.AddressZero;
+            const bytesZero = "0x";
+
+            const wrapped = await routerInstance.nativeToWrapped(wrappedId);
+            const native = await routerInstance.wrappedToNative(wrappedTokenInstance.address);
+            expect(wrapped).to.eq(addressZero);
+            expect(native).to.eq(bytesZero);
+        });
+
+        it("Should emit PairRemoved", async () => {
+            await routerInstance.addPair(wrappedId, wrappedTokenInstance.address);
+
+            const expectedEvent = "PairRemoved";
+            await expect(routerInstance.removePair(wrappedId, wrappedTokenInstance.address))
+                .to.emit(routerInstance, expectedEvent)
+                .withArgs(wrappedId, wrappedTokenInstance.address);
+        });
+
+        it("Should revert if removePair is called from not owner", async () => {
+            await routerInstance.addPair(wrappedId, wrappedTokenInstance.address);
+
+            expectedRevertMessage = "Ownable: caller is not the owner";
+            await expect(routerInstance.connect(notAdmin).removePair(wrappedId, wrappedTokenInstance.address)).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should revert if native asset is wrong", async () => {
+            await routerInstance.addPair(wrappedId, wrappedTokenInstance.address);
+
+            await routerInstance.removePair(wrappedId, wrappedTokenInstance.address);
+            expectedRevertMessage = "Router: Invalid pair";
+            await expect(routerInstance.removePair(wrappedId, mockAsset.address)).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should revert if wrapped token is wrong", async () => {
+            await routerInstance.addPair(wrappedId, wrappedTokenInstance.address);
+
+            await routerInstance.removePair(wrappedId, wrappedTokenInstance.address);
+            expectedRevertMessage = "Router: Invalid pair";
+            await expect(routerInstance.removePair(mockNative.address, wrappedTokenInstance.address)).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should revert if add same pair twice", async () => {
+            await routerInstance.addPair(wrappedId, wrappedTokenInstance.address);
+
+            await routerInstance.removePair(wrappedId, wrappedTokenInstance.address);
+            expectedRevertMessage = "Router: Invalid pair";
+            await expect(routerInstance.removePair(wrappedId, wrappedTokenInstance.address)).to.be.revertedWith(expectedRevertMessage);
         });
     });
 
