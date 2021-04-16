@@ -25,7 +25,7 @@ abstract contract Governance is Ownable {
     function updateMember(address account, bool isMember) public onlyOwner {
         if (isMember) {
             require(members.add(account), "Governance: Account already added");
-        } else if (!isMember) {
+        } else {
             require(
                 members.remove(account),
                 "Governance: Account is not a member"

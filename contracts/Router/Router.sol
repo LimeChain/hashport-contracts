@@ -57,7 +57,10 @@ contract Router is Governance {
      *  @param _controller The address of the controler contract
      */
     constructor(address _controller) public {
-        require(_controller != address(0));
+        require(
+            _controller != address(0),
+            "Router: controller address cannot be zero"
+        );
         controller = _controller;
     }
 
