@@ -79,23 +79,3 @@ npx hardhat remove-pair --router /The address of the deployed router/ --native /
 npx hardhat update-member --router /The address of the deployed router contract/ --member /The address of the member/ --status /Status of the member/ --network /The name of the network/
 
 ```
-
-## Diagrams
-
-UML diagram for the 2 major contracts are presented here.
-
-### Bridge contract
-
-<div align="center" style="width:50%">
-
-![bridge](/img/bridge.png "Bridge contract")
-
-</div>
-
-### Governance contract
-
-<div align="center" style="width:50%">
-
-![governance](/img/gov.png "Governance contract")
-
-</div>
