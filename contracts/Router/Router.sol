@@ -115,7 +115,7 @@ contract Router is Governance {
         supportedAsset(wrappedAsset)
     {
         bytes32 ethHash =
-            computeMessage(transactionId, wrappedAsset, receiver, amount);
+            computeMessage(transactionId, address(this),  wrappedAsset, receiver, amount);
 
         validateAndStoreTx(transactionId, ethHash, signatures);
 
@@ -203,13 +203,14 @@ contract Router is Governance {
     /// @notice Computes the bytes32 ethereum signed message hash of the signature
     function computeMessage(
         bytes memory transactionId,
+        address router,
         address wrappedAsset,
         address receiver,
         uint256 amount
     ) private pure returns (bytes32) {
         bytes32 hashedData =
             keccak256(
-                abi.encode(transactionId, wrappedAsset, receiver, amount)
+                abi.encode(transactionId, router, wrappedAsset, receiver, amount)
             );
         return ECDSA.toEthSignedMessageHash(hashedData);
     }

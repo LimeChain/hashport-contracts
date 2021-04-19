@@ -380,8 +380,14 @@ describe("Router", function () {
 
         it("Should execute mint", async () => {
             const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
             );
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
@@ -415,8 +421,14 @@ describe("Router", function () {
             const expectedEvent = "Mint";
 
             const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
             );
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
@@ -440,8 +452,14 @@ describe("Router", function () {
 
         it("Should execute mint transaction from not a validator", async () => {
             const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
             );
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
@@ -468,8 +486,14 @@ describe("Router", function () {
 
         it("Should not execute same mint transaction twice", async () => {
             const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
             );
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
@@ -504,8 +528,14 @@ describe("Router", function () {
 
         it("Should not execute mint transaction with less than the half signatures", async () => {
             const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
             );
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
@@ -529,8 +559,14 @@ describe("Router", function () {
 
         it("Should not execute mint transaction more signatures than the member count", async () => {
             const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
             );
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
@@ -562,8 +598,14 @@ describe("Router", function () {
 
         it("Should not execute mint transaction signed from non member", async () => {
             const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
             );
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
@@ -587,8 +629,14 @@ describe("Router", function () {
 
         it("Should not execute mint transaction with identical signatures", async () => {
             const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
             );
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
@@ -613,8 +661,14 @@ describe("Router", function () {
             const wrongAmount = ethers.utils.parseEther("200");
 
             const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
             );
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
@@ -765,8 +819,14 @@ describe("Router", function () {
         await routerInstance.addPair(wrappedId, wrappedTokenInstance.address);
 
         const encodeData = ethers.utils.defaultAbiCoder.encode(
-            ["bytes", "address", "address", "uint256"],
-            [transactionId, wrappedTokenInstance.address, receiver, amount]
+            ["bytes", "address", "address", "address", "uint256"],
+            [
+                transactionId,
+                routerInstance.address,
+                wrappedTokenInstance.address,
+                receiver,
+                amount,
+            ]
         );
         const hashMsg = ethers.utils.keccak256(encodeData);
         const hashData = ethers.utils.arrayify(hashMsg);
