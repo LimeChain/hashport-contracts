@@ -1,7 +1,5 @@
 const { ethers } = require("hardhat");
 
-const serviceFee = "5000";
-const membersSendAmount = ethers.utils.parseEther("0.3");
 const wrappedId = ethers.utils.formatBytes32String("HBAR");
 
 const name = "WrapedHBAR";
@@ -9,8 +7,6 @@ const symbol = "WHBAR";
 const decimals = 8;
 
 const deploy = async (membersCount) => {
-    let [adminWallet, _] = await ethers.getSigners();
-
     console.log("Deployng Controller contract");
     const Controller = await ethers.getContractFactory("Controller");
     const controllerInstance = await Controller.deploy();
@@ -53,12 +49,6 @@ const deploy = async (membersCount) => {
             }
         );
         await updateMember.wait();
-
-        let sendTransaction = await adminWallet.sendTransaction({
-            to: wallet.address,
-            value: membersSendAmount,
-        });
-        await sendTransaction.wait();
     }
     console.log("Deployment script finished successfully");
 };
