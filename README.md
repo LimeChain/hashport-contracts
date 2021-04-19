@@ -61,10 +61,16 @@ npx hardhat deploy-testnet --members /The count od the members set in the contra
 npx hardhat deploy-token --controller /The address of the deployed controller contract/ --name /Token name/ --symbol /Token symbol/ --decimals /Token decimals/ --network /The name of the network/
 ```
 
-#### Update Token
+#### Add token pair
 
 ```
-npx hardhat update-token --router /The address of the deployed router/ --id /hedera token id/ --token /The address of the deployed token/ --status /token status true or false/ --network /The name of the network/
+npx hardhat add-pair --router /The address of the deployed router/ --native /hedera token id/ --wrapped /The address of the deployed token/ --network /The name of the network/
+```
+
+#### Remove token pair
+
+```
+npx hardhat remove-pair --router /The address of the deployed router/ --native /hedera token id/ --wrapped /The address of the deployed token/ --network /The name of the network/
 ```
 
 #### UpdateMember

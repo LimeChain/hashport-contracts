@@ -53,13 +53,22 @@ task("update-member", "Updates member status")
         await updateMember(taskArgs.router, taskArgs.member, taskArgs.status);
     });
 
-task("update-token", "Deploys wrapped token")
+task("add-pair", "Adds a new pair")
     .addParam("router", "The address of the router contract")
-    .addParam("id", "The id of the hedera token")
-    .addParam("token", "The address of the wrapped token")
+    .addParam("native", "The id of the hedera token")
+    .addParam("wrapped", "The address of the wrapped token")
     .setAction(async (taskArgs) => {
-        const updateToken = await lazyImport("./scripts/update-token.js");
-        await updateToken(taskArgs.router, taskArgs.id, taskArgs.token);
+        const addPair = await lazyImport("./scripts/add-pair.js");
+        await addPair(taskArgs.router, taskArgs.native, taskArgs.wrapped);
+    });
+
+task("remove-pair", "Removes a pair")
+    .addParam("router", "The address of the router contract")
+    .addParam("native", "The id of the hedera token")
+    .addParam("wrapped", "The address of the wrapped token")
+    .setAction(async (taskArgs) => {
+        const removePair = await lazyImport("./scripts/remove-pair.js");
+        await removePair(taskArgs.router, taskArgs.native, taskArgs.wrapped);
     });
 
 module.exports = {
