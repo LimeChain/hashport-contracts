@@ -9,15 +9,15 @@ import "@openzeppelin/contracts/token/ERC20/ERC20Pausable.sol";
  */
 contract WrappedToken is ERC20Pausable, Ownable {
     /// @notice The address of the controller contract
-    address public controllerAddress;
+    address public controller;
 
     /// @notice An event emitted once the controller address is changed
-    event ControllerAddressSet(address newRouterAddress);
+    event ControllerSet(address indexed newController);
 
     /// @notice Allows only router contract for msg.sender
     modifier onlyController() {
         require(
-            msg.sender == controllerAddress,
+            msg.sender == controller,
             "WrappedToken: Not called by the controller contract"
         );
         _;
@@ -32,14 +32,14 @@ contract WrappedToken is ERC20Pausable, Ownable {
         string memory tokenName,
         string memory tokenSymbol,
         uint8 decimals,
-        address _controllerAddress
+        address _controller
     ) public ERC20(tokenName, tokenSymbol) {
         require(
-            _controllerAddress != address(0),
+            _controller != address(0),
             "WrappedToken: controller address cannot be zero"
         );
         super._setupDecimals(decimals);
-        controllerAddress = _controllerAddress;
+        controller = _controller;
     }
 
     /**
@@ -78,12 +78,13 @@ contract WrappedToken is ERC20Pausable, Ownable {
     }
 
     /// @notice Changes the controller address
-    function setControllerAddress(address _controllerAddress) public onlyOwner {
+    function setController(address _controller) public onlyOwner {
         require(
-            _controllerAddress != address(0),
-            "WrappedToken: controller address cannot be zero"
+            _controller != address(0),
+            "WrappedToken: controller cannot be zero"
         );
-        controllerAddress = _controllerAddress;
-        emit ControllerAddressSet(controllerAddress);
+        controller = _controller;
+
+        emit ControllerSet(controller);
     }
 }

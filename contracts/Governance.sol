@@ -12,31 +12,22 @@ abstract contract Governance is Ownable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /// @notice Iterable set of members
-    EnumerableSet.AddressSet private membersSet;
+    EnumerableSet.AddressSet private members;
 
     /// @notice An event emitted once member is updated
     event MemberUpdated(address member, bool status);
-
-    /// @notice Accepts only `msg.sender` part of the members
-    modifier onlyMember() {
-        require(isMember(msg.sender), "Governance: msg.sender is not a member");
-        _;
-    }
 
     /**
      * @notice Adds/removes a member account. Not idempotent
      * @param account The account to be modified
      * @param isMember Whether the account will be set as member or not
      */
-    function _updateMember(address account, bool isMember) internal {
+    function updateMember(address account, bool isMember) public onlyOwner {
         if (isMember) {
+            require(members.add(account), "Governance: Account already added");
+        } else {
             require(
-                membersSet.add(account),
-                "Governance: Account already added"
-            );
-        } else if (!isMember) {
-            require(
-                membersSet.remove(account),
+                members.remove(account),
                 "Governance: Account is not a member"
             );
         }
@@ -45,16 +36,16 @@ abstract contract Governance is Ownable {
 
     /// @notice Returns true/false depending on whether a given address is member or not
     function isMember(address _member) public view returns (bool) {
-        return membersSet.contains(_member);
+        return members.contains(_member);
     }
 
     /// @notice Returns the count of the members
     function membersCount() public view returns (uint256) {
-        return membersSet.length();
+        return members.length();
     }
 
     /// @notice Returns the address of a member at a given index
     function memberAt(uint256 index) public view returns (address) {
-        return membersSet.at(index);
+        return members.at(index);
     }
 }

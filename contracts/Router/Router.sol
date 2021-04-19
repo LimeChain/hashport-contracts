@@ -1,74 +1,71 @@
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
+import "../Governance.sol";
+
 import "../Interfaces/IController.sol";
-import "../FeeCalculator.sol";
 import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 
-contract Router is FeeCalculator {
+contract Router is Governance {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /// @notice The address of the controller contract
-    address public controllerAddress;
+    address public controller;
 
     /// @notice Iterable set of wrappedToken contracts
-    EnumerableSet.AddressSet private wrappedTokens;
+    EnumerableSet.AddressSet private wrappedAssets;
 
-    /// @notice Storage metadata for hedera -> eth transactions. Key bytes represents Hedera TransactionID
+    /// @notice Hedera native to wrapped asset address
+    mapping(bytes => address) public nativeToWrapped;
+
+    /// @notice Wrapped to Hedera native asset
+    mapping(address => bytes) public wrappedToNative;
+
+    /// @notice Storage metadata for Transfers. The Key bytes represent Hedera TransactionID
     mapping(bytes => Transaction) public mintTransfers;
-
-    /// @notice Storage hedera token id -> wrappedToken address.
-    mapping(bytes => address) public nativeToWrappedToken;
-
-    /// @notice Storage wrappedToken address -> hedera token id.
-    mapping(address => bytes) public wrappedToNativeToken;
 
     /// @notice Struct containing necessary metadata for a given transaction
     struct Transaction {
         bool isExecuted;
-        mapping(address => bool) signatures;
+        mapping(address => bool) hasSigned;
     }
 
-    /// @notice An event emitted once wrappedToken contract is set
-    event TokenUpdate(address wrappedToken, bytes nativeToken, bool isActive);
+    /// @notice An event emitted once new pair of assets are added
+    event PairAdded(bytes native, address wrapped);
+
+    /// @notice An event emitted once pair of assets are removed
+    event PairRemoved(bytes native, address wrapped);
 
     /// @notice An event emitted once a Mint transaction is executed
     event Mint(
         address indexed account,
-        address indexed wrappedToken,
+        address indexed wrappedAsset,
         uint256 amount,
-        uint256 serviceFeeInWTokens,
-        uint256 txCost,
         bytes indexed transactionId
     );
 
     /// @notice An event emitted once a Burn transaction is executed
     event Burn(
         address indexed account,
-        address indexed wrappedToken,
+        address indexed wrappedAsset,
         uint256 amount,
-        uint256 serviceFee,
         bytes receiver
     );
 
-    /// @notice An event emitted once Member claims fees accredited to him
-    event Claim(address indexed account, uint256 amount);
-
     /**
      *  @notice Passes an argument for constructing a new FeeCalculator contract
-     *  @param _serviceFee The initial service fee in percentage. Range 0% to 99.999% multiplied my 1000.
-     *  @param _controllerAddress The address of the controler contract
+     *  @param _controller The address of the controler contract
      */
-    constructor(uint256 _serviceFee, address _controllerAddress)
-        public
-        FeeCalculator(_serviceFee)
-    {
-        require(_controllerAddress != address(0));
-        controllerAddress = _controllerAddress;
+    constructor(address _controller) public {
+        require(
+            _controller != address(0),
+            "Router: controller address cannot be zero"
+        );
+        controller = _controller;
     }
 
     /// @notice Accepts number of signatures in the range (n/2; n] where n is the number of members
-    modifier onlyValidSignatures(uint256 n) {
+    modifier validSignatureCount(uint256 n) {
         uint256 members = membersCount();
         require(n <= members, "Router: Invalid number of signatures");
         require(n > members / 2, "Router: Invalid number of signatures");
@@ -76,7 +73,7 @@ contract Router is FeeCalculator {
     }
 
     /// @notice Accepts only non-executed transactions
-    modifier onlyValidTxId(bytes memory txId) {
+    modifier validTxId(bytes memory txId) {
         require(
             !mintTransfers[txId].isExecuted,
             "Router: txId already submitted"
@@ -85,281 +82,134 @@ contract Router is FeeCalculator {
     }
 
     /// @notice Require the wrappedToken address to be an existing one
-    modifier supportedToken(address _supportedToken) {
-        require(
-            isSupportedToken(_supportedToken),
-            "Router: wrappedToken contract not active"
-        );
+    modifier supportedAsset(address token) {
+        require(isSupportedAsset(token), "Router: token not supported");
+        _;
+    }
+
+    /// @notice Require non-empty native and non-zero address wrapped asset values
+    modifier validPair(bytes memory nativeAsset, address wrappedAsset) {
+        require(nativeAsset.length > 0, "Router: invalid native asset");
+        require(wrappedAsset != address(0), "Router: address can't be zero");
         _;
     }
 
     /**
-     * @notice Mints `amount` wrapped tokens to the `receiver` address. Must be authorised by a supermajority of `signatures` from the `members` set. Distributes service fee to the members.
+     * @notice Mints `amount` wrapped tokens to the `receiver` address. Must be authorised by a supermajority of `signatures` from the `members` set
      * @param transactionId The Hedera Transaction ID
-     * @param wrappedToken The corresponding wrappedToken contract
+     * @param wrappedAsset The corresponding wrappedToken contract
      * @param receiver The address receiving the tokens
      * @param amount The desired minting amount
      * @param signatures The array of signatures from the members, authorising the operation
      */
     function mint(
         bytes memory transactionId,
-        address wrappedToken,
+        address wrappedAsset,
         address receiver,
         uint256 amount,
         bytes[] memory signatures
     )
         public
-        onlyValidTxId(transactionId)
-        onlyValidSignatures(signatures.length)
-        supportedToken(wrappedToken)
+        validTxId(transactionId)
+        validSignatureCount(signatures.length)
+        supportedAsset(wrappedAsset)
     {
         bytes32 ethHash =
-            _computeMessage(transactionId, wrappedToken, receiver, amount);
+            computeMessage(transactionId, wrappedAsset, receiver, amount);
 
         validateAndStoreTx(transactionId, ethHash, signatures);
 
-        uint256 serviceFeeInWTokens = amount.mul(serviceFee).div(PRECISION);
-
-        distributeRewards(wrappedToken, serviceFeeInWTokens);
-
-        uint256 amountToMint = amount.sub(serviceFeeInWTokens);
-
-        IController(controllerAddress).mint(
-            wrappedToken,
-            receiver,
-            amountToMint
-        );
-        emit Mint(
-            receiver,
-            wrappedToken,
-            amountToMint,
-            serviceFeeInWTokens,
-            0,
-            transactionId
-        );
+        IController(controller).mint(wrappedAsset, receiver, amount);
+        emit Mint(receiver, wrappedAsset, amount, transactionId);
     }
 
     /**
-     * @notice Mints `amount - fees` wrapped tokens to the `receiver` address. Must be authorised by a supermajority of `signatures` from the `members` set. Distributes service fee to the members.
-     * @param transactionId The Hedera Transaction ID
-     * @param wrappedToken The corresponding wrappedToken contract
-     * @param receiver The address receiving the tokens
-     * @param amount The desired minting amount
-     * @param txCost The amount of wrapped tokens reimbursed to `msg.sender`
-     * @param signatures The array of signatures from the members, authorising the operation
-     */
-    function mintWithReimbursement(
-        bytes memory transactionId,
-        address wrappedToken,
-        address receiver,
-        uint256 amount,
-        uint256 txCost,
-        bytes[] memory signatures
-    )
-        public
-        onlyValidTxId(transactionId)
-        onlyMember
-        onlyValidSignatures(signatures.length)
-        supportedToken(wrappedToken)
-    {
-        bytes32 ethHash =
-            _computeMessage(
-                transactionId,
-                wrappedToken,
-                receiver,
-                amount,
-                txCost,
-                tx.gasprice
-            );
-
-        validateAndStoreTx(transactionId, ethHash, signatures);
-
-        uint256 serviceFeeInWTokens =
-            amount.sub(txCost).mul(serviceFee).div(PRECISION);
-
-        distributeRewards(
-            wrappedToken,
-            txCost,
-            serviceFeeInWTokens,
-            msg.sender
-        );
-
-        uint256 amountToMint = amount.sub(txCost).sub(serviceFeeInWTokens);
-
-        IController(controllerAddress).mint(
-            wrappedToken,
-            receiver,
-            amountToMint
-        );
-        emit Mint(
-            receiver,
-            wrappedToken,
-            amountToMint,
-            serviceFeeInWTokens,
-            txCost,
-            transactionId
-        );
-    }
-
-    /**
-     * @notice call burn of the given wrappedToken contract `amount` wrapped tokens from `msg.sender`, distributes fees
+     * @notice Burns the provided `amount` of wrapped tokens and emits Burn event
      * @param amount The amount of wrapped tokens to be bridged
      * @param receiver The Hedera account to receive the wrapped tokens
-     * @param wrappedToken contract The corresponding wrappedToken contract
+     * @param wrappedAsset The corresponding wrapped asset contract
      */
     function burn(
         uint256 amount,
         bytes memory receiver,
-        address wrappedToken
-    ) public supportedToken(wrappedToken) {
+        address wrappedAsset
+    ) public supportedAsset(wrappedAsset) {
         require(receiver.length > 0, "Router: invalid receiver value");
 
-        uint256 serviceFeeInWTokens = amount.mul(serviceFee).div(PRECISION);
+        IController(controller).burnFrom(wrappedAsset, msg.sender, amount);
 
-        distributeRewards(wrappedToken, serviceFeeInWTokens);
-
-        IController(controllerAddress).burnFrom(
-            wrappedToken,
-            msg.sender,
-            amount
-        );
-        uint256 bridgedAmount = amount.sub(serviceFeeInWTokens);
-
-        emit Burn(
-            msg.sender,
-            wrappedToken,
-            bridgedAmount,
-            serviceFeeInWTokens,
-            receiver
-        );
-    }
-
-    function claim(address wrappedToken) public onlyMember {
-        uint256 claimableAmount = _claimWrappedToken(msg.sender, wrappedToken);
-        IController(controllerAddress).mint(
-            wrappedToken,
-            msg.sender,
-            claimableAmount
-        );
-        emit Claim(msg.sender, claimableAmount);
+        emit Burn(msg.sender, wrappedAsset, amount, receiver);
     }
 
     /**
-     * @notice Adds/removes a member account. Not idempotent
-     * @param account The account to be modified
-     * @param isMember Whether the account will be set as member or not
+     * @notice Adds new pair of native and wrapped tokens to be supported for bridging
+     * @param native The identifier of the Hedera native asset
+     * @param wrapped The address of the wrapped token contract
      */
-    function updateMember(address account, bool isMember) public onlyOwner {
-        if (isMember) {
-            for (uint256 i = 0; i < wrappedTokensCount(); i++) {
-                addNewMember(account, wrappedTokenAt(i));
-            }
-        } else {
-            for (uint256 i = 0; i < wrappedTokensCount(); i++) {
-                uint256 claimableFees =
-                    _claimWrappedToken(account, wrappedTokenAt(i));
-
-                IController(controllerAddress).mint(
-                    wrappedTokenAt(i),
-                    account,
-                    claimableFees
-                );
-            }
-        }
-        _updateMember(account, isMember);
-    }
-
-    /**
-     * @notice Adds/Removes wrappedToken contracts
-     * @param newWrappedToken The address of the wrappedToken contract
-     * @param tokenID The id of the hedera token
-     * @param isActive Shows the status of the contract
-     */
-    function updateWrappedToken(
-        address newWrappedToken,
-        bytes memory tokenID,
-        bool isActive
-    ) public onlyOwner {
+    function addPair(bytes memory native, address wrapped)
+        public
+        onlyOwner
+        validPair(native, wrapped)
+    {
         require(
-            newWrappedToken != address(0),
-            "Router: wrappedToken address can't be zero"
+            nativeToWrapped[native] == address(0),
+            "Router: Native asset already added"
         );
-        require(tokenID.length > 0, "Router: invalid tokenID value");
-        if (isActive) {
-            require(
-                wrappedTokens.add(newWrappedToken),
-                "Router: Failed to add wrappedToken contract"
-            );
-            nativeToWrappedToken[tokenID] = newWrappedToken;
-            wrappedToNativeToken[newWrappedToken] = tokenID;
-        } else {
-            require(
-                wrappedTokens.remove(newWrappedToken),
-                "Router: Failed to remove wrappedToken contract"
-            );
-            for (uint256 i = 0; i < membersCount(); i++) {
-                address currentMember = memberAt(i);
-                uint256 claimableAmount =
-                    _claimWrappedToken(currentMember, newWrappedToken);
-                IController(controllerAddress).mint(
-                    newWrappedToken,
-                    currentMember,
-                    claimableAmount
-                );
-            }
-        }
+        require(
+            wrappedToNative[wrapped].length == 0,
+            "Router: Wrapped asset already added"
+        );
 
-        emit TokenUpdate(newWrappedToken, tokenID, isActive);
+        require(wrappedAssets.add(wrapped), "Router: Token asset added");
+
+        nativeToWrapped[native] = wrapped;
+        wrappedToNative[wrapped] = native;
+        emit PairAdded(native, wrapped);
+    }
+
+    /**
+     * @notice Removes an already existing pair from the supported assets for bridging
+     * @param native The identifier of the Hedera native asset
+     * @param wrapped The address of the wrapped token contract
+     */
+    function removePair(bytes memory native, address wrapped) public onlyOwner {
+        require(nativeToWrapped[native] == wrapped, "Router: Invalid pair");
+        require(wrappedAssets.remove(wrapped), "Router: Invalid wrapped asset");
+
+        bytes32 nativeFromStorage = keccak256(wrappedToNative[wrapped]);
+        bytes32 nativeFromArgs = keccak256(native);
+        require(nativeFromStorage == nativeFromArgs, "Router: Invalid pair");
+
+        nativeToWrapped[native] = address(0);
+        wrappedToNative[wrapped] = new bytes(0);
+        emit PairRemoved(native, wrapped);
     }
 
     /// @notice Returns true/false depending on whether a given address is active wrappedToken or not
-    function isSupportedToken(address wrappedToken) public view returns (bool) {
-        return wrappedTokens.contains(wrappedToken);
+    function isSupportedAsset(address wrappedAsset) public view returns (bool) {
+        return wrappedAssets.contains(wrappedAsset);
     }
 
     /// @notice Returns the count of the wrapped tokens
-    function wrappedTokensCount() public view returns (uint256) {
-        return wrappedTokens.length();
+    function wrappedAssetsCount() public view returns (uint256) {
+        return wrappedAssets.length();
     }
 
     /// @notice Returns the address of a wrappedToken at a given index
-    function wrappedTokenAt(uint256 index) public view returns (address) {
-        return wrappedTokens.at(index);
+    function wrappedAssetAt(uint256 index) public view returns (address) {
+        return wrappedAssets.at(index);
     }
 
     /// @notice Computes the bytes32 ethereum signed message hash of the signature
-    function _computeMessage(
+    function computeMessage(
         bytes memory transactionId,
-        address wrappedToken,
+        address wrappedAsset,
         address receiver,
         uint256 amount
     ) private pure returns (bytes32) {
         bytes32 hashedData =
             keccak256(
-                abi.encode(transactionId, wrappedToken, receiver, amount)
-            );
-        return ECDSA.toEthSignedMessageHash(hashedData);
-    }
-
-    /// @notice Computes the bytes32 ethereum signed message hash of the signature with txCost and gascost
-    function _computeMessage(
-        bytes memory transactionId,
-        address wrappedToken,
-        address receiver,
-        uint256 amount,
-        uint256 txCost,
-        uint256 gascost
-    ) private pure returns (bytes32) {
-        bytes32 hashedData =
-            keccak256(
-                abi.encode(
-                    transactionId,
-                    wrappedToken,
-                    receiver,
-                    amount,
-                    txCost,
-                    gascost
-                )
+                abi.encode(transactionId, wrappedAsset, receiver, amount)
             );
         return ECDSA.toEthSignedMessageHash(hashedData);
     }
@@ -381,10 +231,10 @@ contract Router is FeeCalculator {
             address signer = ECDSA.recover(ethHash, signatures[i]);
             require(isMember(signer), "Router: invalid signer");
             require(
-                !transaction.signatures[signer],
+                !transaction.hasSigned[signer],
                 "Router: signature already set"
             );
-            transaction.signatures[signer] = true;
+            transaction.hasSigned[signer] = true;
         }
         transaction.isExecuted = true;
     }

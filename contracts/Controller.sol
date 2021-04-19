@@ -5,15 +5,15 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Controller is Ownable {
     /// @notice The address of the router contract
-    address public routerAddress;
+    address public router;
 
     /// @notice An event emitted once the router address is changed
-    event RouterAddressSet(address newRouterAddress);
+    event RouterSet(address newRouter);
 
     /// @notice Allows only router contract for msg.sender
     modifier onlyRouterContract() {
         require(
-            msg.sender == routerAddress,
+            msg.sender == router,
             "Controller: Not called by the router contract"
         );
         _;
@@ -49,14 +49,14 @@ contract Controller is Ownable {
 
     /**
      * @notice Changes the router address
-     * @param _routerAddress The new router address
+     * @param _router The new router address
      */
-    function setRouterAddress(address _routerAddress) public onlyOwner {
+    function setRouter(address _router) public onlyOwner {
         require(
-            _routerAddress != address(0),
+            _router != address(0),
             "WrappedToken: router address cannot be zero"
         );
-        routerAddress = _routerAddress;
-        emit RouterAddressSet(routerAddress);
+        router = _router;
+        emit RouterSet(router);
     }
 }
