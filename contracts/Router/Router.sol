@@ -156,7 +156,7 @@ contract Router is Governance {
      * @param amount The amount of wrapped tokens to be bridged
      * @param deadline Timestamp of the deadline
      */
-    function burnWhithPermit(
+    function burnWithPermit(
         address wrappedAsset,
         bytes memory receiver,
         uint256 amount,
