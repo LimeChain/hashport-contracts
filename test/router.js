@@ -836,7 +836,7 @@ describe("Router", function () {
 
             await routerInstance
                 .connect(nonMember)
-                .burnWhitPermit(
+                .burnWhithPermit(
                     wrappedTokenInstance.address,
                     hederaAddress,
                     amountToBurn,
@@ -873,7 +873,7 @@ describe("Router", function () {
             await expect(
                 routerInstance
                     .connect(nonMember)
-                    .burnWhitPermit(
+                    .burnWhithPermit(
                         wrappedTokenInstance.address,
                         hederaAddress,
                         amountToBurn,
@@ -905,7 +905,7 @@ describe("Router", function () {
             await expect(
                 routerInstance
                     .connect(nonMember)
-                    .burnWhitPermit(
+                    .burnWhithPermit(
                         wrappedTokenInstance.address,
                         hederaAddress,
                         amountToBurn,
@@ -936,7 +936,7 @@ describe("Router", function () {
             await expect(
                 routerInstance
                     .connect(nonMember)
-                    .burnWhitPermit(
+                    .burnWhithPermit(
                         wrappedTokenInstance.address,
                         hederaAddress,
                         amountToBurn,
@@ -968,7 +968,7 @@ describe("Router", function () {
             await expect(
                 routerInstance
                     .connect(nonMember)
-                    .burnWhitPermit(
+                    .burnWhithPermit(
                         wrappedTokenInstance.address,
                         invalidHederaAddress,
                         amountToBurn,
@@ -998,7 +998,7 @@ describe("Router", function () {
             await expect(
                 routerInstance
                     .connect(nonMember)
-                    .burnWhitPermit(
+                    .burnWhithPermit(
                         notValidAsset.address,
                         hederaAddress,
                         amountToBurn,
