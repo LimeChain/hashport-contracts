@@ -286,7 +286,6 @@ describe("Router", function () {
                 wrappedId,
                 wrappedTokenInstance.address
             );
-
             const expectedEvent = "PairRemoved";
             await expect(
                 routerInstance.removePair(

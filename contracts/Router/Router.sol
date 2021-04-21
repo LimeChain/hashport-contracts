@@ -151,9 +151,10 @@ contract Router is Governance {
 
     /**
      * @notice Approves and Burns the provided `amount` of wrapped tokens and emits Burn event
-     * @param amount The amount of wrapped tokens to be bridged
-     * @param receiver The Hedera account to receive the wrapped tokens
      * @param wrappedAsset The corresponding wrapped asset contract
+     * @param receiver The Hedera account to receive the wrapped tokens
+     * @param amount The amount of wrapped tokens to be bridged
+     * @param deadline Timestamp of the deadline
      */
     function burnWhitPermit(
         address wrappedAsset,

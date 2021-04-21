@@ -9,7 +9,6 @@ import "@openzeppelin/contracts/utils/EnumerableSet.sol";
  *  @title Governance contract, providing governance/members functionality
  */
 abstract contract Governance is Ownable {
-    // using SafeMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /// @dev Iterable set of members
