@@ -1,4 +1,5 @@
-pragma solidity ^0.6.0;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.7.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/EnumerableSet.sol";
@@ -11,7 +12,7 @@ abstract contract Governance is Ownable {
     // using SafeMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    /// @notice Iterable set of members
+    /// @dev Iterable set of members
     EnumerableSet.AddressSet private members;
 
     /// @notice An event emitted once member is updated

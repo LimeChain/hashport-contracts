@@ -4,6 +4,7 @@
 require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-waffle");
 require("solidity-coverage");
+require("hardhat-gas-reporter");
 
 /**
  * @dev set your private key and infura api key
@@ -73,7 +74,7 @@ task("remove-pair", "Removes a pair")
 
 module.exports = {
     solidity: {
-        version: "0.6.0",
+        version: "0.7.0",
         settings: {
             optimizer: {
                 enabled: true,
@@ -95,5 +96,10 @@ module.exports = {
     },
     mocha: {
         timeout: 20000,
+    },
+    gasReporter: {
+        currency: "USD",
+        gasPrice: 256,
+        enabled: true,
     },
 };

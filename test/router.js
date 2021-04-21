@@ -1,4 +1,5 @@
 const { expect, assert } = require("chai");
+const { ethers } = require("hardhat");
 
 describe("Router", function () {
     let Router,
@@ -743,7 +744,7 @@ describe("Router", function () {
             ).to.be.revertedWith(expectedRevertMessage);
         });
 
-        it("Should revert if called with invalid controller address", async () => {
+        it("Should revert if called with invalid asset address", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
             await wrappedTokenInstance
                 .connect(nonMember)
@@ -811,6 +812,206 @@ describe("Router", function () {
         });
     });
 
+    describe("Burn with permit", function () {
+        beforeEach(async () => {
+            await updateMembersAndMint();
+        });
+
+        it("Should burn tokens", async () => {
+            const balanceOFReciever = await wrappedTokenInstance.balanceOf(
+                receiver
+            );
+
+            const amountToBurn = ethers.utils.parseEther("5");
+            const deadline = ethers.utils.parseEther("51");
+            const sender = nonMember;
+            const spender = controllerInstance.address;
+
+            const signedPermit = await createPermit(
+                sender,
+                spender,
+                amountToBurn,
+                deadline,
+                wrappedTokenInstance
+            );
+
+            await routerInstance
+                .connect(nonMember)
+                .burnWhitPermit(
+                    wrappedTokenInstance.address,
+                    hederaAddress,
+                    amountToBurn,
+                    deadline,
+                    signedPermit.v,
+                    signedPermit.r,
+                    signedPermit.s
+                );
+
+            const balanceOFRecieverAfter = await wrappedTokenInstance.balanceOf(
+                receiver
+            );
+
+            assert(
+                balanceOFRecieverAfter.eq(balanceOFReciever.sub(amountToBurn))
+            );
+        });
+
+        it("Should emit burn event", async () => {
+            const amountToBurn = ethers.utils.parseEther("5");
+            const deadline = ethers.utils.parseEther("51");
+            const sender = nonMember;
+            const spender = controllerInstance.address;
+
+            const signedPermit = await createPermit(
+                sender,
+                spender,
+                amountToBurn,
+                deadline,
+                wrappedTokenInstance
+            );
+            const expectedEvent = "Burn";
+
+            await expect(
+                routerInstance
+                    .connect(nonMember)
+                    .burnWhitPermit(
+                        wrappedTokenInstance.address,
+                        hederaAddress,
+                        amountToBurn,
+                        deadline,
+                        signedPermit.v,
+                        signedPermit.r,
+                        signedPermit.s
+                    )
+            ).to.emit(routerInstance, expectedEvent);
+        });
+
+        it("Should revert if signed wrong data", async () => {
+            const amountToBurn = ethers.utils.parseEther("5");
+            const wrongAmountToBurn = ethers.utils.parseEther("4");
+            const deadline = ethers.utils.parseEther("51");
+            const sender = nonMember;
+            const spender = controllerInstance.address;
+
+            const signedPermit = await createPermit(
+                sender,
+                spender,
+                wrongAmountToBurn,
+                deadline,
+                wrappedTokenInstance
+            );
+
+            const expectedRevertMessage = "ERC20Permit: invalid signature";
+
+            await expect(
+                routerInstance
+                    .connect(nonMember)
+                    .burnWhitPermit(
+                        wrappedTokenInstance.address,
+                        hederaAddress,
+                        amountToBurn,
+                        deadline,
+                        signedPermit.v,
+                        signedPermit.r,
+                        signedPermit.s
+                    )
+            ).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should revert if deadline is passed", async () => {
+            const amountToBurn = ethers.utils.parseEther("5");
+            const deadline = "1";
+            const sender = nonMember;
+            const spender = controllerInstance.address;
+
+            const signedPermit = await createPermit(
+                sender,
+                spender,
+                amountToBurn,
+                deadline,
+                wrappedTokenInstance
+            );
+
+            const expectedRevertMessage = "ERC20Permit: expired deadline";
+
+            await expect(
+                routerInstance
+                    .connect(nonMember)
+                    .burnWhitPermit(
+                        wrappedTokenInstance.address,
+                        hederaAddress,
+                        amountToBurn,
+                        deadline,
+                        signedPermit.v,
+                        signedPermit.r,
+                        signedPermit.s
+                    )
+            ).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should revert if hederaAddress is invalid", async () => {
+            const invalidHederaAddress = [];
+
+            const amountToBurn = ethers.utils.parseEther("5");
+            const deadline = ethers.utils.parseEther("51");
+            const sender = nonMember;
+            const spender = controllerInstance.address;
+
+            const signedPermit = await createPermit(
+                sender,
+                spender,
+                amountToBurn,
+                deadline,
+                wrappedTokenInstance
+            );
+
+            const expectedRevertMessage = "Router: invalid receiver value";
+            await expect(
+                routerInstance
+                    .connect(nonMember)
+                    .burnWhitPermit(
+                        wrappedTokenInstance.address,
+                        invalidHederaAddress,
+                        amountToBurn,
+                        deadline,
+                        signedPermit.v,
+                        signedPermit.r,
+                        signedPermit.s
+                    )
+            ).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should revert if called with invalid asset address", async () => {
+            const amountToBurn = ethers.utils.parseEther("5");
+            const deadline = ethers.utils.parseEther("51");
+            const sender = nonMember;
+            const spender = controllerInstance.address;
+
+            const signedPermit = await createPermit(
+                sender,
+                spender,
+                amountToBurn,
+                deadline,
+                wrappedTokenInstance
+            );
+
+            const expectedRevertMessage = "Router: token not supported";
+            await expect(
+                routerInstance
+                    .connect(nonMember)
+                    .burnWhitPermit(
+                        notValidAsset.address,
+                        hederaAddress,
+                        amountToBurn,
+                        deadline,
+                        signedPermit.v,
+                        signedPermit.r,
+                        signedPermit.s
+                    )
+            ).to.be.revertedWith(expectedRevertMessage);
+        });
+    });
+
     async function updateMembersAndMint() {
         await routerInstance.updateMember(aliceMember.address, true);
         await routerInstance.updateMember(bobMember.address, true);
@@ -844,5 +1045,43 @@ describe("Router", function () {
                 amount,
                 [aliceSignature, bobSignature, carlSignature]
             );
+    }
+
+    async function createPermit(
+        owner,
+        spenderAddress,
+        amount,
+        deadline,
+        tokenContract
+    ) {
+        const Permit = [
+            { name: "owner", type: "address" },
+            { name: "spender", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" },
+        ];
+
+        const domain = {
+            name: await tokenContract.name(),
+            version: "1",
+            chainId: "31337",
+            verifyingContract: tokenContract.address,
+        };
+
+        const message = {
+            owner: owner.address,
+            spender: spenderAddress,
+            value: amount,
+            nonce: await tokenContract.nonces(owner.address),
+            deadline: deadline,
+        };
+
+        const result = await owner._signTypedData(domain, { Permit }, message);
+        return {
+            r: result.slice(0, 66),
+            s: "0x" + result.slice(66, 130),
+            v: parseInt(result.slice(130, 132), 16),
+        };
     }
 });

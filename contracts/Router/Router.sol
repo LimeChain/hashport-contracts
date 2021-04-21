@@ -1,9 +1,11 @@
-pragma solidity ^0.6.0;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
 import "../Governance.sol";
 
 import "../Interfaces/IController.sol";
+import "../Interfaces/IWrappedToken.sol";
 import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 
 contract Router is Governance {
@@ -12,7 +14,7 @@ contract Router is Governance {
     /// @notice The address of the controller contract
     address public controller;
 
-    /// @notice Iterable set of wrappedToken contracts
+    /// @dev Iterable set of wrappedToken contracts
     EnumerableSet.AddressSet private wrappedAssets;
 
     /// @notice Hedera native to wrapped asset address
@@ -56,7 +58,7 @@ contract Router is Governance {
      *  @notice Passes an argument for constructing a new FeeCalculator contract
      *  @param _controller The address of the controler contract
      */
-    constructor(address _controller) public {
+    constructor(address _controller) {
         require(
             _controller != address(0),
             "Router: controller address cannot be zero"
@@ -115,7 +117,13 @@ contract Router is Governance {
         supportedAsset(wrappedAsset)
     {
         bytes32 ethHash =
-            computeMessage(transactionId, address(this),  wrappedAsset, receiver, amount);
+            computeMessage(
+                transactionId,
+                address(this),
+                wrappedAsset,
+                receiver,
+                amount
+            );
 
         validateAndStoreTx(transactionId, ethHash, signatures);
 
@@ -136,6 +144,37 @@ contract Router is Governance {
     ) public supportedAsset(wrappedAsset) {
         require(receiver.length > 0, "Router: invalid receiver value");
 
+        IController(controller).burnFrom(wrappedAsset, msg.sender, amount);
+
+        emit Burn(msg.sender, wrappedAsset, amount, receiver);
+    }
+
+    /**
+     * @notice Approves and Burns the provided `amount` of wrapped tokens and emits Burn event
+     * @param amount The amount of wrapped tokens to be bridged
+     * @param receiver The Hedera account to receive the wrapped tokens
+     * @param wrappedAsset The corresponding wrapped asset contract
+     */
+    function burnWhitPermit(
+        address wrappedAsset,
+        bytes memory receiver,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public supportedAsset(wrappedAsset) {
+        require(receiver.length > 0, "Router: invalid receiver value");
+
+        IWrappedToken(wrappedAsset).permit(
+            msg.sender,
+            address(controller),
+            amount,
+            deadline,
+            v,
+            r,
+            s
+        );
         IController(controller).burnFrom(wrappedAsset, msg.sender, amount);
 
         emit Burn(msg.sender, wrappedAsset, amount, receiver);
@@ -210,7 +249,13 @@ contract Router is Governance {
     ) private pure returns (bytes32) {
         bytes32 hashedData =
             keccak256(
-                abi.encode(transactionId, router, wrappedAsset, receiver, amount)
+                abi.encode(
+                    transactionId,
+                    router,
+                    wrappedAsset,
+                    receiver,
+                    amount
+                )
             );
         return ECDSA.toEthSignedMessageHash(hashedData);
     }
