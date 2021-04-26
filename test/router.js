@@ -371,12 +371,6 @@ describe("Router", function () {
             await routerInstance.updateMember(aliceMember.address, true);
             await routerInstance.updateMember(bobMember.address, true);
             await routerInstance.updateMember(carlMember.address, true);
-            // await routerInstance.updateMember(d.address, true);
-            // await routerInstance.updateMember(e.address, true);
-            // await routerInstance.updateMember(f.address, true);
-            // await routerInstance.updateMember(g.address, true);
-            // await routerInstance.updateMember(h.address, true);
-            // await routerInstance.updateMember(i.address, true);
 
             await routerInstance.addPair(
                 wrappedId,
