@@ -32,14 +32,6 @@ describe("Router", function () {
             notValidAsset,
             mockAsset,
             mockNative,
-            d,
-            e,
-            f,
-            g,
-            h,
-            i,
-            j,
-            k,
         ] = await ethers.getSigners();
         receiver = nonMember.address;
 
@@ -409,13 +401,6 @@ describe("Router", function () {
             const aliceSignature = await aliceMember.signMessage(hashData);
             const bobSignature = await bobMember.signMessage(hashData);
             const carlSignature = await carlMember.signMessage(hashData);
-            const dSignature = await d.signMessage(hashData);
-            const eSignature = await e.signMessage(hashData);
-            const fSignature = await f.signMessage(hashData);
-            const gSignature = await g.signMessage(hashData);
-            const hSignature = await h.signMessage(hashData);
-            const iSignature = await i.signMessage(hashData);
-
             await routerInstance
                 .connect(aliceMember)
                 .mint(
@@ -423,17 +408,7 @@ describe("Router", function () {
                     wrappedTokenInstance.address,
                     receiver,
                     amount,
-                    [
-                        aliceSignature,
-                        bobSignature,
-                        carlSignature,
-                        // dSignature,
-                        // eSignature,
-                        // fSignature,
-                        // gSignature,
-                        // hSignature,
-                        // iSignature,
-                    ]
+                    [aliceSignature, bobSignature, carlSignature]
                 );
 
             const balanceOFReciever = await wrappedTokenInstance.balanceOf(
