@@ -32,6 +32,14 @@ describe("Router", function () {
             notValidAsset,
             mockAsset,
             mockNative,
+            d,
+            e,
+            f,
+            g,
+            h,
+            i,
+            j,
+            k,
         ] = await ethers.getSigners();
         receiver = nonMember.address;
 
@@ -371,6 +379,12 @@ describe("Router", function () {
             await routerInstance.updateMember(aliceMember.address, true);
             await routerInstance.updateMember(bobMember.address, true);
             await routerInstance.updateMember(carlMember.address, true);
+            // await routerInstance.updateMember(d.address, true);
+            // await routerInstance.updateMember(e.address, true);
+            // await routerInstance.updateMember(f.address, true);
+            // await routerInstance.updateMember(g.address, true);
+            // await routerInstance.updateMember(h.address, true);
+            // await routerInstance.updateMember(i.address, true);
 
             await routerInstance.addPair(
                 wrappedId,
@@ -395,6 +409,12 @@ describe("Router", function () {
             const aliceSignature = await aliceMember.signMessage(hashData);
             const bobSignature = await bobMember.signMessage(hashData);
             const carlSignature = await carlMember.signMessage(hashData);
+            const dSignature = await d.signMessage(hashData);
+            const eSignature = await e.signMessage(hashData);
+            const fSignature = await f.signMessage(hashData);
+            const gSignature = await g.signMessage(hashData);
+            const hSignature = await h.signMessage(hashData);
+            const iSignature = await i.signMessage(hashData);
 
             await routerInstance
                 .connect(aliceMember)
@@ -403,7 +423,17 @@ describe("Router", function () {
                     wrappedTokenInstance.address,
                     receiver,
                     amount,
-                    [aliceSignature, bobSignature, carlSignature]
+                    [
+                        aliceSignature,
+                        bobSignature,
+                        carlSignature,
+                        // dSignature,
+                        // eSignature,
+                        // fSignature,
+                        // gSignature,
+                        // hSignature,
+                        // iSignature,
+                    ]
                 );
 
             const balanceOFReciever = await wrappedTokenInstance.balanceOf(
@@ -411,7 +441,7 @@ describe("Router", function () {
             );
             assert(balanceOFReciever.eq(amount));
 
-            const isExecuted = await routerInstance.mintTransfers(
+            const isExecuted = await routerInstance.executedTransactions(
                 transactionId
             );
             expect(isExecuted).to.true;
@@ -478,7 +508,7 @@ describe("Router", function () {
                     [aliceSignature, bobSignature, carlSignature]
                 );
 
-            const isExecuted = await routerInstance.mintTransfers(
+            const isExecuted = await routerInstance.executedTransactions(
                 transactionId
             );
             expect(isExecuted).to.true;
@@ -685,6 +715,39 @@ describe("Router", function () {
                         wrappedTokenInstance.address,
                         receiver,
                         wrongAmount,
+                        [aliceSignature, bobSignature]
+                    )
+            ).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should not execute mint transaction with wrong router address", async () => {
+            const wrongWrongRouter = nonMember.address;
+
+            const encodeData = ethers.utils.defaultAbiCoder.encode(
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    wrongWrongRouter,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
+            );
+            const hashMsg = ethers.utils.keccak256(encodeData);
+            const hashData = ethers.utils.arrayify(hashMsg);
+
+            const aliceSignature = await aliceMember.signMessage(hashData);
+            const bobSignature = await bobMember.signMessage(hashData);
+
+            const expectedRevertMessage = "Router: invalid signer";
+            await expect(
+                routerInstance
+                    .connect(aliceMember)
+                    .mint(
+                        transactionId,
+                        wrappedTokenInstance.address,
+                        receiver,
+                        amount,
                         [aliceSignature, bobSignature]
                     )
             ).to.be.revertedWith(expectedRevertMessage);

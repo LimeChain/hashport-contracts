@@ -3,10 +3,7 @@ pragma solidity ^0.7.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20Pausable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-
 import {IERC2612Permit} from "./Interfaces/IERC2612Permit.sol";
-
-// import "@nomiclabs/buidler/console.sol";
 
 /**
  * @dev Extension of {ERC20} that allows token holders to use their tokens

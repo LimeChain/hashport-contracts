@@ -73,12 +73,6 @@ npx hardhat add-pair --router /The address of the deployed router/ --native /hed
 npx hardhat remove-pair --router /The address of the deployed router/ --native /hedera token id/ --wrapped /The address of the deployed token/ --network /The name of the network/
 ```
 
-#### Remove token pair
-
-```
-npx hardhat remove-pair --router /The address of the deployed router/ --native /hedera token id/ --wrapped /The address of the deployed token/ --network /The name of the network/
-```
-
 #### UpdateMember
 
 ```

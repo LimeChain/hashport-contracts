@@ -2,10 +2,10 @@
 pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
-import "../Governance.sol";
+import "./Governance.sol";
 
-import "../Interfaces/IController.sol";
-import "../Interfaces/IWrappedToken.sol";
+import "./Interfaces/IController.sol";
+import "./Interfaces/IWrappedToken.sol";
 import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 
 contract Router is Governance {
@@ -24,13 +24,7 @@ contract Router is Governance {
     mapping(address => bytes) public wrappedToNative;
 
     /// @notice Storage metadata for Transfers. The Key bytes represent Hedera TransactionID
-    mapping(bytes => Transaction) public mintTransfers;
-
-    /// @notice Struct containing necessary metadata for a given transaction
-    struct Transaction {
-        bool isExecuted;
-        mapping(address => bool) hasSigned;
-    }
+    mapping(bytes => bool) public executedTransactions;
 
     /// @notice An event emitted once new pair of assets are added
     event PairAdded(bytes native, address wrapped);
@@ -76,10 +70,7 @@ contract Router is Governance {
 
     /// @notice Accepts only non-executed transactions
     modifier validTxId(bytes memory txId) {
-        require(
-            !mintTransfers[txId].isExecuted,
-            "Router: txId already submitted"
-        );
+        require(!executedTransactions[txId], "Router: txId already submitted");
         _;
     }
 
@@ -272,17 +263,20 @@ contract Router is Governance {
         bytes32 ethHash,
         bytes[] memory signatures
     ) private {
-        Transaction storage transaction = mintTransfers[transactionId];
+        uint256 signersCount = signatures.length;
+        address[] memory signers = new address[](signersCount);
 
-        for (uint256 i = 0; i < signatures.length; i++) {
+        for (uint256 i = 0; i < signersCount; i++) {
             address signer = ECDSA.recover(ethHash, signatures[i]);
             require(isMember(signer), "Router: invalid signer");
-            require(
-                !transaction.hasSigned[signer],
-                "Router: signature already set"
-            );
-            transaction.hasSigned[signer] = true;
+
+            for (uint256 j = 0; j <= i; j++) {
+                require(signers[j] != signer, "Router: signature already set");
+            }
+
+            signers[i] = signer;
         }
-        transaction.isExecuted = true;
+        executedTransactions[transactionId] = true;
     }
+
 }
