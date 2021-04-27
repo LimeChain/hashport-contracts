@@ -1,4 +1,5 @@
 const { expect, assert } = require("chai");
+const { ethers } = require("hardhat");
 
 describe("Router", function () {
     let Router,
@@ -285,7 +286,6 @@ describe("Router", function () {
                 wrappedId,
                 wrappedTokenInstance.address
             );
-
             const expectedEvent = "PairRemoved";
             await expect(
                 routerInstance.removePair(
@@ -380,8 +380,14 @@ describe("Router", function () {
 
         it("Should execute mint", async () => {
             const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
             );
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
@@ -389,7 +395,6 @@ describe("Router", function () {
             const aliceSignature = await aliceMember.signMessage(hashData);
             const bobSignature = await bobMember.signMessage(hashData);
             const carlSignature = await carlMember.signMessage(hashData);
-
             await routerInstance
                 .connect(aliceMember)
                 .mint(
@@ -405,7 +410,7 @@ describe("Router", function () {
             );
             assert(balanceOFReciever.eq(amount));
 
-            const isExecuted = await routerInstance.mintTransfers(
+            const isExecuted = await routerInstance.executedTransactions(
                 transactionId
             );
             expect(isExecuted).to.true;
@@ -415,8 +420,14 @@ describe("Router", function () {
             const expectedEvent = "Mint";
 
             const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
             );
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
@@ -440,8 +451,14 @@ describe("Router", function () {
 
         it("Should execute mint transaction from not a validator", async () => {
             const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
             );
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
@@ -460,7 +477,7 @@ describe("Router", function () {
                     [aliceSignature, bobSignature, carlSignature]
                 );
 
-            const isExecuted = await routerInstance.mintTransfers(
+            const isExecuted = await routerInstance.executedTransactions(
                 transactionId
             );
             expect(isExecuted).to.true;
@@ -468,8 +485,14 @@ describe("Router", function () {
 
         it("Should not execute same mint transaction twice", async () => {
             const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
             );
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
@@ -504,8 +527,14 @@ describe("Router", function () {
 
         it("Should not execute mint transaction with less than the half signatures", async () => {
             const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
             );
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
@@ -529,8 +558,14 @@ describe("Router", function () {
 
         it("Should not execute mint transaction more signatures than the member count", async () => {
             const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
             );
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
@@ -560,10 +595,16 @@ describe("Router", function () {
             ).to.be.revertedWith(expectedRevertMessage);
         });
 
-        it("Should not execute mint transaction signed from non member", async () => {
+        it("Should not execute mint transaction signed from non member on first position", async () => {
             const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
             );
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
@@ -571,7 +612,38 @@ describe("Router", function () {
             const aliceSignature = await aliceMember.signMessage(hashData);
             const nonMemberSignature = await nonMember.signMessage(hashData);
 
-            const expectedRevertMessage = "Router: invalid signer";
+            const expectedRevertMessage = "Router: invalid signer/signature";
+            await expect(
+                routerInstance
+                    .connect(aliceMember)
+                    .mint(
+                        transactionId,
+                        wrappedTokenInstance.address,
+                        receiver,
+                        amount,
+                        [nonMemberSignature, aliceSignature]
+                    )
+            ).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should not execute mint transaction signed from non member on last position", async () => {
+            const encodeData = ethers.utils.defaultAbiCoder.encode(
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
+            );
+            const hashMsg = ethers.utils.keccak256(encodeData);
+            const hashData = ethers.utils.arrayify(hashMsg);
+
+            const aliceSignature = await aliceMember.signMessage(hashData);
+            const nonMemberSignature = await nonMember.signMessage(hashData);
+
+            const expectedRevertMessage = "Router: invalid signer/signature";
             await expect(
                 routerInstance
                     .connect(aliceMember)
@@ -587,8 +659,14 @@ describe("Router", function () {
 
         it("Should not execute mint transaction with identical signatures", async () => {
             const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
             );
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
@@ -609,20 +687,41 @@ describe("Router", function () {
             ).to.be.revertedWith(expectedRevertMessage);
         });
 
-        it("Should not execute mint transaction with wrong data", async () => {
+        it("Should not execute mint transaction with wrong data on first position", async () => {
             const wrongAmount = ethers.utils.parseEther("200");
 
-            const encodeData = ethers.utils.defaultAbiCoder.encode(
-                ["bytes", "address", "address", "uint256"],
-                [transactionId, wrappedTokenInstance.address, receiver, amount]
+            const wrongEncodeData = ethers.utils.defaultAbiCoder.encode(
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    wrongAmount,
+                ]
             );
+
+            const encodeData = ethers.utils.defaultAbiCoder.encode(
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
+            );
+
+            const wrongHashMsg = ethers.utils.keccak256(wrongEncodeData);
+            const wrongHashData = ethers.utils.arrayify(wrongHashMsg);
+
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
-            const aliceSignature = await aliceMember.signMessage(hashData);
+            const aliceSignature = await aliceMember.signMessage(wrongHashData);
             const bobSignature = await bobMember.signMessage(hashData);
 
-            const expectedRevertMessage = "Router: invalid signer";
+            const expectedRevertMessage = "Router: invalid signer/signature";
             await expect(
                 routerInstance
                     .connect(aliceMember)
@@ -630,7 +729,88 @@ describe("Router", function () {
                         transactionId,
                         wrappedTokenInstance.address,
                         receiver,
-                        wrongAmount,
+                        amount,
+                        [aliceSignature, bobSignature]
+                    )
+            ).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should not execute mint transaction with wrong data on last position", async () => {
+            const wrongAmount = ethers.utils.parseEther("200");
+
+            const wrongEncodeData = ethers.utils.defaultAbiCoder.encode(
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    wrongAmount,
+                ]
+            );
+
+            const encodeData = ethers.utils.defaultAbiCoder.encode(
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
+            );
+
+            const wrongHashMsg = ethers.utils.keccak256(wrongEncodeData);
+            const wrongHashData = ethers.utils.arrayify(wrongHashMsg);
+
+            const hashMsg = ethers.utils.keccak256(encodeData);
+            const hashData = ethers.utils.arrayify(hashMsg);
+
+            const aliceSignature = await aliceMember.signMessage(hashData);
+            const bobSignature = await bobMember.signMessage(wrongHashData);
+
+            const expectedRevertMessage = "Router: invalid signer/signature";
+            await expect(
+                routerInstance
+                    .connect(aliceMember)
+                    .mint(
+                        transactionId,
+                        wrappedTokenInstance.address,
+                        receiver,
+                        amount,
+                        [aliceSignature, bobSignature]
+                    )
+            ).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should not execute mint transaction with wrong router address", async () => {
+            const wrongWrongRouter = nonMember.address;
+
+            const encodeData = ethers.utils.defaultAbiCoder.encode(
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    wrongWrongRouter,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
+            );
+            const hashMsg = ethers.utils.keccak256(encodeData);
+            const hashData = ethers.utils.arrayify(hashMsg);
+
+            const aliceSignature = await aliceMember.signMessage(hashData);
+            const bobSignature = await bobMember.signMessage(hashData);
+
+            const expectedRevertMessage = "Router: invalid signer/signature";
+            await expect(
+                routerInstance
+                    .connect(aliceMember)
+                    .mint(
+                        transactionId,
+                        wrappedTokenInstance.address,
+                        receiver,
+                        amount,
                         [aliceSignature, bobSignature]
                     )
             ).to.be.revertedWith(expectedRevertMessage);
@@ -689,7 +869,7 @@ describe("Router", function () {
             ).to.be.revertedWith(expectedRevertMessage);
         });
 
-        it("Should revert if called with invalid controller address", async () => {
+        it("Should revert if called with invalid asset address", async () => {
             const amountToBurn = ethers.utils.parseEther("5");
             await wrappedTokenInstance
                 .connect(nonMember)
@@ -757,6 +937,206 @@ describe("Router", function () {
         });
     });
 
+    describe("Burn with permit", function () {
+        beforeEach(async () => {
+            await updateMembersAndMint();
+        });
+
+        it("Should burn tokens", async () => {
+            const balanceOFReciever = await wrappedTokenInstance.balanceOf(
+                receiver
+            );
+
+            const amountToBurn = ethers.utils.parseEther("5");
+            const deadline = ethers.utils.parseEther("51");
+            const sender = nonMember;
+            const spender = controllerInstance.address;
+
+            const signedPermit = await createPermit(
+                sender,
+                spender,
+                amountToBurn,
+                deadline,
+                wrappedTokenInstance
+            );
+
+            await routerInstance
+                .connect(nonMember)
+                .burnWithPermit(
+                    wrappedTokenInstance.address,
+                    hederaAddress,
+                    amountToBurn,
+                    deadline,
+                    signedPermit.v,
+                    signedPermit.r,
+                    signedPermit.s
+                );
+
+            const balanceOFRecieverAfter = await wrappedTokenInstance.balanceOf(
+                receiver
+            );
+
+            assert(
+                balanceOFRecieverAfter.eq(balanceOFReciever.sub(amountToBurn))
+            );
+        });
+
+        it("Should emit burn event", async () => {
+            const amountToBurn = ethers.utils.parseEther("5");
+            const deadline = ethers.utils.parseEther("51");
+            const sender = nonMember;
+            const spender = controllerInstance.address;
+
+            const signedPermit = await createPermit(
+                sender,
+                spender,
+                amountToBurn,
+                deadline,
+                wrappedTokenInstance
+            );
+            const expectedEvent = "Burn";
+
+            await expect(
+                routerInstance
+                    .connect(nonMember)
+                    .burnWithPermit(
+                        wrappedTokenInstance.address,
+                        hederaAddress,
+                        amountToBurn,
+                        deadline,
+                        signedPermit.v,
+                        signedPermit.r,
+                        signedPermit.s
+                    )
+            ).to.emit(routerInstance, expectedEvent);
+        });
+
+        it("Should revert if signed wrong data", async () => {
+            const amountToBurn = ethers.utils.parseEther("5");
+            const wrongAmountToBurn = ethers.utils.parseEther("4");
+            const deadline = ethers.utils.parseEther("51");
+            const sender = nonMember;
+            const spender = controllerInstance.address;
+
+            const signedPermit = await createPermit(
+                sender,
+                spender,
+                wrongAmountToBurn,
+                deadline,
+                wrappedTokenInstance
+            );
+
+            const expectedRevertMessage = "ERC20Permit: invalid signature";
+
+            await expect(
+                routerInstance
+                    .connect(nonMember)
+                    .burnWithPermit(
+                        wrappedTokenInstance.address,
+                        hederaAddress,
+                        amountToBurn,
+                        deadline,
+                        signedPermit.v,
+                        signedPermit.r,
+                        signedPermit.s
+                    )
+            ).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should revert if deadline is passed", async () => {
+            const amountToBurn = ethers.utils.parseEther("5");
+            const deadline = "1";
+            const sender = nonMember;
+            const spender = controllerInstance.address;
+
+            const signedPermit = await createPermit(
+                sender,
+                spender,
+                amountToBurn,
+                deadline,
+                wrappedTokenInstance
+            );
+
+            const expectedRevertMessage = "ERC20Permit: expired deadline";
+
+            await expect(
+                routerInstance
+                    .connect(nonMember)
+                    .burnWithPermit(
+                        wrappedTokenInstance.address,
+                        hederaAddress,
+                        amountToBurn,
+                        deadline,
+                        signedPermit.v,
+                        signedPermit.r,
+                        signedPermit.s
+                    )
+            ).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should revert if hederaAddress is invalid", async () => {
+            const invalidHederaAddress = [];
+
+            const amountToBurn = ethers.utils.parseEther("5");
+            const deadline = ethers.utils.parseEther("51");
+            const sender = nonMember;
+            const spender = controllerInstance.address;
+
+            const signedPermit = await createPermit(
+                sender,
+                spender,
+                amountToBurn,
+                deadline,
+                wrappedTokenInstance
+            );
+
+            const expectedRevertMessage = "Router: invalid receiver value";
+            await expect(
+                routerInstance
+                    .connect(nonMember)
+                    .burnWithPermit(
+                        wrappedTokenInstance.address,
+                        invalidHederaAddress,
+                        amountToBurn,
+                        deadline,
+                        signedPermit.v,
+                        signedPermit.r,
+                        signedPermit.s
+                    )
+            ).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should revert if called with invalid asset address", async () => {
+            const amountToBurn = ethers.utils.parseEther("5");
+            const deadline = ethers.utils.parseEther("51");
+            const sender = nonMember;
+            const spender = controllerInstance.address;
+
+            const signedPermit = await createPermit(
+                sender,
+                spender,
+                amountToBurn,
+                deadline,
+                wrappedTokenInstance
+            );
+
+            const expectedRevertMessage = "Router: token not supported";
+            await expect(
+                routerInstance
+                    .connect(nonMember)
+                    .burnWithPermit(
+                        notValidAsset.address,
+                        hederaAddress,
+                        amountToBurn,
+                        deadline,
+                        signedPermit.v,
+                        signedPermit.r,
+                        signedPermit.s
+                    )
+            ).to.be.revertedWith(expectedRevertMessage);
+        });
+    });
+
     async function updateMembersAndMint() {
         await routerInstance.updateMember(aliceMember.address, true);
         await routerInstance.updateMember(bobMember.address, true);
@@ -765,8 +1145,14 @@ describe("Router", function () {
         await routerInstance.addPair(wrappedId, wrappedTokenInstance.address);
 
         const encodeData = ethers.utils.defaultAbiCoder.encode(
-            ["bytes", "address", "address", "uint256"],
-            [transactionId, wrappedTokenInstance.address, receiver, amount]
+            ["bytes", "address", "address", "address", "uint256"],
+            [
+                transactionId,
+                routerInstance.address,
+                wrappedTokenInstance.address,
+                receiver,
+                amount,
+            ]
         );
         const hashMsg = ethers.utils.keccak256(encodeData);
         const hashData = ethers.utils.arrayify(hashMsg);
@@ -784,5 +1170,43 @@ describe("Router", function () {
                 amount,
                 [aliceSignature, bobSignature, carlSignature]
             );
+    }
+
+    async function createPermit(
+        owner,
+        spenderAddress,
+        amount,
+        deadline,
+        tokenContract
+    ) {
+        const Permit = [
+            { name: "owner", type: "address" },
+            { name: "spender", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" },
+        ];
+
+        const domain = {
+            name: await tokenContract.name(),
+            version: "1",
+            chainId: "31337",
+            verifyingContract: tokenContract.address,
+        };
+
+        const message = {
+            owner: owner.address,
+            spender: spenderAddress,
+            value: amount,
+            nonce: await tokenContract.nonces(owner.address),
+            deadline: deadline,
+        };
+
+        const result = await owner._signTypedData(domain, { Permit }, message);
+        return {
+            r: result.slice(0, 66),
+            s: "0x" + result.slice(66, 130),
+            v: parseInt(result.slice(130, 132), 16),
+        };
     }
 });

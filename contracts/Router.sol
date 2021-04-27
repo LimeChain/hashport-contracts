@@ -1,9 +1,11 @@
-pragma solidity ^0.6.0;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
-import "../Governance.sol";
+import "./Governance.sol";
 
-import "../Interfaces/IController.sol";
+import "./Interfaces/IController.sol";
+import "./Interfaces/IWrappedToken.sol";
 import "@openzeppelin/contracts/cryptography/ECDSA.sol";
 
 contract Router is Governance {
@@ -12,7 +14,7 @@ contract Router is Governance {
     /// @notice The address of the controller contract
     address public controller;
 
-    /// @notice Iterable set of wrappedToken contracts
+    /// @dev Iterable set of wrappedToken contracts
     EnumerableSet.AddressSet private wrappedAssets;
 
     /// @notice Hedera native to wrapped asset address
@@ -22,13 +24,7 @@ contract Router is Governance {
     mapping(address => bytes) public wrappedToNative;
 
     /// @notice Storage metadata for Transfers. The Key bytes represent Hedera TransactionID
-    mapping(bytes => Transaction) public mintTransfers;
-
-    /// @notice Struct containing necessary metadata for a given transaction
-    struct Transaction {
-        bool isExecuted;
-        mapping(address => bool) hasSigned;
-    }
+    mapping(bytes => bool) public executedTransactions;
 
     /// @notice An event emitted once new pair of assets are added
     event PairAdded(bytes native, address wrapped);
@@ -56,7 +52,7 @@ contract Router is Governance {
      *  @notice Passes an argument for constructing a new FeeCalculator contract
      *  @param _controller The address of the controler contract
      */
-    constructor(address _controller) public {
+    constructor(address _controller) {
         require(
             _controller != address(0),
             "Router: controller address cannot be zero"
@@ -74,10 +70,7 @@ contract Router is Governance {
 
     /// @notice Accepts only non-executed transactions
     modifier validTxId(bytes memory txId) {
-        require(
-            !mintTransfers[txId].isExecuted,
-            "Router: txId already submitted"
-        );
+        require(!executedTransactions[txId], "Router: txId already submitted");
         _;
     }
 
@@ -115,7 +108,13 @@ contract Router is Governance {
         supportedAsset(wrappedAsset)
     {
         bytes32 ethHash =
-            computeMessage(transactionId, wrappedAsset, receiver, amount);
+            computeMessage(
+                transactionId,
+                address(this),
+                wrappedAsset,
+                receiver,
+                amount
+            );
 
         validateAndStoreTx(transactionId, ethHash, signatures);
 
@@ -136,6 +135,38 @@ contract Router is Governance {
     ) public supportedAsset(wrappedAsset) {
         require(receiver.length > 0, "Router: invalid receiver value");
 
+        IController(controller).burnFrom(wrappedAsset, msg.sender, amount);
+
+        emit Burn(msg.sender, wrappedAsset, amount, receiver);
+    }
+
+    /**
+     * @notice Approves and Burns the provided `amount` of wrapped tokens and emits Burn event
+     * @param wrappedAsset The corresponding wrapped asset contract
+     * @param receiver The Hedera account to receive the wrapped tokens
+     * @param amount The amount of wrapped tokens to be bridged
+     * @param deadline Timestamp of the deadline
+     */
+    function burnWithPermit(
+        address wrappedAsset,
+        bytes memory receiver,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public supportedAsset(wrappedAsset) {
+        require(receiver.length > 0, "Router: invalid receiver value");
+
+        IWrappedToken(wrappedAsset).permit(
+            msg.sender,
+            address(controller),
+            amount,
+            deadline,
+            v,
+            r,
+            s
+        );
         IController(controller).burnFrom(wrappedAsset, msg.sender, amount);
 
         emit Burn(msg.sender, wrappedAsset, amount, receiver);
@@ -203,13 +234,20 @@ contract Router is Governance {
     /// @notice Computes the bytes32 ethereum signed message hash of the signature
     function computeMessage(
         bytes memory transactionId,
+        address router,
         address wrappedAsset,
         address receiver,
         uint256 amount
     ) private pure returns (bytes32) {
         bytes32 hashedData =
             keccak256(
-                abi.encode(transactionId, wrappedAsset, receiver, amount)
+                abi.encode(
+                    transactionId,
+                    router,
+                    wrappedAsset,
+                    receiver,
+                    amount
+                )
             );
         return ECDSA.toEthSignedMessageHash(hashedData);
     }
@@ -225,17 +263,19 @@ contract Router is Governance {
         bytes32 ethHash,
         bytes[] memory signatures
     ) private {
-        Transaction storage transaction = mintTransfers[transactionId];
+        uint256 signersCount = signatures.length;
+        address[] memory signers = new address[](signersCount);
 
-        for (uint256 i = 0; i < signatures.length; i++) {
+        for (uint256 i = 0; i < signersCount; i++) {
             address signer = ECDSA.recover(ethHash, signatures[i]);
-            require(isMember(signer), "Router: invalid signer");
-            require(
-                !transaction.hasSigned[signer],
-                "Router: signature already set"
-            );
-            transaction.hasSigned[signer] = true;
+            require(isMember(signer), "Router: invalid signer/signature");
+
+            for (uint256 j = 0; j < i; j++) {
+                require(signers[j] != signer, "Router: signature already set");
+            }
+
+            signers[i] = signer;
         }
-        transaction.isExecuted = true;
+        executedTransactions[transactionId] = true;
     }
 }

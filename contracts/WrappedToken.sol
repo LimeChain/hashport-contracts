@@ -1,13 +1,15 @@
-pragma solidity ^0.6.0;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.7.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20Pausable.sol";
+import "./ERC20Permit.sol";
 
 /**
  *  @author LimeChain Dev team
  *  @title ERC20 WrappedToken contract
  */
-contract WrappedToken is ERC20Pausable, Ownable {
+contract WrappedToken is ERC20Permit, Ownable {
+    using SafeMath for uint256;
     /// @notice The address of the controller contract
     address public controller;
 
@@ -33,7 +35,7 @@ contract WrappedToken is ERC20Pausable, Ownable {
         string memory tokenSymbol,
         uint8 decimals,
         address _controller
-    ) public ERC20(tokenName, tokenSymbol) {
+    ) ERC20(tokenName, tokenSymbol) {
         require(
             _controller != address(0),
             "WrappedToken: controller address cannot be zero"
