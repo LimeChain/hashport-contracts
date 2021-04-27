@@ -52,7 +52,7 @@ npx hardhat deploy --network 'network name or id'
 #### How to run:
 
 ```
-npx hardhat deploy-testnet --members /The count od the members set in the contract/ --token /hedera token id, optional for deploying custom token/ --network /The name of the network/
+npx hardhat deploy-testnet --members /The count od the members set in the contract/ --network /The name of the network/
 ```
 
 #### Deploy Token
