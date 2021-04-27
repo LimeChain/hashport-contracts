@@ -270,7 +270,7 @@ contract Router is Governance {
             address signer = ECDSA.recover(ethHash, signatures[i]);
             require(isMember(signer), "Router: invalid signer/signature");
 
-            for (uint256 j = 0; j <= i; j++) {
+            for (uint256 j = 0; j < i; j++) {
                 require(signers[j] != signer, "Router: signature already set");
             }
 

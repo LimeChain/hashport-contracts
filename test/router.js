@@ -595,7 +595,7 @@ describe("Router", function () {
             ).to.be.revertedWith(expectedRevertMessage);
         });
 
-        it("Should not execute mint transaction signed from non member", async () => {
+        it("Should not execute mint transaction signed from non member on first position", async () => {
             const encodeData = ethers.utils.defaultAbiCoder.encode(
                 ["bytes", "address", "address", "address", "uint256"],
                 [
@@ -612,7 +612,38 @@ describe("Router", function () {
             const aliceSignature = await aliceMember.signMessage(hashData);
             const nonMemberSignature = await nonMember.signMessage(hashData);
 
-            const expectedRevertMessage = "Router: invalid signer";
+            const expectedRevertMessage = "Router: invalid signer/signature";
+            await expect(
+                routerInstance
+                    .connect(aliceMember)
+                    .mint(
+                        transactionId,
+                        wrappedTokenInstance.address,
+                        receiver,
+                        amount,
+                        [nonMemberSignature, aliceSignature]
+                    )
+            ).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should not execute mint transaction signed from non member on last position", async () => {
+            const encodeData = ethers.utils.defaultAbiCoder.encode(
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
+            );
+            const hashMsg = ethers.utils.keccak256(encodeData);
+            const hashData = ethers.utils.arrayify(hashMsg);
+
+            const aliceSignature = await aliceMember.signMessage(hashData);
+            const nonMemberSignature = await nonMember.signMessage(hashData);
+
+            const expectedRevertMessage = "Router: invalid signer/signature";
             await expect(
                 routerInstance
                     .connect(aliceMember)
@@ -656,8 +687,19 @@ describe("Router", function () {
             ).to.be.revertedWith(expectedRevertMessage);
         });
 
-        it("Should not execute mint transaction with wrong data", async () => {
+        it("Should not execute mint transaction with wrong data on first position", async () => {
             const wrongAmount = ethers.utils.parseEther("200");
+
+            const wrongEncodeData = ethers.utils.defaultAbiCoder.encode(
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    wrongAmount,
+                ]
+            );
 
             const encodeData = ethers.utils.defaultAbiCoder.encode(
                 ["bytes", "address", "address", "address", "uint256"],
@@ -669,13 +711,17 @@ describe("Router", function () {
                     amount,
                 ]
             );
+
+            const wrongHashMsg = ethers.utils.keccak256(wrongEncodeData);
+            const wrongHashData = ethers.utils.arrayify(wrongHashMsg);
+
             const hashMsg = ethers.utils.keccak256(encodeData);
             const hashData = ethers.utils.arrayify(hashMsg);
 
-            const aliceSignature = await aliceMember.signMessage(hashData);
+            const aliceSignature = await aliceMember.signMessage(wrongHashData);
             const bobSignature = await bobMember.signMessage(hashData);
 
-            const expectedRevertMessage = "Router: invalid signer";
+            const expectedRevertMessage = "Router: invalid signer/signature";
             await expect(
                 routerInstance
                     .connect(aliceMember)
@@ -683,7 +729,55 @@ describe("Router", function () {
                         transactionId,
                         wrappedTokenInstance.address,
                         receiver,
-                        wrongAmount,
+                        amount,
+                        [aliceSignature, bobSignature]
+                    )
+            ).to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("Should not execute mint transaction with wrong data on last position", async () => {
+            const wrongAmount = ethers.utils.parseEther("200");
+
+            const wrongEncodeData = ethers.utils.defaultAbiCoder.encode(
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    wrongAmount,
+                ]
+            );
+
+            const encodeData = ethers.utils.defaultAbiCoder.encode(
+                ["bytes", "address", "address", "address", "uint256"],
+                [
+                    transactionId,
+                    routerInstance.address,
+                    wrappedTokenInstance.address,
+                    receiver,
+                    amount,
+                ]
+            );
+
+            const wrongHashMsg = ethers.utils.keccak256(wrongEncodeData);
+            const wrongHashData = ethers.utils.arrayify(wrongHashMsg);
+
+            const hashMsg = ethers.utils.keccak256(encodeData);
+            const hashData = ethers.utils.arrayify(hashMsg);
+
+            const aliceSignature = await aliceMember.signMessage(hashData);
+            const bobSignature = await bobMember.signMessage(wrongHashData);
+
+            const expectedRevertMessage = "Router: invalid signer/signature";
+            await expect(
+                routerInstance
+                    .connect(aliceMember)
+                    .mint(
+                        transactionId,
+                        wrappedTokenInstance.address,
+                        receiver,
+                        amount,
                         [aliceSignature, bobSignature]
                     )
             ).to.be.revertedWith(expectedRevertMessage);
@@ -708,7 +802,7 @@ describe("Router", function () {
             const aliceSignature = await aliceMember.signMessage(hashData);
             const bobSignature = await bobMember.signMessage(hashData);
 
-            const expectedRevertMessage = "Router: invalid signer";
+            const expectedRevertMessage = "Router: invalid signer/signature";
             await expect(
                 routerInstance
                     .connect(aliceMember)
