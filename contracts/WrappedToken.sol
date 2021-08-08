@@ -1,72 +1,51 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 import "./ERC20Permit.sol";
 
-/**
- *  @author LimeChain Dev team
- *  @title ERC20 WrappedToken contract
- */
-contract WrappedToken is ERC20Permit, Ownable {
-    using SafeMath for uint256;
-    /// @notice The address of the controller contract
-    address public controller;
-
-    /// @notice An event emitted once the controller address is changed
-    event ControllerSet(address indexed newController);
-
-    /// @notice Allows only router contract for msg.sender
-    modifier onlyController() {
-        require(
-            msg.sender == controller,
-            "WrappedToken: Not called by the controller contract"
-        );
-        _;
-    }
+contract WrappedToken is ERC20Permit, Pausable, Ownable {
+    uint8 private immutable _decimals;
 
     /**
      *  @notice Construct a new WrappedToken contract
-     *  @param tokenName The EIP-20 token name
-     *  @param tokenSymbol The EIP-20 token symbol
+     *  @param _tokenName The EIP-20 token name
+     *  @param _tokenSymbol The EIP-20 token symbol
+     *  @param decimals_ The The EIP-20 decimals
      */
     constructor(
-        string memory tokenName,
-        string memory tokenSymbol,
-        uint8 decimals,
-        address _controller
-    ) ERC20(tokenName, tokenSymbol) {
+        string memory _tokenName,
+        string memory _tokenSymbol,
+        uint8 decimals_
+    ) ERC20(_tokenName, _tokenSymbol) {
+        _decimals = decimals_;
+    }
+
+    /**
+     * @notice Mints `_amount` of tokens to the `_account` address
+     * @param _account The address to which the tokens will be minted
+     * @param _amount The _amount to be minted
+     */
+    function mint(address _account, uint256 _amount) public onlyOwner {
+        super._mint(_account, _amount);
+    }
+
+    /**
+     * @notice Burns `_amount` of tokens from the `_account` address
+     * @param _account The address from which the tokens will be burned
+     * @param _amount The _amount to be burned
+     */
+    function burnFrom(address _account, uint256 _amount) public onlyOwner {
+        uint256 decreasedAllowance = allowance(_account, _msgSender()) -
+            _amount;
         require(
-            _controller != address(0),
-            "WrappedToken: controller address cannot be zero"
+            decreasedAllowance >= 0,
+            "ERC20: burn amount exceeds allowance"
         );
-        super._setupDecimals(decimals);
-        controller = _controller;
-    }
 
-    /**
-     * @notice Mints `amount` of tokens to the `account` address
-     * @param account The address to which the tokens will be minted
-     * @param amount The amount to be minted
-     */
-    function mint(address account, uint256 amount) public onlyController {
-        super._mint(account, amount);
-    }
-
-    /**
-     * @notice Burns `amount` of tokens from the `account` address
-     * @param account The address from which the tokens will be burned
-     * @param amount The amount to be burned
-     */
-    function burnFrom(address account, uint256 amount) public onlyController {
-        uint256 decreasedAllowance =
-            allowance(account, _msgSender()).sub(
-                amount,
-                "ERC20: burn amount exceeds allowance"
-            );
-
-        _approve(account, _msgSender(), decreasedAllowance);
-        _burn(account, amount);
+        _approve(_account, _msgSender(), decreasedAllowance);
+        _burn(_account, _amount);
     }
 
     /// @notice Pauses the contract
@@ -79,14 +58,17 @@ contract WrappedToken is ERC20Permit, Ownable {
         super._unpause();
     }
 
-    /// @notice Changes the controller address
-    function setController(address _controller) public onlyOwner {
-        require(
-            _controller != address(0),
-            "WrappedToken: controller cannot be zero"
-        );
-        controller = _controller;
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 _amount
+    ) internal virtual override {
+        super._beforeTokenTransfer(from, to, _amount);
 
-        emit ControllerSet(controller);
+        require(!paused(), "WrappedToken: token transfer while paused");
+    }
+
+    function decimals() public view virtual override returns (uint8) {
+        return _decimals;
     }
 }
