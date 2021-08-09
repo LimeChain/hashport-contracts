@@ -22,12 +22,10 @@ interface IDiamondCut {
     /// @param _init The address of the contract or facet to execute _calldata
     /// @param _calldata A function call, including function selector and arguments
     ///                  _calldata is executed with delegatecall on _init
-    /// @param _signatures The signatures of between n/2 and n validators for this upgrade
     function diamondCut(
         FacetCut[] calldata _diamondCut,
         address _init,
-        bytes calldata _calldata,
-        bytes[] memory _signatures
+        bytes calldata _calldata
     ) external;
 
     event DiamondCut(FacetCut[] _diamondCut, address _init, bytes _calldata);

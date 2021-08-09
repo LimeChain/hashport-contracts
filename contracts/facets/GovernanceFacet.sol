@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "../interfaces/IGovernance.sol";
+import "../libraries/LibDiamond.sol";
 import "../libraries/LibGovernance.sol";
 import "../libraries/LibFeeCalculator.sol";
 import "../libraries/LibRouter.sol";
@@ -15,10 +16,10 @@ contract GovernanceFacet is IGovernance {
 
     function initGovernance(address[] memory _members) external override {
         LibGovernance.Storage storage gs = LibGovernance.governanceStorage();
-        require(!gs.initialized, "Governance: already initialized");
+        require(!gs.initialized, "GovernanceFacet: already initialized");
         require(
             _members.length > 0,
-            "Governance: Member list must contain at least 1 element"
+            "GovernanceFacet: Member list must contain at least 1 element"
         );
         gs.initialized = true;
 
@@ -31,18 +32,8 @@ contract GovernanceFacet is IGovernance {
     /// @notice Adds/removes a member account
     /// @param _account The account to be modified
     /// @param _status Whether the account will be set as member or not
-    /// @param _signatures The signatures of the validators authorizing this member update
-    function updateMember(
-        address _account,
-        bool _status,
-        bytes[] calldata _signatures
-    ) external override {
-        LibGovernance.validateSignaturesLength(_signatures.length);
-        bytes32 ethHash = LibGovernance.computeMemberUpdateMessage(
-            _account,
-            _status
-        );
-        LibGovernance.validateSignatures(ethHash, _signatures);
+    function updateMember(address _account, bool _status) external override {
+        LibDiamond.enforceIsContractOwner();
 
         if (_status) {
             for (uint256 i = 0; i < LibRouter.nativeTokensCount(); i++) {
@@ -79,11 +70,5 @@ contract GovernanceFacet is IGovernance {
     /// @return The address of a member at a given index
     function memberAt(uint256 _index) external view override returns (address) {
         return LibGovernance.memberAt(_index);
-    }
-
-    /// @return The current administrative nonce
-    function administrativeNonce() external view override returns (uint256) {
-        LibGovernance.Storage storage gs = LibGovernance.governanceStorage();
-        return gs.administrativeNonce.current();
     }
 }

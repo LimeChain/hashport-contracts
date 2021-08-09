@@ -34,12 +34,12 @@ library LibRouter {
         if (_status) {
             require(
                 rs.nativeTokens.add(_nativeToken),
-                "Router: native token already added"
+                "LibRouter: native token already added"
             );
         } else {
             require(
                 rs.nativeTokens.remove(_nativeToken),
-                "Router: native token not found"
+                "LibRouter: native token not found"
             );
         }
     }

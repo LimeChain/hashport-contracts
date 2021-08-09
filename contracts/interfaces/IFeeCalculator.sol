@@ -15,12 +15,8 @@ interface IFeeCalculator {
     /// @notice Sets the service fee for a token
     /// @param _token The target token
     /// @param _serviceFeePercentage The new service fee percentage
-    /// @param _signatures The array of signatures from the members, authorising the operation
-    function setServiceFee(
-        address _token,
-        uint256 _serviceFeePercentage,
-        bytes[] calldata _signatures
-    ) external;
+    function setServiceFee(address _token, uint256 _serviceFeePercentage)
+        external;
 
     /// @notice Returns all data for a specific native fee calculator
     /// @param _token The target token

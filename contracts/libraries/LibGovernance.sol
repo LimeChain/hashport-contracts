@@ -13,8 +13,6 @@ library LibGovernance {
 
     struct Storage {
         bool initialized;
-        // nonce used for making administrative changes
-        Counters.Counter administrativeNonce;
         // the set of active validators
         EnumerableSet.AddressSet membersSet;
     }
@@ -32,32 +30,18 @@ library LibGovernance {
         if (_status) {
             require(
                 gs.membersSet.add(_account),
-                "Governance: Account already added"
+                "LibGovernance: Account already added"
             );
         } else if (!_status) {
             require(
                 gs.membersSet.length() > 1,
-                "Governance: Would become memberless"
+                "LibGovernance: Would become memberless"
             );
             require(
                 gs.membersSet.remove(_account),
-                "Governance: Account is not a member"
+                "LibGovernance: Account is not a member"
             );
         }
-        gs.administrativeNonce.increment();
-    }
-
-    /// @notice Computes the bytes32 ethereum signed message hash of the member update message
-    function computeMemberUpdateMessage(address _account, bool _status)
-        internal
-        view
-        returns (bytes32)
-    {
-        Storage storage gs = governanceStorage();
-        bytes32 hashedData = keccak256(
-            abi.encode(_account, _status, gs.administrativeNonce.current())
-        );
-        return ECDSA.toEthSignedMessageHash(hashedData);
     }
 
     /// @notice Returns true/false depending on whether a given address is member or not
@@ -81,8 +65,8 @@ library LibGovernance {
     /// @notice Accepts number of signatures in the range (n/2; n] where n is the number of members
     function validateSignaturesLength(uint256 _n) internal view {
         uint256 members = membersCount();
-        require(_n <= members, "Governance: Invalid number of signatures");
-        require(_n > members / 2, "Governance: Invalid number of signatures");
+        require(_n <= members, "LibGovernance: Invalid number of signatures");
+        require(_n > members / 2, "LibGovernance: Invalid number of signatures");
     }
 
     /// @notice Validates the provided signatures aginst the member set
@@ -93,11 +77,11 @@ library LibGovernance {
         address[] memory signers = new address[](_signatures.length);
         for (uint256 i = 0; i < _signatures.length; i++) {
             address signer = ECDSA.recover(_ethHash, _signatures[i]);
-            require(isMember(signer), "Governance: invalid signer");
+            require(isMember(signer), "LibGovernance: invalid signer");
             for (uint256 j = 0; j < i; j++) {
                 require(
                     signer != signers[j],
-                    "Governance: duplicate signatures"
+                    "LibGovernance: duplicate signatures"
                 );
             }
             signers[i] = signer;

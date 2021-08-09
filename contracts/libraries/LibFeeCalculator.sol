@@ -100,7 +100,7 @@ library LibFeeCalculator {
         LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
         require(
             _serviceFeePercentage < fcs.precision,
-            "FeeCalculator: service fee percentage exceeds or equal to precision"
+            "LibFeeCalculator: service fee percentage exceeds or equal to precision"
         );
 
         FeeCalculator storage ntfc = fcs.nativeTokenFeeCalculators[_token];

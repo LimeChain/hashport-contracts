@@ -9,8 +9,16 @@ import "./interfaces/IDiamondCut.sol";
 import "./libraries/LibDiamond.sol";
 
 contract Router {
-    constructor(IDiamondCut.FacetCut[] memory _diamondCut) payable {
+    struct DiamondArgs {
+        address owner;
+    }
+
+    constructor(
+        IDiamondCut.FacetCut[] memory _diamondCut,
+        DiamondArgs memory _args
+    ) payable {
         LibDiamond.diamondCut(_diamondCut, address(0), new bytes(0));
+        LibDiamond.setContractOwner(_args.owner);
 
         LibDiamond.DiamondStorage storage ds = LibDiamond.diamondStorage();
 

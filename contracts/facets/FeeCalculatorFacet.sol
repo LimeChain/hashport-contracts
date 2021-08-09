@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../interfaces/IFeeCalculator.sol";
+import "../libraries/LibDiamond.sol";
 import "../libraries/LibFeeCalculator.sol";
 import "../libraries/LibRouter.sol";
 
@@ -17,29 +18,21 @@ contract FeeCalculatorFacet is IFeeCalculator {
     function initFeeCalculator(uint256 _precision) external override {
         LibFeeCalculator.Storage storage fcs = LibFeeCalculator
             .feeCalculatorStorage();
-        require(!fcs.initialized, "FeeCalculator: already initialized");
+        require(!fcs.initialized, "FeeCalculatorFacet: already initialized");
         fcs.initialized = true;
         fcs.precision = _precision;
     }
 
     /// @notice Sets the service fee for this chain
+    /// @param _token The target token
     /// @param _serviceFeePercentage The new service fee
-    /// @param _signatures The array of signatures from the members, authorising the operation
-    function setServiceFee(
-        address _token,
-        uint256 _serviceFeePercentage,
-        bytes[] calldata _signatures
-    ) external override {
-        LibGovernance.validateSignaturesLength(_signatures.length);
-        bytes32 ethHash = computeFeeUpdateMessage(
-            _token,
-            _serviceFeePercentage
-        );
-        LibGovernance.validateSignatures(ethHash, _signatures);
+    function setServiceFee(address _token, uint256 _serviceFeePercentage)
+        external
+        override
+    {
+        LibDiamond.enforceIsContractOwner();
         LibFeeCalculator.setServiceFee(_token, _serviceFeePercentage);
-        LibGovernance.Storage storage gs = LibGovernance.governanceStorage();
         emit ServiceFeeSet(msg.sender, _token, _serviceFeePercentage);
-        gs.administrativeNonce.increment();
     }
 
     /// @param _account The address of a validator
@@ -88,28 +81,6 @@ contract FeeCalculatorFacet is IFeeCalculator {
         );
     }
 
-    /// @notice Computes the Eth signed message to use for extracting signature signers for fee updates
-    /// @param _token The token address
-    /// @param _newServiceFee The fee that was used when creating the validator signatures
-    function computeFeeUpdateMessage(address _token, uint256 _newServiceFee)
-        internal
-        view
-        returns (bytes32)
-    {
-        LibFeeCalculator.Storage storage fcs = LibFeeCalculator
-            .feeCalculatorStorage();
-        LibGovernance.Storage storage gs = LibGovernance.governanceStorage();
-        bytes32 hashedData = keccak256(
-            abi.encode(
-                _token,
-                fcs.nativeTokenFeeCalculators[_token].serviceFeePercentage,
-                _newServiceFee,
-                gs.administrativeNonce.current()
-            )
-        );
-        return ECDSA.toEthSignedMessageHash(hashedData);
-    }
-
     /// @notice Sends out the reward for a Token accumulated by the caller
     function claim(address _token) external override onlyMember {
         uint256 claimableAmount = LibFeeCalculator.claimReward(
@@ -124,7 +95,7 @@ contract FeeCalculatorFacet is IFeeCalculator {
     modifier onlyMember() {
         require(
             LibGovernance.isMember(msg.sender),
-            "Governance: msg.sender is not a member"
+            "FeeCalculatorFacet: msg.sender is not a member"
         );
         _;
     }

@@ -105,14 +105,12 @@ interface IRouter {
     function deployWrappedToken(
         uint256 _sourceChain,
         bytes memory _nativeToken,
-        WrappedTokenParams memory _tokenParams,
-        bytes[] calldata _signatures
+        WrappedTokenParams memory _tokenParams
     ) external;
 
     function updateNativeToken(
         address _nativeToken,
         uint256 _serviceFee,
-        bool _status,
-        bytes[] calldata _signatures
+        bool _status
     ) external;
 }

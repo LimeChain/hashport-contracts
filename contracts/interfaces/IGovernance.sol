@@ -13,12 +13,7 @@ interface IGovernance {
     /// @notice Adds/removes a member account
     /// @param _account The account to be modified
     /// @param _status Whether the account will be set as member or not
-    /// @param _signatures The signatures of the validators authorizing this member update
-    function updateMember(
-        address _account,
-        bool _status,
-        bytes[] calldata _signatures
-    ) external;
+    function updateMember(address _account, bool _status) external;
 
     /// @return True/false depending on whether a given address is member or not
     function isMember(address _member) external view returns (bool);
@@ -28,7 +23,4 @@ interface IGovernance {
 
     /// @return The address of a member at a given index
     function memberAt(uint256 _index) external view returns (address);
-
-    /// @return The current administrative nonce
-    function administrativeNonce() external view returns (uint256);
 }

@@ -16,29 +16,12 @@ contract DiamondCutFacet is IDiamondCut {
     /// @param _init The address of the contract or facet to execute _calldata
     /// @param _calldata A function call, including function selector and arguments
     ///                  _calldata is executed with delegatecall on _init
-    /// @param _signatures The signatures required for
     function diamondCut(
         FacetCut[] calldata _diamondCut,
         address _init,
-        bytes calldata _calldata,
-        bytes[] calldata _signatures
+        bytes calldata _calldata
     ) external override {
-        LibGovernance.validateSignaturesLength(_signatures.length);
-        bytes32 ethHash = computeDiamondCutMessage(_diamondCut);
-        LibGovernance.validateSignatures(ethHash, _signatures);
+        LibDiamond.enforceIsContractOwner();
         LibDiamond.diamondCut(_diamondCut, _init, _calldata);
-    }
-
-    /// @notice Computes the bytes32 ethereum signed message hash of the signature
-    function computeDiamondCutMessage(IDiamondCut.FacetCut[] memory _diamondCut)
-        internal
-        view
-        returns (bytes32)
-    {
-        LibGovernance.Storage storage gs = LibGovernance.governanceStorage();
-        bytes32 hashedData = keccak256(
-            abi.encode(_diamondCut, gs.administrativeNonce.current())
-        );
-        return ECDSA.toEthSignedMessageHash(hashedData);
     }
 }

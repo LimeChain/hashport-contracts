@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "../WrappedToken.sol";
 import "../interfaces/IERC2612Permit.sol";
 import "../interfaces/IRouter.sol";
+import "../libraries/LibDiamond.sol";
 import "../libraries/LibFeeCalculator.sol";
 import "../libraries/LibRouter.sol";
 import "../libraries/LibGovernance.sol";
@@ -18,7 +19,7 @@ contract RouterFacet is IRouter {
     /// @notice Constructs the Router contract instance
     function initRouter() external override {
         LibRouter.Storage storage rs = LibRouter.routerStorage();
-        require(!rs.initialized, "Router: already initialized");
+        require(!rs.initialized, "RouterFacet: already initialized");
         rs.initialized = true;
     }
 
@@ -139,7 +140,7 @@ contract RouterFacet is IRouter {
         LibRouter.Storage storage rs = LibRouter.routerStorage();
         require(
             !rs.hashesUsed[_sourceChain][ethHash],
-            "Router: transaction already submitted"
+            "RouterFacet: transaction already submitted"
         );
 
         validateAndStoreTx(_sourceChain, ethHash, _signatures);
@@ -222,7 +223,7 @@ contract RouterFacet is IRouter {
         LibRouter.Storage storage rs = LibRouter.routerStorage();
         require(
             !rs.hashesUsed[_sourceChain][ethHash],
-            "Router: transaction already submitted"
+            "RouterFacet: transaction already submitted"
         );
         validateAndStoreTx(_sourceChain, ethHash, _signatures);
 
@@ -235,42 +236,30 @@ contract RouterFacet is IRouter {
     /// @param _sourceChain The chain where `nativeToken` is originally deployed to
     /// @param _nativeToken The address of the token
     /// @param _tokenParams The name/symbol/decimals to use for the wrapped version of `nativeToken`
-    /// @param _signatures The array of signatures from the members, authorising the operation
     function deployWrappedToken(
         uint256 _sourceChain,
         bytes memory _nativeToken,
-        WrappedTokenParams memory _tokenParams,
-        bytes[] calldata _signatures
+        WrappedTokenParams memory _tokenParams
     ) external override {
         require(
             bytes(_tokenParams.name).length > 0,
-            "Router: empty wrapped token name"
+            "RouterFacet: empty wrapped token name"
         );
         require(
             bytes(_tokenParams.symbol).length > 0,
-            "Router: empty wrapped token symbol"
+            "RouterFacet: empty wrapped token symbol"
         );
         require(
             _tokenParams.decimals > 0,
-            "Router: invalid wrapped token decimals"
+            "RouterFacet: invalid wrapped token decimals"
         );
-        LibGovernance.validateSignaturesLength(_signatures.length);
-        bytes32 ethHash = computeDeployWrappedTokenMessage(
-            _sourceChain,
-            block.chainid,
-            _nativeToken,
-            _tokenParams
-        );
-        LibGovernance.validateSignatures(ethHash, _signatures);
+        LibDiamond.enforceIsContractOwner();
 
         WrappedToken t = new WrappedToken(
             _tokenParams.name,
             _tokenParams.symbol,
             _tokenParams.decimals
         );
-
-        LibGovernance.Storage storage gs = LibGovernance.governanceStorage();
-        gs.administrativeNonce.increment();
 
         emit WrappedTokenDeployed(_sourceChain, _nativeToken, address(t));
     }
@@ -279,28 +268,16 @@ contract RouterFacet is IRouter {
     /// @param _nativeToken The native token address
     /// @param _serviceFee The amount of fee, which will be taken upon lock/unlock execution
     /// @param _status Whether the token will be added or removed
-    /// @param _signatures The array of signatures from the members, authorising the operation
     function updateNativeToken(
         address _nativeToken,
         uint256 _serviceFee,
-        bool _status,
-        bytes[] calldata _signatures
+        bool _status
     ) external override {
-        require(_nativeToken != address(0), "Router: zero address");
-        LibGovernance.validateSignaturesLength(_signatures.length);
+        require(_nativeToken != address(0), "RouterFacet: zero address");
+        LibDiamond.enforceIsContractOwner();
 
-        bytes32 ethHash = computeAddNativeTokenMessage(
-            _nativeToken,
-            _serviceFee,
-            _status
-        );
-
-        LibGovernance.validateSignatures(ethHash, _signatures);
         LibRouter.updateNativeToken(_nativeToken, _status);
         LibFeeCalculator.setServiceFee(_nativeToken, _serviceFee);
-
-        LibGovernance.Storage storage gs = LibGovernance.governanceStorage();
-        gs.administrativeNonce.increment();
 
         emit NativeTokenUpdated(_nativeToken, _serviceFee, _status);
     }
@@ -377,58 +354,10 @@ contract RouterFacet is IRouter {
         return ECDSA.toEthSignedMessageHash(hashedData);
     }
 
-    /// @notice Computes the bytes32 ethereum signed message hash of wrapped token deployment message
-    /// @param _sourceChain The chain id where the native token is deployed.
-    /// @param _targetChain The target chain of the bridge transaction.
-    ///                     Should always be the current chainId.
-    /// @param _nativeToken The token to which a wrapped token will be deployed.
-    /// @param _tokenParams The parameters of the to-be-deployed wrapped token (name, symbol, decimals).
-    function computeDeployWrappedTokenMessage(
-        uint256 _sourceChain,
-        uint256 _targetChain,
-        bytes memory _nativeToken,
-        WrappedTokenParams memory _tokenParams
-    ) internal view returns (bytes32) {
-        LibGovernance.Storage storage gs = LibGovernance.governanceStorage();
-        bytes32 hashedData = keccak256(
-            abi.encode(
-                _sourceChain,
-                _targetChain,
-                _nativeToken,
-                gs.administrativeNonce.current(),
-                _tokenParams.name,
-                _tokenParams.symbol,
-                _tokenParams.decimals
-            )
-        );
-        return ECDSA.toEthSignedMessageHash(hashedData);
-    }
-
-    /// @notice Computes the bytes32 ethereum signed message hash of add native token message
-    /// @param _nativeToken The target native token
-    /// @param _serviceFee The target service fee
-    /// @param _status Whether the native token will be added or removed
-    function computeAddNativeTokenMessage(
-        address _nativeToken,
-        uint256 _serviceFee,
-        bool _status
-    ) internal view returns (bytes32) {
-        LibGovernance.Storage storage gs = LibGovernance.governanceStorage();
-        bytes32 hashedData = keccak256(
-            abi.encode(
-                _nativeToken,
-                _serviceFee,
-                _status,
-                gs.administrativeNonce.current()
-            )
-        );
-        return ECDSA.toEthSignedMessageHash(hashedData);
-    }
-
     modifier onlyNativeToken(address _nativeToken) {
         require(
             LibRouter.containsNativeToken(_nativeToken),
-            "Router: native token not found"
+            "RouterFacet: native token not found"
         );
         _;
     }
