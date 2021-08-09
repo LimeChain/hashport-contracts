@@ -22,7 +22,12 @@ interface IRouter {
     /// @notice An event emitted once a Burn transaction is executed
     event Burn(address token, uint256 amount, bytes receiver);
     /// @notice An event emitted once an Unlock transaction is executed
-    event Unlock(address token, uint256 amount, address receiver);
+    event Unlock(
+        address token,
+        uint256 amount,
+        address receiver,
+        uint256 serviceFee
+    );
     /// @notice An even emitted once a Mint transaction is executed
     event Mint(address token, uint256 amount, address receiver);
     /// @notice An event emitted once a new wrapped token is deployed by the contract

@@ -9,21 +9,22 @@ interface IFeeCalculator {
     event Claim(address member, address token, uint256 amount);
 
     /// @notice Construct a new FeeCalculator contract
-    function initFeeCalculator() external;
+    /// @param _precision The precision for every fee calculator
+    function initFeeCalculator(uint256 _precision) external;
 
     /// @notice Sets the service fee for a token
     /// @param _token The target token
-    /// @param _serviceFee The new service fee
+    /// @param _serviceFeePercentage The new service fee percentage
     /// @param _signatures The array of signatures from the members, authorising the operation
     function setServiceFee(
         address _token,
-        uint256 _serviceFee,
+        uint256 _serviceFeePercentage,
         bytes[] calldata _signatures
     ) external;
 
     /// @notice Returns all data for a specific native fee calculator
     /// @param _token The target token
-    /// @return serviceFee The current service fee
+    /// @return serviceFeePercentage The current service fee
     /// @return feesAccrued Total fees accrued since contract deployment
     /// @return previousAccrued Total fees accrued up to the last point a member claimed rewards
     /// @return accumulator Accumulates rewards on a per-member basis
@@ -31,7 +32,7 @@ interface IFeeCalculator {
         external
         view
         returns (
-            uint256 serviceFee,
+            uint256 serviceFeePercentage,
             uint256 feesAccrued,
             uint256 previousAccrued,
             uint256 accumulator

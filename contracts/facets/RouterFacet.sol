@@ -62,21 +62,16 @@ contract RouterFacet is IRouter {
         uint256 _amount,
         bytes memory _receiver
     ) public override onlyNativeToken(_nativeToken) {
-        LibFeeCalculator.Storage storage fcs = LibFeeCalculator
-            .feeCalculatorStorage();
-        LibFeeCalculator.distributeRewards(_nativeToken);
+        uint256 serviceFee = LibFeeCalculator.distributeRewards(
+            _nativeToken,
+            _amount
+        );
         IERC20(_nativeToken).safeTransferFrom(
             msg.sender,
             address(this),
             _amount
         );
-        emit Lock(
-            _targetChain,
-            _nativeToken,
-            _receiver,
-            _amount,
-            fcs.nativeTokenFeeCalculators[_nativeToken].serviceFee
-        );
+        emit Lock(_targetChain, _nativeToken, _receiver, _amount, serviceFee);
     }
 
     /// @notice Locks the provided amount of nativeToken using an EIP-2612 permit and initiates a bridging transaction
@@ -135,7 +130,11 @@ contract RouterFacet is IRouter {
             _receiver,
             _amount
         );
-        LibFeeCalculator.distributeRewards(_nativeToken);
+        uint256 serviceFee = LibFeeCalculator.distributeRewards(
+            _nativeToken,
+            _amount
+        );
+        uint256 transferAmount = _amount - serviceFee;
 
         LibRouter.Storage storage rs = LibRouter.routerStorage();
         require(
@@ -145,9 +144,9 @@ contract RouterFacet is IRouter {
 
         validateAndStoreTx(_sourceChain, ethHash, _signatures);
 
-        IERC20(_nativeToken).safeTransfer(_receiver, _amount);
+        IERC20(_nativeToken).safeTransfer(_receiver, transferAmount);
 
-        emit Unlock(_nativeToken, _amount, _receiver);
+        emit Unlock(_nativeToken, transferAmount, _receiver, serviceFee);
     }
 
     /// @notice Calls burn on the given wrapped token contract with `amount` wrapped tokens from `msg.sender`.

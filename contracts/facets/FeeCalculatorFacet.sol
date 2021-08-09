@@ -13,27 +13,32 @@ contract FeeCalculatorFacet is IFeeCalculator {
     using SafeERC20 for IERC20;
 
     /// @notice Construct a new FeeCalculator contract
-    function initFeeCalculator() external override {
+    /// @param _precision The precision for every fee calculator
+    function initFeeCalculator(uint256 _precision) external override {
         LibFeeCalculator.Storage storage fcs = LibFeeCalculator
             .feeCalculatorStorage();
         require(!fcs.initialized, "FeeCalculator: already initialized");
         fcs.initialized = true;
+        fcs.precision = _precision;
     }
 
     /// @notice Sets the service fee for this chain
-    /// @param _serviceFee The new service fee
+    /// @param _serviceFeePercentage The new service fee
     /// @param _signatures The array of signatures from the members, authorising the operation
     function setServiceFee(
         address _token,
-        uint256 _serviceFee,
+        uint256 _serviceFeePercentage,
         bytes[] calldata _signatures
     ) external override {
         LibGovernance.validateSignaturesLength(_signatures.length);
-        bytes32 ethHash = computeFeeUpdateMessage(_token, _serviceFee);
+        bytes32 ethHash = computeFeeUpdateMessage(
+            _token,
+            _serviceFeePercentage
+        );
         LibGovernance.validateSignatures(ethHash, _signatures);
-        LibFeeCalculator.setServiceFee(_token, _serviceFee);
+        LibFeeCalculator.setServiceFee(_token, _serviceFeePercentage);
         LibGovernance.Storage storage gs = LibGovernance.governanceStorage();
-        emit ServiceFeeSet(msg.sender, _token, _serviceFee);
+        emit ServiceFeeSet(msg.sender, _token, _serviceFeePercentage);
         gs.administrativeNonce.increment();
     }
 
@@ -55,7 +60,7 @@ contract FeeCalculatorFacet is IFeeCalculator {
 
     /// @notice Returns all data for a specific fee calculator
     /// @param _token The target token
-    /// @return serviceFee The current service fee
+    /// @return serviceFeePercentage The current service fee
     /// @return feesAccrued Total fees accrued since contract deployment
     /// @return previousAccrued Total fees accrued up to the last point a member claimed rewards
     /// @return accumulator Accumulates rewards on a per-member basis
@@ -64,7 +69,7 @@ contract FeeCalculatorFacet is IFeeCalculator {
         view
         override
         returns (
-            uint256 serviceFee,
+            uint256 serviceFeePercentage,
             uint256 feesAccrued,
             uint256 previousAccrued,
             uint256 accumulator
@@ -76,7 +81,7 @@ contract FeeCalculatorFacet is IFeeCalculator {
             .nativeTokenFeeCalculators[_token];
 
         return (
-            fc.serviceFee,
+            fc.serviceFeePercentage,
             fc.feesAccrued,
             fc.previousAccrued,
             fc.accumulator
@@ -97,7 +102,7 @@ contract FeeCalculatorFacet is IFeeCalculator {
         bytes32 hashedData = keccak256(
             abi.encode(
                 _token,
-                fcs.nativeTokenFeeCalculators[_token].serviceFee,
+                fcs.nativeTokenFeeCalculators[_token].serviceFeePercentage,
                 _newServiceFee,
                 gs.administrativeNonce.current()
             )

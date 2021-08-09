@@ -8,8 +8,8 @@ library LibFeeCalculator {
 
     /// @notice Represents a fee calculator per token
     struct FeeCalculator {
-        // The current service fee
-        uint256 serviceFee;
+        // The current service fee in percentage. Range is between 0 and Storage.precision
+        uint256 serviceFeePercentage;
         // Total fees accrued since contract deployment
         uint256 feesAccrued;
         // Total fees accrued up to the last point a member claimed rewards
@@ -22,6 +22,8 @@ library LibFeeCalculator {
 
     struct Storage {
         bool initialized;
+        // Precision for every calculator's fee percentage.
+        uint256 precision;
         // A mapping consisting of all token fee calculators
         mapping(address => FeeCalculator) nativeTokenFeeCalculators;
     }
@@ -72,20 +74,36 @@ library LibFeeCalculator {
         return claimableAmount;
     }
 
-    /// @notice Distributes for given token
+    /// @notice Distributes service fee for given token
     /// @param _token The target token
-    function distributeRewards(address _token) internal {
+    /// @param _amount The amount to which the service fee will be calculated
+    /// @return serviceFee The calculated service fee
+    function distributeRewards(address _token, uint256 _amount)
+        internal
+        returns (uint256)
+    {
         LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
         FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[_token];
-        fc.feesAccrued = fc.feesAccrued + fc.serviceFee;
+        uint256 serviceFee = (_amount * fc.serviceFeePercentage) /
+            fcs.precision;
+        fc.feesAccrued = fc.feesAccrued + serviceFee;
+
+        return serviceFee;
     }
 
     /// @notice Sets service fee for a token
     /// @param _token The targe token
-    /// @param _serviceFee The service see to be set
-    function setServiceFee(address _token, uint256 _serviceFee) internal {
+    /// @param _serviceFeePercentage The service fee percentage to be set
+    function setServiceFee(address _token, uint256 _serviceFeePercentage)
+        internal
+    {
         LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
+        require(
+            _serviceFeePercentage < fcs.precision,
+            "FeeCalculator: service fee percentage exceeds or equal to precision"
+        );
+
         FeeCalculator storage ntfc = fcs.nativeTokenFeeCalculators[_token];
-        ntfc.serviceFee = _serviceFee;
+        ntfc.serviceFeePercentage = _serviceFeePercentage;
     }
 }
