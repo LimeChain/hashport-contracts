@@ -22,31 +22,6 @@ contract RouterFacet is IRouter {
         rs.initialized = true;
     }
 
-    /// @param _chainId The chainId of the chain where `nativeToken` was originally created
-    /// @param _nativeToken The address of the token
-    /// @return The address of the wrapped counterpart of `nativeToken` in the current chain
-    function nativeToWrappedToken(uint256 _chainId, bytes memory _nativeToken)
-        external
-        view
-        override
-        returns (address)
-    {
-        LibRouter.Storage storage rs = LibRouter.routerStorage();
-        return rs.nativeToWrappedToken[_chainId][_nativeToken];
-    }
-
-    /// @param _wrappedToken The address of the wrapped token
-    /// @return The chainId and address of the original token
-    function wrappedToNativeToken(address _wrappedToken)
-        external
-        view
-        override
-        returns (LibRouter.NativeTokenWithChainId memory)
-    {
-        LibRouter.Storage storage rs = LibRouter.routerStorage();
-        return rs.wrappedToNativeToken[_wrappedToken];
-    }
-
     /// @param _chainId The chainId of the source chain
     /// @param _ethHash The ethereum signed message hash
     /// @return Whether this hash has already been used for a mint/unlock transaction
@@ -222,15 +197,15 @@ contract RouterFacet is IRouter {
     ///         Must be authorised by a supermajority of `signatures` from the `members` set.
     ///         The router must be authorised to transfer the ABLT tokens for the fee.
     /// @param _sourceChain ID of the source chain
-    /// @param _nativeToken The address of the native token in the source chain
     /// @param _transactionId The source transaction ID + log index
+    /// @param _wrappedToken The address of the wrapped token on the current chain
     /// @param _amount The desired minting amount
     /// @param _receiver The address receiving the tokens
     /// @param _signatures The array of signatures from the members, authorising the operation
     function mint(
         uint256 _sourceChain,
-        bytes memory _nativeToken,
         bytes memory _transactionId,
+        address _wrappedToken,
         uint256 _amount,
         address _receiver,
         bytes[] calldata _signatures
@@ -240,7 +215,7 @@ contract RouterFacet is IRouter {
             _sourceChain,
             block.chainid,
             _transactionId,
-            _nativeToken,
+            _wrappedToken,
             _receiver,
             _amount
         );
@@ -252,16 +227,9 @@ contract RouterFacet is IRouter {
         );
         validateAndStoreTx(_sourceChain, ethHash, _signatures);
 
-        WrappedToken(rs.nativeToWrappedToken[_sourceChain][_nativeToken]).mint(
-            _receiver,
-            _amount
-        );
+        WrappedToken(_wrappedToken).mint(_receiver, _amount);
 
-        emit Mint(
-            rs.nativeToWrappedToken[_sourceChain][_nativeToken],
-            _amount,
-            _receiver
-        );
+        emit Mint(_wrappedToken, _amount, _receiver);
     }
 
     /// @notice Deploys a wrapped version of `nativeToken` to the current chain
@@ -296,15 +264,11 @@ contract RouterFacet is IRouter {
         );
         LibGovernance.validateSignatures(ethHash, _signatures);
 
-        LibRouter.Storage storage rs = LibRouter.routerStorage();
         WrappedToken t = new WrappedToken(
             _tokenParams.name,
             _tokenParams.symbol,
             _tokenParams.decimals
         );
-        rs.nativeToWrappedToken[_sourceChain][_nativeToken] = address(t);
-        rs.wrappedToNativeToken[address(t)].chainId = _sourceChain;
-        rs.wrappedToNativeToken[address(t)].token = _nativeToken;
 
         LibGovernance.Storage storage gs = LibGovernance.governanceStorage();
         gs.administrativeNonce.increment();
@@ -390,14 +354,14 @@ contract RouterFacet is IRouter {
     /// @param _targetChain The target chain of the bridge transaction.
     ///                    Should always be the current chainId.
     /// @param _transactionId The transaction ID of the bridge transaction
-    /// @param _nativeToken The token that is being bridged
+    /// @param _wrappedToken The address of the wrapped token on this chain
     /// @param _receiver The receiving address in the current chain
     /// @param _amount The amount of `nativeToken` that is being bridged
     function computeMintMessage(
         uint256 _sourceChain,
         uint256 _targetChain,
         bytes memory _transactionId,
-        bytes memory _nativeToken,
+        address _wrappedToken,
         address _receiver,
         uint256 _amount
     ) internal pure returns (bytes32) {
@@ -408,7 +372,7 @@ contract RouterFacet is IRouter {
                 _transactionId,
                 _receiver,
                 _amount,
-                _nativeToken
+                _wrappedToken
             )
         );
         return ECDSA.toEthSignedMessageHash(hashedData);

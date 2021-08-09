@@ -15,11 +15,8 @@ library LibRouter {
 
     struct Storage {
         bool initialized;
-        // Maps chainID => (nativeToken => wrappedToken)
-        mapping(uint256 => mapping(bytes => address)) nativeToWrappedToken;
-        // Maps wrapped tokens in the current chain to their native chain + token address
-        mapping(address => NativeTokenWithChainId) wrappedToNativeToken;
-        // Storage metadata for transfers. Maps sourceChain => (transactionId => metadata)
+        // Storage for usability of given ethereum signed messages for particular source chain.
+        // sourceChain => (ethereumSignedMessage => true/false)
         mapping(uint256 => mapping(bytes32 => bool)) hashesUsed;
         // Stores all supported native Tokens on this chain
         EnumerableSet.AddressSet nativeTokens;

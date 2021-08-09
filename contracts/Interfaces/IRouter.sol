@@ -36,16 +36,6 @@ interface IRouter {
 
     function initRouter() external;
 
-    function nativeToWrappedToken(uint256 _chainId, bytes memory _nativeToken)
-        external
-        view
-        returns (address);
-
-    function wrappedToNativeToken(address _wrappedToken)
-        external
-        view
-        returns (LibRouter.NativeTokenWithChainId memory);
-
     function hashesUsed(uint256 _chainId, bytes32 _ethHash)
         external
         view
@@ -100,8 +90,8 @@ interface IRouter {
 
     function mint(
         uint256 _sourceChain,
-        bytes memory _nativeToken,
         bytes memory _transactionId,
+        address _wrappedToken,
         uint256 _amount,
         address _receiver,
         bytes[] calldata _signatures
