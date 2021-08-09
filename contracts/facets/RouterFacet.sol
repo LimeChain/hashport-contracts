@@ -62,13 +62,13 @@ contract RouterFacet is IRouter {
         uint256 _amount,
         bytes memory _receiver
     ) public override onlyNativeToken(_nativeToken) {
-        uint256 serviceFee = LibFeeCalculator.distributeRewards(
-            _nativeToken,
-            _amount
-        );
         IERC20(_nativeToken).safeTransferFrom(
             msg.sender,
             address(this),
+            _amount
+        );
+        uint256 serviceFee = LibFeeCalculator.distributeRewards(
+            _nativeToken,
             _amount
         );
         emit Lock(_targetChain, _nativeToken, _receiver, _amount, serviceFee);
