@@ -20,7 +20,12 @@ interface IRouter {
         uint256 serviceFee
     );
     /// @notice An event emitted once a Burn transaction is executed
-    event Burn(address token, uint256 amount, bytes receiver);
+    event Burn(
+        uint256 targetChain,
+        address token,
+        uint256 amount,
+        bytes receiver
+    );
     /// @notice An event emitted once an Unlock transaction is executed
     event Unlock(
         address token,
@@ -41,10 +46,7 @@ interface IRouter {
 
     function initRouter() external;
 
-    function hashesUsed(uint256 _chainId, bytes32 _ethHash)
-        external
-        view
-        returns (bool);
+    function hashesUsed(bytes32 _ethHash) external view returns (bool);
 
     function nativeTokensCount() external view returns (uint256);
 
@@ -78,12 +80,14 @@ interface IRouter {
     ) external;
 
     function burn(
+        uint256 _targetChain,
         address _wrappedToken,
         uint256 _amount,
         bytes memory _receiver
     ) external;
 
     function burnWithPermit(
+        uint256 _targetChain,
         address _wrappedToken,
         uint256 _amount,
         bytes memory _receiver,

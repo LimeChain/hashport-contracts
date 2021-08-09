@@ -36,6 +36,7 @@ contract FeeCalculatorFacet is IFeeCalculator {
     }
 
     /// @param _account The address of a validator
+    /// @param _token The token address
     /// @return The total amount of claimed tokens by the provided validator address
     function claimedRewardsPerAccount(address _account, address _token)
         external

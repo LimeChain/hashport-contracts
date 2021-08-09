@@ -15,9 +15,9 @@ library LibRouter {
 
     struct Storage {
         bool initialized;
-        // Storage for usability of given ethereum signed messages for particular source chain.
-        // sourceChain => (ethereumSignedMessage => true/false)
-        mapping(uint256 => mapping(bytes32 => bool)) hashesUsed;
+        // Storage for usability of given ethereum signed messages.
+        // ethereumSignedMessage => true/false
+        mapping(bytes32 => bool) hashesUsed;
         // Stores all supported native Tokens on this chain
         EnumerableSet.AddressSet nativeTokens;
     }

@@ -23,17 +23,16 @@ contract RouterFacet is IRouter {
         rs.initialized = true;
     }
 
-    /// @param _chainId The chainId of the source chain
     /// @param _ethHash The ethereum signed message hash
     /// @return Whether this hash has already been used for a mint/unlock transaction
-    function hashesUsed(uint256 _chainId, bytes32 _ethHash)
+    function hashesUsed(bytes32 _ethHash)
         external
         view
         override
         returns (bool)
     {
         LibRouter.Storage storage rs = LibRouter.routerStorage();
-        return rs.hashesUsed[_chainId][_ethHash];
+        return rs.hashesUsed[_ethHash];
     }
 
     /// @return The count of native tokens in the set
@@ -131,19 +130,18 @@ contract RouterFacet is IRouter {
             _receiver,
             _amount
         );
+        LibRouter.Storage storage rs = LibRouter.routerStorage();
+        require(
+            !rs.hashesUsed[ethHash],
+            "RouterFacet: transaction already submitted"
+        );
+        validateAndStoreTx(ethHash, _signatures);
+
         uint256 serviceFee = LibFeeCalculator.distributeRewards(
             _nativeToken,
             _amount
         );
         uint256 transferAmount = _amount - serviceFee;
-
-        LibRouter.Storage storage rs = LibRouter.routerStorage();
-        require(
-            !rs.hashesUsed[_sourceChain][ethHash],
-            "RouterFacet: transaction already submitted"
-        );
-
-        validateAndStoreTx(_sourceChain, ethHash, _signatures);
 
         IERC20(_nativeToken).safeTransfer(_receiver, transferAmount);
 
@@ -152,19 +150,22 @@ contract RouterFacet is IRouter {
 
     /// @notice Calls burn on the given wrapped token contract with `amount` wrapped tokens from `msg.sender`.
     ///         The router must be authorised to transfer the ABLT tokens for the fee.
+    /// @param _targetChain The chainId to which the future lock/mint will be made
     /// @param _wrappedToken The wrapped token to burn
     /// @param _amount The amount of wrapped tokens to be bridged
     /// @param _receiver The address of the user in the original chain for this wrapped token
     function burn(
+        uint256 _targetChain,
         address _wrappedToken,
         uint256 _amount,
         bytes memory _receiver
     ) public override {
         WrappedToken(_wrappedToken).burnFrom(msg.sender, _amount);
-        emit Burn(_wrappedToken, _amount, _receiver);
+        emit Burn(_targetChain, _wrappedToken, _amount, _receiver);
     }
 
     /// @notice Burns `amount` of `wrappedToken` using an EIP-2612 permit and initializes a bridging transaction to the original chain
+    /// @param _targetChain The target chain to which the future lock/mint will be made
     /// @param _wrappedToken The address of the wrapped token to burn
     /// @param _amount The amount of `wrappedToken` to burn
     /// @param _receiver The receiving address in the original chain for this wrapped token
@@ -173,6 +174,7 @@ contract RouterFacet is IRouter {
     /// @param _r The first output of the permit's ECDSA signature
     /// @param _s The second output of the permit's ECDSA signature
     function burnWithPermit(
+        uint256 _targetChain,
         address _wrappedToken,
         uint256 _amount,
         bytes memory _receiver,
@@ -190,7 +192,7 @@ contract RouterFacet is IRouter {
             _r,
             _s
         );
-        burn(_wrappedToken, _amount, _receiver);
+        burn(_targetChain, _wrappedToken, _amount, _receiver);
     }
 
     /// @notice Mints `amount` wrapped tokens to the `receiver` address.
@@ -222,10 +224,10 @@ contract RouterFacet is IRouter {
 
         LibRouter.Storage storage rs = LibRouter.routerStorage();
         require(
-            !rs.hashesUsed[_sourceChain][ethHash],
+            !rs.hashesUsed[ethHash],
             "RouterFacet: transaction already submitted"
         );
-        validateAndStoreTx(_sourceChain, ethHash, _signatures);
+        validateAndStoreTx(ethHash, _signatures);
 
         WrappedToken(_wrappedToken).mint(_receiver, _amount);
 
@@ -283,17 +285,14 @@ contract RouterFacet is IRouter {
     }
 
     /// @notice Validates the signatures and the data and saves the transaction
-    /// @param _chainId The source chain for this transaction
     /// @param _ethHash The hashed data
     /// @param _signatures The array of signatures from the members, authorising the operation
-    function validateAndStoreTx(
-        uint256 _chainId,
-        bytes32 _ethHash,
-        bytes[] calldata _signatures
-    ) internal {
+    function validateAndStoreTx(bytes32 _ethHash, bytes[] calldata _signatures)
+        internal
+    {
         LibRouter.Storage storage rs = LibRouter.routerStorage();
         LibGovernance.validateSignatures(_ethHash, _signatures);
-        rs.hashesUsed[_chainId][_ethHash] = true;
+        rs.hashesUsed[_ethHash] = true;
     }
 
     /// @notice Computes the bytes32 ethereum signed message hash of the unlock signatures

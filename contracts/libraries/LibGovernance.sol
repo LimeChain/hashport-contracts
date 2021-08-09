@@ -34,10 +34,6 @@ library LibGovernance {
             );
         } else if (!_status) {
             require(
-                gs.membersSet.length() > 1,
-                "LibGovernance: Would become memberless"
-            );
-            require(
                 gs.membersSet.remove(_account),
                 "LibGovernance: Account is not a member"
             );
@@ -66,7 +62,10 @@ library LibGovernance {
     function validateSignaturesLength(uint256 _n) internal view {
         uint256 members = membersCount();
         require(_n <= members, "LibGovernance: Invalid number of signatures");
-        require(_n > members / 2, "LibGovernance: Invalid number of signatures");
+        require(
+            _n > members / 2,
+            "LibGovernance: Invalid number of signatures"
+        );
     }
 
     /// @notice Validates the provided signatures aginst the member set
