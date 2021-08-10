@@ -15,6 +15,10 @@ library LibGovernance {
         bool initialized;
         // the set of active validators
         EnumerableSet.AddressSet membersSet;
+        // Precision for calculation of minimum amount of members signatures required
+        uint256 precision;
+        // Percentage for minimum amount of members signatures required
+        uint256 percentage;
     }
 
     function governanceStorage() internal pure returns (Storage storage gs) {
@@ -22,6 +26,15 @@ library LibGovernance {
         assembly {
             gs.slot := position
         }
+    }
+
+    function updateMembersPercentage(uint256 _newPercentage) internal {
+        Storage storage gs = governanceStorage();
+        require(
+            _newPercentage < gs.precision,
+            "LibGovernance: percentage must be less than precision"
+        );
+        gs.percentage = _newPercentage;
     }
 
     /// @notice Adds/removes a validator from the member set
@@ -60,10 +73,11 @@ library LibGovernance {
 
     /// @notice Accepts number of signatures in the range (n/2; n] where n is the number of members
     function validateSignaturesLength(uint256 _n) internal view {
-        uint256 members = membersCount();
+        Storage storage gs = governanceStorage();
+        uint256 members = gs.membersSet.length();
         require(_n <= members, "LibGovernance: Invalid number of signatures");
         require(
-            _n > members / 2,
+            _n > (members * gs.percentage) / gs.precision,
             "LibGovernance: Invalid number of signatures"
         );
     }

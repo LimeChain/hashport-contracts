@@ -14,19 +14,39 @@ contract GovernanceFacet is IGovernance {
     using Counters for Counters.Counter;
     using SafeERC20 for IERC20;
 
-    function initGovernance(address[] memory _members) external override {
+    function initGovernance(
+        address[] memory _members,
+        uint256 _percentage,
+        uint256 _precision
+    ) external override {
         LibGovernance.Storage storage gs = LibGovernance.governanceStorage();
         require(!gs.initialized, "GovernanceFacet: already initialized");
         require(
             _members.length > 0,
             "GovernanceFacet: Member list must contain at least 1 element"
         );
+        require(_precision != 0, "GovernanceFacet: precision must not be zero");
+        require(
+            _percentage < _precision,
+            "GovernanceFacet: percentage must be less or equal to precision"
+        );
+        gs.percentage = _percentage;
+        gs.precision = _precision;
         gs.initialized = true;
 
         for (uint256 i = 0; i < _members.length; i++) {
             LibGovernance.updateMember(_members[i], true);
             emit MemberUpdated(_members[i], true);
         }
+    }
+
+    /// @notice Updates the percentage of minimum amount of members signatures required
+    /// @param _percentage The new percentage
+    function updateMembersPercentage(uint256 _percentage) external override {
+        LibDiamond.enforceIsContractOwner();
+        LibGovernance.updateMembersPercentage(_percentage);
+
+        emit MembersPercentageUpdated(_percentage);
     }
 
     /// @notice Adds/removes a member account
