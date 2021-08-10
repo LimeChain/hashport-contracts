@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "./interfaces/IDiamondLoupe.sol";
 import "./interfaces/IDiamondCut.sol";
+import "./interfaces/IERC173.sol";
 import "./libraries/LibDiamond.sol";
 
 contract Router {
@@ -26,6 +27,7 @@ contract Router {
         ds.supportedInterfaces[type(IERC165).interfaceId] = true;
         ds.supportedInterfaces[type(IDiamondCut).interfaceId] = true;
         ds.supportedInterfaces[type(IDiamondLoupe).interfaceId] = true;
+        ds.supportedInterfaces[type(IERC173).interfaceId] = true;
     }
 
     // Find facet for function that is called and execute the

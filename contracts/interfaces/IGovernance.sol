@@ -19,6 +19,12 @@ interface IGovernance {
         uint256 _precision
     ) external;
 
+    /// @return The current percentage for minimum amount of members signatures
+    function membersPercentage() external view returns (uint256);
+
+    /// @return The current precision for minimum amount of members signatures
+    function membersPrecision() external view returns (uint256);
+
     /// @notice Updates the percentage of minimum amount of members signatures required
     /// @param _percentage The new percentage
     function updateMembersPercentage(uint256 _percentage) external;

@@ -28,6 +28,18 @@ library LibGovernance {
         }
     }
 
+    /// @return The current percentage for minimum amount of members signatures
+    function percentage() internal view returns (uint256) {
+        Storage storage gs = governanceStorage();
+        return gs.percentage;
+    }
+
+    /// @return The current precision for minimum amount of members signatures
+    function precision() internal view returns (uint256) {
+        Storage storage gs = governanceStorage();
+        return gs.precision;
+    }
+
     function updateMembersPercentage(uint256 _newPercentage) internal {
         Storage storage gs = governanceStorage();
         require(

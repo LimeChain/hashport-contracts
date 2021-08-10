@@ -12,6 +12,9 @@ interface IFeeCalculator {
     /// @param _precision The precision for every fee calculator
     function initFeeCalculator(uint256 _precision) external;
 
+    /// @return The current precision for service fee calculations of tokens
+    function serviceFeePrecision() external view returns (uint256);
+
     /// @notice Sets the service fee for a token
     /// @param _token The target token
     /// @param _serviceFeePercentage The new service fee percentage

@@ -19,8 +19,17 @@ contract FeeCalculatorFacet is IFeeCalculator {
         LibFeeCalculator.Storage storage fcs = LibFeeCalculator
             .feeCalculatorStorage();
         require(!fcs.initialized, "FeeCalculatorFacet: already initialized");
+        require(
+            _precision != 0,
+            "FeeCalculatorFacet: precision must not be zero"
+        );
         fcs.initialized = true;
         fcs.precision = _precision;
+    }
+
+    /// @return The current precision for service fee calculations of tokens
+    function serviceFeePrecision() external view override returns (uint256) {
+        return LibFeeCalculator.precision();
     }
 
     /// @notice Sets the service fee for this chain

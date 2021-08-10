@@ -40,6 +40,16 @@ contract GovernanceFacet is IGovernance {
         }
     }
 
+    /// @return The current percentage for minimum amount of members signatures
+    function membersPercentage() external view override returns (uint256) {
+        return LibGovernance.percentage();
+    }
+
+    /// @return The current precision for minimum amount of members signatures
+    function membersPrecision() external view override returns (uint256) {
+        return LibGovernance.precision();
+    }
+
     /// @notice Updates the percentage of minimum amount of members signatures required
     /// @param _percentage The new percentage
     function updateMembersPercentage(uint256 _percentage) external override {

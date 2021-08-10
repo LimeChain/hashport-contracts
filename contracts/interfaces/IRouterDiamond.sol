@@ -4,8 +4,16 @@ pragma experimental ABIEncoderV2;
 
 import "./IDiamondCut.sol";
 import "./IDiamondLoupe.sol";
+import "./IERC173.sol";
 import "./IFeeCalculator.sol";
 import "./IRouter.sol";
 import "./IGovernance.sol";
 
-interface IRouterDiamond is IGovernance, IDiamondCut, IDiamondLoupe, IFeeCalculator, IRouter {}
+interface IRouterDiamond is
+    IDiamondCut,
+    IDiamondLoupe,
+    IGovernance,
+    IFeeCalculator,
+    IERC173,
+    IRouter
+{}

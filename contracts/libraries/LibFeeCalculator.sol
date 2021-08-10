@@ -35,6 +35,12 @@ library LibFeeCalculator {
         }
     }
 
+    /// @return The current precision for service fee calculations of tokens
+    function precision() internal view returns (uint256) {
+        LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
+        return fcs.precision;
+    }
+
     /// @notice Sets the initial claimed rewards for new members for a given token
     /// @param _account The address of the new member
     /// @param _token The list of tokens
