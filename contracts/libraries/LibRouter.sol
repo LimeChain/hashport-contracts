@@ -7,12 +7,6 @@ library LibRouter {
     using EnumerableSet for EnumerableSet.AddressSet;
     bytes32 constant STORAGE_POSITION = keccak256("router.storage");
 
-    /// @notice Struct containing information about a token's address and its native chain
-    struct NativeTokenWithChainId {
-        uint256 chainId;
-        bytes token;
-    }
-
     struct Storage {
         bool initialized;
         // Storage for usability of given ethereum signed messages.
