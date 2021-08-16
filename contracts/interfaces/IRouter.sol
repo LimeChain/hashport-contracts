@@ -101,8 +101,8 @@ interface IRouter {
         uint256 _sourceChain,
         bytes memory _transactionId,
         address _wrappedToken,
-        uint256 _amount,
         address _receiver,
+        uint256 _amount,
         bytes[] calldata _signatures
     ) external;
 

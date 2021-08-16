@@ -208,8 +208,8 @@ contract RouterFacet is IRouter {
         uint256 _sourceChain,
         bytes memory _transactionId,
         address _wrappedToken,
-        uint256 _amount,
         address _receiver,
+        uint256 _amount,
         bytes[] calldata _signatures
     ) external override {
         LibGovernance.validateSignaturesLength(_signatures.length);
@@ -345,9 +345,9 @@ contract RouterFacet is IRouter {
                 _sourceChain,
                 _targetChain,
                 _transactionId,
+                _wrappedToken,
                 _receiver,
-                _amount,
-                _wrappedToken
+                _amount
             )
         );
         return ECDSA.toEthSignedMessageHash(hashedData);

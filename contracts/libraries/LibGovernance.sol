@@ -94,7 +94,7 @@ library LibGovernance {
         );
     }
 
-    /// @notice Validates the provided signatures aginst the member set
+    /// @notice Validates the provided signatures against the member set
     function validateSignatures(bytes32 _ethHash, bytes[] calldata _signatures)
         internal
         view
