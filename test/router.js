@@ -1,10 +1,12 @@
 const chai = require('chai');
+const { BigNumber } = require('ethers');
 const { ethers, waffle, network } = require('hardhat');
 chai.use(waffle.solidity);
 const expect = chai.expect;
 
 describe('Router', async () => {
   let nativeToken;
+  let nativeTokenFactory;
   let wrappedTokenFactory;
   let diamond;
   let router;
@@ -37,8 +39,8 @@ describe('Router', async () => {
   beforeEach(async () => {
     [owner, alice, bob, carol, nonMember] = await ethers.getSigners();
 
-    const tokenFactory = await ethers.getContractFactory('Token');
-    nativeToken = await tokenFactory.deploy('NativeToken', 'NT', 18);
+    nativeTokenFactory = await ethers.getContractFactory('Token');
+    nativeToken = await nativeTokenFactory.deploy('NativeToken', 'NT', 18);
     await nativeToken.deployed();
 
     wrappedTokenFactory = await ethers.getContractFactory('WrappedToken');
@@ -114,6 +116,42 @@ describe('Router', async () => {
 
       // Ownership
       expect(await router.owner()).to.equal(owner.address);
+
+      expect(await router.facetAddresses())
+        .to.include(ownershipFacet.address)
+        .to.include(routerFacet.address)
+        .to.include(feeCalculatorFacet.address)
+        .to.include(cutFacet.address)
+        .to.include(loupeFacet.address);
+
+      const facets = await router.facets();
+      for (const facet of facets) {
+        console.log(facet);
+        switch (facet.facetAddress) {
+          case cutFacet.address:
+            expect(facet.functionSelectors).to.deep.equal(getSelectors(cutFacet));
+            break;
+          case loupeFacet.address:
+            expect(facet.functionSelectors).to.deep.equal(getSelectors(loupeFacet));
+            break;
+          case feeCalculatorFacet.address:
+            expect(facet.functionSelectors).to.deep.equal(getSelectors(feeCalculatorFacet));
+            break;
+          case governanceFacet.address:
+            expect(facet.functionSelectors).to.deep.equal(getSelectors(governanceFacet));
+            break;
+          case ownershipFacet.address:
+            expect(facet.functionSelectors).to.deep.equal(getSelectors(ownershipFacet));
+            break;
+          case routerFacet.address:
+            expect(facet.functionSelectors).to.deep.equal(getSelectors(routerFacet));
+            break;
+          default:
+            throw 'invalid facet address'
+        }
+      }
+
+      expect(await router.supportsInterface(getInterfaceId(ownershipFacet))).to.be.true;
     });
 
     it('should revert governance init if member list is empty', async () => {
@@ -244,23 +282,34 @@ describe('Router', async () => {
         await expect(router.updateMember(alice.address, true)).to.be.revertedWith(expectedRevertMessage);
       });
 
+      it('should revert when trying to remove the last member', async () => {
+        const expectedRevertMessage = 'LibGovernance: contract would become memberless';
+        await expect(router.updateMember(alice.address, false)).to.be.revertedWith(expectedRevertMessage);
+      });
+
       it('should remove a member', async () => {
+        await router.updateMember(bob.address, true);
+        expect(await router.membersCount()).to.equal(2);
+
         await router.updateMember(alice.address, false);
 
-        const bobStatus = await router.isMember(alice.address);
-        expect(bobStatus).to.be.false;
+        const aliceMember = await router.isMember(alice.address);
 
-        const expectedCount = 0;
-        expect(await router.membersCount()).to.equal(expectedCount);
+        expect(aliceMember).to.be.false;
+        expect(await router.membersCount()).to.equal(1);
       });
 
       it('should emit remove event', async () => {
+        await router.updateMember(bob.address, true);
         await expect(await router.updateMember(alice.address, false))
           .to.emit(router, 'MemberUpdated')
           .withArgs(alice.address, false);
       });
 
       it('should revert removing a member twice', async () => {
+        await router.updateMember(bob.address, true);
+        await router.updateMember(carol.address, true);
+
         await router.updateMember(alice.address, false);
         const expectedRevertMessage = 'LibGovernance: Account is not a member';
         await expect(router.updateMember(alice.address, false)).to.be.revertedWith(expectedRevertMessage);
@@ -298,9 +347,12 @@ describe('Router', async () => {
         expect(await router.claimedRewardsPerAccount(bob.address, nativeToken.address)).to.equal(serviceFee);
       });
 
-      it('should correctly accrue fees after removel of a member', async () => {
+      it('should correctly accrue fees after removal of a member', async () => {
         // given
         const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+        const rewardPerMember = serviceFee.div(2);
+
+        await router.updateMember(bob.address, true);
         await router.updateNativeToken(nativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
         await nativeToken.mint(nonMember.address, amount);
 
@@ -318,14 +370,14 @@ describe('Router', async () => {
           .to.emit(router, 'MemberUpdated')
           .withArgs(alice.address, false)
           .to.emit(nativeToken, 'Transfer')
-          .withArgs(router.address, alice.address, serviceFee);
+          .withArgs(router.address, alice.address, rewardPerMember);
 
         const afterMemberUpdateTokenFeeData = await router.tokenFeeData(nativeToken.address);
         expect(afterMemberUpdateTokenFeeData.feesAccrued).to.equal(serviceFee);
-        expect(afterMemberUpdateTokenFeeData.accumulator).to.equal(serviceFee);
+        expect(afterMemberUpdateTokenFeeData.accumulator).to.equal(rewardPerMember);
         expect(afterMemberUpdateTokenFeeData.previousAccrued).to.equal(afterMemberUpdateTokenFeeData.feesAccrued);
 
-        expect(await router.claimedRewardsPerAccount(alice.address, nativeToken.address)).to.equal(serviceFee);
+        expect(await router.claimedRewardsPerAccount(alice.address, nativeToken.address)).to.equal(rewardPerMember);
       });
     });
   });
@@ -363,7 +415,7 @@ describe('Router', async () => {
   });
 
   describe('OwnershipFacet', async () => {
-    it('transfers ownership successfully', async () => {
+    it('should transfer ownership successfully', async () => {
       const expectedRevertMessage = 'LibDiamond: Must be contract owner';
       await router.transferOwnership(nonMember.address);
 
@@ -377,7 +429,7 @@ describe('Router', async () => {
         .to.be.revertedWith(expectedRevertMessage);
     });
 
-    it('emit event', async () => {
+    it('should emit event', async () => {
       await expect(router.transferOwnership(nonMember.address))
         .to.emit(router, 'OwnershipTransferred')
         .withArgs(owner.address, nonMember.address);
@@ -1077,7 +1129,7 @@ describe('Router', async () => {
       await router.updateMember(carol.address, true);
     });
 
-    it('Should add new functions', async () => {
+    it('should add new functions', async () => {
       const testFacetFactory = await ethers.getContractFactory('AddNewFunctionFacet');
       const testFacet = await testFacetFactory.deploy();
       await testFacet.deployed();
@@ -1091,7 +1143,7 @@ describe('Router', async () => {
       await expect(test.testFunction()).to.not.be.reverted;
     });
 
-    it('Should remove functions', async () => {
+    it('should remove all functions', async () => {
       const expectedRevertMessage = 'Diamond: Function does not exist';
 
       const diamondCut = [
@@ -1100,9 +1152,33 @@ describe('Router', async () => {
 
       await expect(router.diamondCut(diamondCut, ethers.constants.AddressZero, '0x')).to.not.be.reverted;
       await expect(router.owner()).to.be.revertedWith(expectedRevertMessage);
+      await expect(router.transferOwnership(nonMember.address)).to.be.revertedWith(expectedRevertMessage);
+      await expect(router.facets()).to.be.revertedWith(expectedRevertMessage);
     });
 
-    it('Should replace functions', async () => {
+    it('should remove all functions from the target facet', async () => {
+      const expectedRevertMessage = 'Diamond: Function does not exist';
+      const functionSelectors = getSelectors(ownershipFacet);
+
+      const diamondCut = [
+        { facetAddress: ethers.constants.AddressZero, action: 2, functionSelectors }
+      ];
+
+      // when
+      await router.diamondCut(diamondCut, ethers.constants.AddressZero, '0x');
+      // then
+      await expect(router.owner()).to.be.revertedWith(expectedRevertMessage);
+      await expect(router.transferOwnership(nonMember.address)).to.be.revertedWith(expectedRevertMessage);
+      await expect(router.facetFunctionSelectors(ownershipFacet.address)).to.be.empty;
+      // and
+      for (let i of functionSelectors) {
+        expect(await router.facetAddress(i)).to.equal(ethers.constants.AddressZero);
+      }
+      // and
+      expect(await router.facetAddresses()).to.not.include(ownershipFacet.address);
+    });
+
+    it('should replace functions', async () => {
       const expectedEvent = 'Replacement';
       const expectedEventSig = ethers.utils.keccak256(ethers.utils.toUtf8Bytes('Replacement()'));
 
@@ -1124,7 +1200,7 @@ describe('Router', async () => {
       expect(await router.owner()).to.equal(router.address);
     });
 
-    it('Should not execute diamond cut when caller is not owner', async () => {
+    it('should not execute diamond cut when caller is not owner', async () => {
       const diamondCut = [
         { facetAddress: ethers.constants.AddressZero, action: 2, functionSelectors: getSelectors(router) }
       ];
@@ -1133,7 +1209,7 @@ describe('Router', async () => {
       await expect(router.connect(nonMember).diamondCut(diamondCut, ethers.constants.AddressZero, '0x')).to.be.revertedWith(expectedRevertMessage);
     });
 
-    it('adds pausability functionality', async () => {
+    it('should add pausability functionality', async () => {
       const expectedContractAddress = ethers.utils.getContractAddress(
         {
           from: router.address,
@@ -1163,7 +1239,61 @@ describe('Router', async () => {
       await contract.unpause(wrappedToken.address);
       expect(await wrappedToken.paused()).to.be.false;
     });
-  })
+
+    it('should revert when initializing diamond cut with empty calldata', async () => {
+      const expectedRevertMessage = 'LibDiamondCut: _calldata is empty but _init is not address(0)';
+      await expect(router.diamondCut([], bob.address, '0x')).to.be.revertedWith(expectedRevertMessage);
+    });
+
+    it('should revert when initializing diamond cut with contract code', async () => {
+      const expectedRevertMessage = 'LibDiamondCut: _init address has no code';
+      await expect(router.diamondCut([], bob.address, '0x1231')).to.be.revertedWith(expectedRevertMessage);
+    });
+
+    it('should revert when trying to diamond cut with invalid action', async () => {
+      const invalidAction = 4;
+
+      const diamondCut = [
+        { facetAddress: nonMember.address, action: invalidAction, functionSelectors: getSelectors(router) }
+      ];
+
+      await expect(router.diamondCut(diamondCut, ethers.constants.AddressZero, '0x')).to.be.reverted;
+    });
+  });
+
+  describe('Members Gas Usages', async () => {
+    beforeEach(async () => {
+      await nativeToken.mint(nonMember.address, amount);
+      await nativeToken.connect(nonMember).approve(router.address, amount);
+    });
+
+    it('adds member with zero existing tokens', async () => {
+      await router.updateMember(bob.address, true);
+    });
+
+    it('adds member with one existing token', async () => {
+      await router.updateNativeToken(nativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+      await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
+
+      await router.updateMember(bob.address, true);
+    });
+
+    it('adds member with two existing tokens', async () => {
+      // given
+      const otherNativeToken = await nativeTokenFactory.deploy('OtherNativeToken', 'NT', 18);
+      await otherNativeToken.deployed();
+      await otherNativeToken.mint(nonMember.address, amount);
+      await otherNativeToken.connect(nonMember).approve(router.address, amount);
+
+      await router.updateNativeToken(nativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+      await router.updateNativeToken(otherNativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+      await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
+      await router.connect(nonMember).lock(1, otherNativeToken.address, amount, owner.address);
+
+      // when
+      await router.updateMember(bob.address, true);
+    });
+  });
 });
 
 function getSelectors(contract) {
@@ -1175,6 +1305,16 @@ function getSelectors(contract) {
     }
     return acc;
   }, []);
+}
+
+function getInterfaceId(contract) {
+  const selectors = getSelectors(contract);
+
+  const result = selectors.reduce((result, value) => {
+    return result.xor(value);
+  }, BigNumber.from(0));
+
+  return ethers.utils.hexValue(result);
 }
 
 async function createPermit(owner, spenderAddress, amount, deadline, tokenContract) {

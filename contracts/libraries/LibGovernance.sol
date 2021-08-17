@@ -59,6 +59,10 @@ library LibGovernance {
             );
         } else if (!_status) {
             require(
+                LibGovernance.membersCount() > 1,
+                "LibGovernance: contract would become memberless"
+            );
+            require(
                 gs.membersSet.remove(_account),
                 "LibGovernance: Account is not a member"
             );
