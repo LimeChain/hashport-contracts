@@ -40,9 +40,8 @@ Before running any `npx hardhat` scripts, you need to set the following environm
 in [hardhat config](./hardhat.config.js) or export them:
 
 ```
-export INFURA_PROJECT_ID=<id here as seen on your Infura project dashboard>
-export ROPSTEN_PRIVATE_KEY=<private key to use for deployments on Ethereum Ropsten>
-export MUMBAI_PRIVATE_KEY=<private key to use for deployments on Polygon Mumbai>
+export INFURA_PROJECT_ID=<INFURA API project ID>
+export DEPLOYER_PRIVATE_KEY=<private key to use for deployments for the specified network>
 ```
 
 #### Router deployment

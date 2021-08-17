@@ -1,5 +1,8 @@
 const { task } = require("hardhat/config");
 
+const INFURA_PROJECT_ID = process.env.INFURA_PROJECT_ID || '';
+const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY || 'f39fd6e51aad88f6f4ce6ab8827279cfffb92266';
+
 /**
  * @type import("hardhat/config").HardhatUserConfig
  */
@@ -67,12 +70,12 @@ module.exports = {
             url: "http://127.0.0.1:8545",
         },
         ropsten: {
-            url: `https://ropsten.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
-            accounts: [`0x${process.env.ROPSTEN_PRIVATE_KEY}`]
+            url: `https://ropsten.infura.io/v3/${INFURA_PROJECT_ID}`,
+            accounts: [`0x${DEPLOYER_PRIVATE_KEY}`]
         },
         mumbai: {
             url: `https://rpc-mumbai.maticvigil.com`,
-            accounts: [`0x${process.env.MUMBAI_PRIVATE_KEY}`]
+            accounts: [`0x${DEPLOYER_PRIVATE_KEY}`]
         },
     },
     mocha: {
