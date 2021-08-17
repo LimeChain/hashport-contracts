@@ -1,6 +1,6 @@
 <div align="center">
 
-# Hedera <-> Ethereum Bridge Contracts
+# Hedera <-> EVM Bridge Contracts
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Compile](https://github.com/LimeChain/hedera-eth-bridge-contracts/actions/workflows/compile.yml/badge.svg?branch=main)](https://github.com/LimeChain/hedera-eth-bridge-contracts/actions/workflows/compile.yml)
@@ -8,19 +8,27 @@
 
 </div>
 
-This repository contains the smart contracts for the Hedera <-> Ethereum bridge.
-Contracts consist of `ERC20` representaitons of Hedera Assets and `Router` contract, responsible for the minting/burning of tokens.
+This repository contains the smart contracts for the Hedera <-> EVM bridge.
+
+## Overview
+Smart Contracts use [EIP-2535](https://eips.ethereum.org/EIPS/eip-2535).
 
 ## Contract Addresses & ABI
-
-This is a WIP and the contracts have not been deployed yet.
+This is still under development, and the contracts have not been deployed on mainnets yet.
 
 ## Development
+### Prerequisites
+[node.js](https://nodejs.org/en/) >= v14.17.0
 
-`hardhat` - framework used for the development and testing of the contracts
+[hardhat](https://hardhat.org/) - framework used for the development and testing of the contracts
+
+After cloning, run:
+```
+cd hedera-eth-bridge-contracts
+npm install
+```
 
 ### Compilation
-
 Before you deploy the contracts, you will need to compile them using:
 
 ```
@@ -28,54 +36,62 @@ npx hardhat compile
 ```
 
 ### Scripts
-
-#### Eth deployment - local
-
-```
-npx hardhat deploy
-```
-
-#### Eth deployment
+Before running any `npx hardhat` scripts, you need to set the following environment variables 
+in [hardhat config](./hardhat.config.js) or export them:
 
 ```
-npx hardhat deploy --network 'network name or id'
+export INFURA_PROJECT_ID=<id here as seen on your Infura project dashboard>
+export ROPSTEN_PRIVATE_KEY=<private key to use for deployments on Ethereum Ropsten>
+export MUMBAI_PRIVATE_KEY=<private key to use for deployments on Polygon Mumbai>
 ```
 
-### Deploy for testnet with n members
+#### Router deployment
+* Deploys all the facets
+* Deploys the Router Diamond with all the facets as diamond cuts
+* Initializes `GovernanceFacet` with the provided list of members, governance percentage, and governance precision
+* Initializes `RouterFacet`
+* Initializes `FeeCalculatorFacet` with the provided fee precision. 
 
--   Deploys the ERC20 representation of HBAR Asset (WHBAR) and Router contract
--   Generates three member accounts and sends them 0.3 ethers
-
--   Sets the required validators to be members of the Router contract
--   Prints out WHBAR, Router, members addresses
-
-#### How to run:
-
-```
-npx hardhat deploy-testnet --members /The count od the members set in the contract/ --network /The name of the network/
-```
-
-#### Deploy Token
-
-```
-npx hardhat deploy-token --controller /The address of the deployed controller contract/ --name /Token name/ --symbol /Token symbol/ --decimals /Token decimals/ --network /The name of the network/
+```bash
+npx hardhat deploy-router \
+    --network <network name> \ 
+    --owner <owner address> \
+    --governance-percentage <governance percentage> \
+    --governance-precision <governance precision> \
+    --fee-calculator-precision <fee calculator precision> \
+    <list of members>
 ```
 
-#### Add token pair
-
+#### Wrapped token deployment through Router
+Deploys a wrapped token for a corresponding token on another chain: 
+```bash
+npx hardhat deploy-wrapped-token \
+    --network <network name> \
+    --router <address of the router diamond contract> \
+    --source <id of the source chain, to which the native token is deployed> \
+    --native <the unique identifier of the native token> \
+    --name <name of the wrapped token> \
+    --symbol <symbol of the wrapped token> \
+    --decimals <decimals of the wrapped token>
 ```
-npx hardhat add-pair --router /The address of the deployed router/ --native /hedera token id/ --wrapped /The address of the deployed token/ --network /The name of the network/
+
+#### Token deployment
+Deploys an instance of a [Token](./contracts/mocks/Token.sol) contract, used mainly for testing purposes.
+```bash
+npx hardhat deploy-token \
+    --network <network name> \
+    --name <name of the token> \
+    --symbol <symbol of the token> \
+    --decimals <decimals of the token>
 ```
 
-#### Remove token pair
-
+#### Tests
+##### Unit Tests
+```bash
+npx hardhat tests
 ```
-npx hardhat remove-pair --router /The address of the deployed router/ --native /hedera token id/ --wrapped /The address of the deployed token/ --network /The name of the network/
-```
 
-#### UpdateMember
-
-```
-npx hardhat update-member --router /The address of the deployed router contract/ --member /The address of the member/ --status /Status of the member/ --network /The name of the network/
-
+##### Coverage
+```bash
+npx hardhat coverage
 ```
