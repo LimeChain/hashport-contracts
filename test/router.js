@@ -713,12 +713,13 @@ describe('Router', async () => {
 
       it('should emit event with args', async () => {
         const transferAmount = amount.sub(expectedFee);
+        const sourceChainId = 1;
 
         await expect(await router
           .connect(nonMember)
-          .unlock(1, transactionId, nativeToken.address, amount, receiver, [aliceSignature, bobSignature, carolSignature]))
+          .unlock(sourceChainId, transactionId, nativeToken.address, amount, receiver, [aliceSignature, bobSignature, carolSignature]))
           .to.emit(router, 'Unlock')
-          .withArgs(nativeToken.address, transferAmount, receiver, expectedFee);
+          .withArgs(sourceChainId, transactionId, nativeToken.address, transferAmount, receiver, expectedFee);
       });
 
       it('should revert when trying to execute same unlock transaction twice', async () => {
@@ -815,15 +816,16 @@ describe('Router', async () => {
       });
 
       it('should emit event with args', async () => {
+        const sourceChainId = 1;
         await expect(await router.connect(nonMember).mint(
-          1,
+          sourceChainId,
           transactionId,
           wrappedToken.address,
           receiver,
           amount,
           [aliceSignature, bobSignature, carolSignature]))
           .to.emit(router, 'Mint')
-          .withArgs(wrappedToken.address, amount, receiver)
+          .withArgs(sourceChainId, transactionId, wrappedToken.address, amount, receiver)
           .to.emit(wrappedToken, 'Transfer')
           .withArgs(ethers.constants.AddressZero, receiver, amount);
       });

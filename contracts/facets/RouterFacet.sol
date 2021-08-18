@@ -145,7 +145,14 @@ contract RouterFacet is IRouter {
 
         IERC20(_nativeToken).safeTransfer(_receiver, transferAmount);
 
-        emit Unlock(_nativeToken, transferAmount, _receiver, serviceFee);
+        emit Unlock(
+            _sourceChain,
+            _transactionId,
+            _nativeToken,
+            transferAmount,
+            _receiver,
+            serviceFee
+        );
     }
 
     /// @notice Calls burn on the given wrapped token contract with `amount` wrapped tokens from `msg.sender`.
@@ -231,7 +238,13 @@ contract RouterFacet is IRouter {
 
         WrappedToken(_wrappedToken).mint(_receiver, _amount);
 
-        emit Mint(_wrappedToken, _amount, _receiver);
+        emit Mint(
+            _sourceChain,
+            _transactionId,
+            _wrappedToken,
+            _amount,
+            _receiver
+        );
     }
 
     /// @notice Deploys a wrapped version of `nativeToken` to the current chain
