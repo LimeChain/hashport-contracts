@@ -36,13 +36,14 @@ Users operate with the following functionality:
 * `mint` - mint a specific amount of wrapped tokens by providing an array of signatures, verified that they are signed by the `members`.
 * `burn` - burn a specific amount of wrapped tokens.
 
-You can read more [here](https://github.com/LimeChain/hedera-evm-bridge-validator/blob/main/docs/overview.md).
 
 EVM `native` tokens have to be explicitly added as supported native tokens in the smart contracts. 
 Each `native` token has a service fee percentage, which will be left for the smart contract `members` upon locking/unlocking `native` tokens.
 `Members` are entities, which will serve as governance whenever a user wants to get `wrapped` tokens from `native tokens` and vice versa.
 Fees for `native` tokens accumulate equally between members.
 `Members` need to explicitly claim (transfer) their accumulated fees for a given `native` token. 
+
+You can read more [here](https://github.com/LimeChain/hedera-evm-bridge-validator/blob/main/docs/overview.md).
 
 Smart Contracts use [EIP-2535](https://eips.ethereum.org/EIPS/eip-2535).
 
