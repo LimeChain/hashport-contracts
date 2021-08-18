@@ -850,7 +850,7 @@ describe('Router', async () => {
           .to.be.revertedWith(expectedRevertMessage);
       });
 
-      it('should revert with insuffient signatures', async () => {
+      it('should revert with insufficient signatures', async () => {
         const expectedRevertMessage = 'LibGovernance: Invalid number of signatures';
         await expect(router.connect(nonMember).mint(
           1,
