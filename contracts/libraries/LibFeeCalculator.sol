@@ -47,7 +47,7 @@ library LibFeeCalculator {
     function addNewMember(address _account, address _token) internal {
         LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
         FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[_token];
-        accumulate(fc);
+        accrue(fc);
 
         fc.claimedRewardsPerAccount[_account] = fc.accumulator;
     }
@@ -62,7 +62,7 @@ library LibFeeCalculator {
     {
         LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
         FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[_token];
-        accumulate(fc);
+        accrue(fc);
 
         uint256 claimableAmount = fc.accumulator -
             fc.claimedRewardsPerAccount[_claimer];
@@ -105,10 +105,10 @@ library LibFeeCalculator {
         ntfc.serviceFeePercentage = _serviceFeePercentage;
     }
 
-    /// @notice Accumulates fees to a fee calculator
+    /// @notice Accrues fees to a fee calculator
     /// @param _fc The fee calculator
     /// @return The updated accumulator
-    function accumulate(FeeCalculator storage _fc) internal returns (uint256) {
+    function accrue(FeeCalculator storage _fc) internal returns (uint256) {
         uint256 members = LibGovernance.membersCount();
         uint256 amount = (_fc.feesAccrued - _fc.previousAccrued) / members;
         _fc.previousAccrued += amount * members;
