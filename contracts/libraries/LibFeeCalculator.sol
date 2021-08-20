@@ -46,31 +46,23 @@ library LibFeeCalculator {
     /// @param _token The list of tokens
     function addNewMember(address _account, address _token) internal {
         LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
-
         FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[_token];
-        uint256 amount = (fc.feesAccrued - fc.previousAccrued) /
-            LibGovernance.membersCount();
+        accumulate(fc);
 
-        fc.previousAccrued = fc.feesAccrued;
-        fc.accumulator = fc.accumulator + amount;
         fc.claimedRewardsPerAccount[_account] = fc.accumulator;
     }
 
-    /// @notice Make calculations based on fee distribution and returns the claimable amount
+    /// @notice Accumulate fees for token and claim reward for claimer
     /// @param _claimer The address of the claimer
     /// @param _token The target token
+    /// @return The claimable amount
     function claimReward(address _claimer, address _token)
         internal
         returns (uint256)
     {
         LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
-
         FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[_token];
-        uint256 amount = (fc.feesAccrued - fc.previousAccrued) /
-            LibGovernance.membersCount();
-
-        fc.previousAccrued = fc.feesAccrued;
-        fc.accumulator = fc.accumulator + amount;
+        accumulate(fc);
 
         uint256 claimableAmount = fc.accumulator -
             fc.claimedRewardsPerAccount[_claimer];
@@ -98,7 +90,7 @@ library LibFeeCalculator {
     }
 
     /// @notice Sets service fee for a token
-    /// @param _token The targe token
+    /// @param _token The target token
     /// @param _serviceFeePercentage The service fee percentage to be set
     function setServiceFee(address _token, uint256 _serviceFeePercentage)
         internal
@@ -111,5 +103,17 @@ library LibFeeCalculator {
 
         FeeCalculator storage ntfc = fcs.nativeTokenFeeCalculators[_token];
         ntfc.serviceFeePercentage = _serviceFeePercentage;
+    }
+
+    /// @notice Accumulates fees to a fee calculator
+    /// @param _fc The fee calculator
+    /// @return The updated accumulator
+    function accumulate(FeeCalculator storage _fc) internal returns (uint256) {
+        uint256 members = LibGovernance.membersCount();
+        uint256 amount = (_fc.feesAccrued - _fc.previousAccrued) / members;
+        _fc.previousAccrued += amount * members;
+        _fc.accumulator = _fc.accumulator + amount;
+
+        return _fc.accumulator;
     }
 }
