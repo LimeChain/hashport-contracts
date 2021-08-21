@@ -182,7 +182,7 @@ describe('Router', async () => {
     });
 
     it('should revert governance init if percentage is more than precision', async () => {
-      const expectedRevertMessage = 'GovernanceFacet: percentage must be less or equal to precision';
+      const expectedRevertMessage = 'GovernanceFacet: percentage must be less than precision';
       const governanceFacetFactory = await ethers.getContractFactory('GovernanceFacet');
       const testFacet = await governanceFacetFactory.deploy();
       await testFacet.deployed();
@@ -190,7 +190,7 @@ describe('Router', async () => {
     });
 
     it('should revert governance init if percentage is equal to precision', async () => {
-      const expectedRevertMessage = 'GovernanceFacet: percentage must be less or equal to precision';
+      const expectedRevertMessage = 'GovernanceFacet: percentage must be less than precision';
       const governanceFacetFactory = await ethers.getContractFactory('GovernanceFacet');
       const testFacet = await governanceFacetFactory.deploy();
       await testFacet.deployed();

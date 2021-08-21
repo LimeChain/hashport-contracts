@@ -28,7 +28,7 @@ contract GovernanceFacet is IGovernance {
         require(_precision != 0, "GovernanceFacet: precision must not be zero");
         require(
             _percentage < _precision,
-            "GovernanceFacet: percentage must be less or equal to precision"
+            "GovernanceFacet: percentage must be less than precision"
         );
         gs.percentage = _percentage;
         gs.precision = _precision;
