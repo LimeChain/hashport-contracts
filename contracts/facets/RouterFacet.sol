@@ -55,7 +55,7 @@ contract RouterFacet is IRouter {
     /// @param _targetChain The target chain for the bridging operation
     /// @param _nativeToken The token to be bridged
     /// @param _amount The amount of tokens to bridge
-    /// @param _receiver The address of the receiver in the target chain
+    /// @param _receiver The address of the receiver on the target chain
     function lock(
         uint256 _targetChain,
         address _nativeToken,
@@ -105,8 +105,7 @@ contract RouterFacet is IRouter {
     }
 
     /// @notice Transfers `amount` native tokens to the `receiver` address.
-    ///         Must be authorised by a supermajority of `signatures` from the `members` set.
-    ///         The router must be authorised to transfer the ABLT tokens for the fee.
+    ///         Must be authorised by the configured supermajority threshold of `signatures` from the `members` set.
     /// @param _sourceChain The chainId of the chain that we're bridging from
     /// @param _transactionId The transaction ID + log index in the source chain
     /// @param _nativeToken The address of the native token
@@ -155,12 +154,11 @@ contract RouterFacet is IRouter {
         );
     }
 
-    /// @notice Calls burn on the given wrapped token contract with `amount` wrapped tokens from `msg.sender`.
-    ///         The router must be authorised to transfer the ABLT tokens for the fee.
-    /// @param _targetChain The chainId to which the future lock/mint will be made
-    /// @param _wrappedToken The wrapped token to burn
-    /// @param _amount The amount of wrapped tokens to be bridged
-    /// @param _receiver The address of the user in the original chain for this wrapped token
+    /// @notice Burns `amount` of `wrappedToken` initializes a bridging transaction to the target chain
+    /// @param _targetChain The target chain to which the wrapped asset will be transferred
+    /// @param _wrappedToken The address of the wrapped token
+    /// @param _amount The amount of `wrappedToken` to burn
+    /// @param _receiver The address of the receiver on the target chain
     function burn(
         uint256 _targetChain,
         address _wrappedToken,
@@ -171,11 +169,11 @@ contract RouterFacet is IRouter {
         emit Burn(_targetChain, _wrappedToken, _amount, _receiver);
     }
 
-    /// @notice Burns `amount` of `wrappedToken` using an EIP-2612 permit and initializes a bridging transaction to the original chain
-    /// @param _targetChain The target chain to which the future lock/mint will be made
-    /// @param _wrappedToken The address of the wrapped token to burn
+    /// @notice Burns `amount` of `wrappedToken` using an EIP-2612 permit and initializes a bridging transaction to the target chain
+    /// @param _targetChain The target chain to which the wrapped asset will be transferred
+    /// @param _wrappedToken The address of the wrapped token
     /// @param _amount The amount of `wrappedToken` to burn
-    /// @param _receiver The receiving address in the original chain for this wrapped token
+    /// @param _receiver The address of the receiver on the target chain
     /// @param _deadline The deadline of the provided permit
     /// @param _v The recovery id of the permit's ECDSA signature
     /// @param _r The first output of the permit's ECDSA signature
@@ -203,13 +201,12 @@ contract RouterFacet is IRouter {
     }
 
     /// @notice Mints `amount` wrapped tokens to the `receiver` address.
-    ///         Must be authorised by a supermajority of `signatures` from the `members` set.
-    ///         The router must be authorised to transfer the ABLT tokens for the fee.
+    ///         Must be authorised by the configured supermajority threshold of `signatures` from the `members` set.
     /// @param _sourceChain ID of the source chain
     /// @param _transactionId The source transaction ID + log index
     /// @param _wrappedToken The address of the wrapped token on the current chain
     /// @param _amount The desired minting amount
-    /// @param _receiver The address receiving the tokens
+    /// @param _receiver The address of the receiver on this chain
     /// @param _signatures The array of signatures from the members, authorising the operation
     function mint(
         uint256 _sourceChain,
