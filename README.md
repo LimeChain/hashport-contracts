@@ -32,7 +32,7 @@ In our terms, a `wrapped` token on a given network is a representation of a `nat
 
 Users operate with the following functionality:
 * `lock` - lock a specific amount of native tokens, specifying the receiver and target network.
-* `unlock` - unlock a previously locked amount of native tokens, providing an array of signatures, verified that tyher are signed the `members`.
+* `unlock` - unlock a previously locked amount of native tokens by providing an array of signatures. Signatures are verified that they are signed by the `members`.
 * `mint` - mint a specific amount of wrapped tokens by providing an array of signatures, verified that they are signed by the `members`.
 * `burn` - burn a specific amount of wrapped tokens.
 
@@ -121,7 +121,7 @@ npx hardhat deploy-token \
 ### Tests
 #### Unit Tests
 ```bash
-npx hardhat tests
+npx hardhat test
 ```
 
 #### Coverage
