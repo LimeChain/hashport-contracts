@@ -121,11 +121,11 @@ contract RouterFacet is IRouter {
         bytes[] calldata _signatures
     ) external override onlyNativeToken(_nativeToken) {
         LibGovernance.validateSignaturesLength(_signatures.length);
-        bytes32 ethHash = computeUnlockMessage(
+        bytes32 ethHash = computeMessage(
             _sourceChain,
             block.chainid,
             _transactionId,
-            abi.encodePacked(_nativeToken),
+            _nativeToken,
             _receiver,
             _amount
         );
@@ -217,7 +217,7 @@ contract RouterFacet is IRouter {
         bytes[] calldata _signatures
     ) external override {
         LibGovernance.validateSignaturesLength(_signatures.length);
-        bytes32 ethHash = computeMintMessage(
+        bytes32 ethHash = computeMessage(
             _sourceChain,
             block.chainid,
             _transactionId,
@@ -305,19 +305,19 @@ contract RouterFacet is IRouter {
         rs.hashesUsed[_ethHash] = true;
     }
 
-    /// @notice Computes the bytes32 ethereum signed message hash of the unlock signatures
+    /// @notice Computes the bytes32 ethereum signed message hash for signatures
     /// @param _sourceChain The chain where the bridge transaction was initiated from
     /// @param _targetChain The target chain of the bridge transaction.
-    ///                    Should always be the current chainId.
+    ///                     Should always be the current chainId.
     /// @param _transactionId The transaction ID of the bridge transaction
-    /// @param _nativeToken The token that is being bridged
-    /// @param _receiver The receiving address in the current chain
-    /// @param _amount The amount of `nativeToken` that is being bridged
-    function computeUnlockMessage(
+    /// @param _token The address of the token on this chain
+    /// @param _receiver The receiving address on the current chain
+    /// @param _amount The amount of `_token` that is being bridged
+    function computeMessage(
         uint256 _sourceChain,
         uint256 _targetChain,
         bytes memory _transactionId,
-        bytes memory _nativeToken,
+        address _token,
         address _receiver,
         uint256 _amount
     ) internal pure returns (bytes32) {
@@ -326,36 +326,7 @@ contract RouterFacet is IRouter {
                 _sourceChain,
                 _targetChain,
                 _transactionId,
-                _receiver,
-                _amount,
-                _nativeToken
-            )
-        );
-        return ECDSA.toEthSignedMessageHash(hashedData);
-    }
-
-    /// @notice Computes the bytes32 ethereum signed message hash of the mint signatures
-    /// @param _sourceChain The chain where the bridge transaction was initiated from
-    /// @param _targetChain The target chain of the bridge transaction.
-    ///                    Should always be the current chainId.
-    /// @param _transactionId The transaction ID of the bridge transaction
-    /// @param _wrappedToken The address of the wrapped token on this chain
-    /// @param _receiver The receiving address in the current chain
-    /// @param _amount The amount of `nativeToken` that is being bridged
-    function computeMintMessage(
-        uint256 _sourceChain,
-        uint256 _targetChain,
-        bytes memory _transactionId,
-        address _wrappedToken,
-        address _receiver,
-        uint256 _amount
-    ) internal pure returns (bytes32) {
-        bytes32 hashedData = keccak256(
-            abi.encode(
-                _sourceChain,
-                _targetChain,
-                _transactionId,
-                _wrappedToken,
+                _token,
                 _receiver,
                 _amount
             )

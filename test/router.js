@@ -686,7 +686,7 @@ describe('Router', async () => {
 
         receiver = owner.address;
 
-        const encodeData = ethers.utils.defaultAbiCoder.encode(['uint256', 'uint256', 'bytes', 'address', 'uint256', 'bytes'], [1, chainId, transactionId, receiver, amount, nativeToken.address]);
+        const encodeData = ethers.utils.defaultAbiCoder.encode(['uint256', 'uint256', 'bytes', 'address', 'address', 'uint256'], [1, chainId, transactionId, nativeToken.address, receiver, amount]);
         const hashMsg = ethers.utils.keccak256(encodeData);
         hashData = ethers.utils.arrayify(hashMsg);
 
