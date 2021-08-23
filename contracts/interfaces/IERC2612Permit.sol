@@ -1,5 +1,5 @@
-//SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
 /**
  * @dev Interface of the ERC2612 standard as defined in the EIP.
@@ -12,8 +12,8 @@ pragma solidity ^0.7.0;
  */
 interface IERC2612Permit {
     /**
-     * @dev Sets `amount` as the allowance of `spender` over `owner`'s tokens,
-     * given `owner`'s signed approval.
+     * @dev Sets `_amount` as the allowance of `_spender` over `_owner`'s tokens,
+     * given `_owner`'s signed approval.
      *
      * IMPORTANT: The same issues {IERC20-approve} has related to transaction
      * ordering also apply here.
@@ -22,33 +22,33 @@ interface IERC2612Permit {
      *
      * Requirements:
      *
-     * - `owner` cannot be the zero address.
-     * - `spender` cannot be the zero address.
-     * - `deadline` must be a timestamp in the future.
-     * - `v`, `r` and `s` must be a valid `secp256k1` signature from `owner`
+     * - `_owner` cannot be the zero address.
+     * - `_spender` cannot be the zero address.
+     * - `_deadline` must be a timestamp in the future.
+     * - `_v`, `_r` and `_s` must be a valid `secp256k1` signature from `_owner`
      * over the EIP712-formatted function arguments.
-     * - the signature must use ``owner``'s current nonce (see {nonces}).
+     * - the signature must use ``_owner``'s current nonce (see {nonces}).
      *
      * For more information on the signature format, see the
      * https://eips.ethereum.org/EIPS/eip-2612#specification[relevant EIP
      * section].
      */
     function permit(
-        address owner,
-        address spender,
-        uint256 amount,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
+        address _owner,
+        address _spender,
+        uint256 _amount,
+        uint256 _deadline,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
     ) external;
 
     /**
-     * @dev Returns the current ERC2612 nonce for `owner`. This value must be
+     * @dev Returns the current ERC2612 nonce for `_owner`. This value must be
      * included whenever a signature is generated for {permit}.
      *
-     * Every successful call to {permit} increases ``owner``'s nonce by one. This
+     * Every successful call to {permit} increases ``_owner``'s nonce by one. This
      * prevents a signature from being used multiple times.
      */
-    function nonces(address owner) external view returns (uint256);
+    function nonces(address _owner) external view returns (uint256);
 }

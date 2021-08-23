@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20Pausable.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-import {IERC2612Permit} from "./Interfaces/IERC2612Permit.sol";
+
+import {IERC2612Permit} from "./interfaces/IERC2612Permit.sol";
 
 /**
  * @dev Extension of {ERC20} that allows token holders to use their tokens
@@ -13,7 +14,7 @@ import {IERC2612Permit} from "./Interfaces/IERC2612Permit.sol";
  *
  * The {permit} signature mechanism conforms to the {IERC2612Permit} interface.
  */
-abstract contract ERC20Permit is ERC20Pausable, IERC2612Permit {
+abstract contract ERC20Permit is ERC20, IERC2612Permit {
     using Counters for Counters.Counter;
 
     mapping(address => Counters.Counter) private _nonces;
@@ -34,30 +35,31 @@ abstract contract ERC20Permit is ERC20Pausable, IERC2612Permit {
      * EIP712 Domain Separator is automatically recalculated.
      */
     function permit(
-        address owner,
-        address spender,
-        uint256 amount,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
+        address _owner,
+        address _spender,
+        uint256 _amount,
+        uint256 _deadline,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
     ) public virtual override {
-        require(block.timestamp <= deadline, "ERC20Permit: expired deadline");
+        require(block.timestamp <= _deadline, "ERC20Permit: expired _deadline");
 
         // Assembly for more efficiently computing:
         // bytes32 hashStruct = keccak256(
         //     abi.encode(
         //         _PERMIT_TYPEHASH,
-        //         owner,
-        //         spender,
-        //         amount,
-        //         _nonces[owner].current(),
-        //         deadline
+        //         _owner,
+        //         _spender,
+        //         _amount,
+        //         nonces[_owner].current(),
+        //         _deadline
         //     )
         // );
 
         bytes32 hashStruct;
-        uint256 nonce = _nonces[owner].current();
+        Counters.Counter storage nonceCounter = _nonces[_owner];
+        uint256 nonce = nonceCounter.current();
 
         assembly {
             // Load free memory pointer
@@ -68,11 +70,11 @@ abstract contract ERC20Permit is ERC20Pausable, IERC2612Permit {
                 memPtr,
                 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9
             )
-            mstore(add(memPtr, 32), owner)
-            mstore(add(memPtr, 64), spender)
-            mstore(add(memPtr, 96), amount)
+            mstore(add(memPtr, 32), _owner)
+            mstore(add(memPtr, 64), _spender)
+            mstore(add(memPtr, 96), _amount)
             mstore(add(memPtr, 128), nonce)
-            mstore(add(memPtr, 160), deadline)
+            mstore(add(memPtr, 160), _deadline)
 
             hashStruct := keccak256(memPtr, 192)
         }
@@ -100,37 +102,36 @@ abstract contract ERC20Permit is ERC20Pausable, IERC2612Permit {
             hash := keccak256(memPtr, 66)
         }
 
-        address signer = _recover(hash, v, r, s);
+        address signer = _recover(hash, _v, _r, _s);
 
-        require(signer == owner, "ERC20Permit: invalid signature");
+        require(signer == _owner, "ERC20Permit: invalid signature");
 
-        _nonces[owner].increment();
-        _approve(owner, spender, amount);
+        nonceCounter.increment();
+        _approve(_owner, _spender, _amount);
     }
 
     /**
      * @dev See {IERC2612Permit-nonces}.
      */
-    function nonces(address owner) public view override returns (uint256) {
-        return _nonces[owner].current();
+    function nonces(address _owner) public view override returns (uint256) {
+        return _nonces[_owner].current();
     }
 
     function _updateDomainSeparator() private returns (bytes32) {
         uint256 chainID = _chainID();
 
         // no need for assembly, running very rarely
-        bytes32 newDomainSeparator =
-            keccak256(
-                abi.encode(
-                    keccak256(
-                        "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-                    ),
-                    keccak256(bytes(name())), // ERC-20 Name
-                    keccak256(bytes("1")), // Version
-                    chainID,
-                    address(this)
-                )
-            );
+        bytes32 newDomainSeparator = keccak256(
+            abi.encode(
+                keccak256(
+                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+                ),
+                keccak256(bytes(name())), // ERC-20 Name
+                keccak256(bytes("1")), // Version
+                chainID,
+                address(this)
+            )
+        );
 
         domainSeparators[chainID] = newDomainSeparator;
 
@@ -148,7 +149,7 @@ abstract contract ERC20Permit is ERC20Pausable, IERC2612Permit {
         return _updateDomainSeparator();
     }
 
-    function _chainID() private pure returns (uint256) {
+    function _chainID() private view returns (uint256) {
         uint256 chainID;
         assembly {
             chainID := chainid()
@@ -158,10 +159,10 @@ abstract contract ERC20Permit is ERC20Pausable, IERC2612Permit {
     }
 
     function _recover(
-        bytes32 hash,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
+        bytes32 _hash,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
     ) internal pure returns (address) {
         // EIP-2 still allows signature malleability for ecrecover(). Remove this possibility and make the signature
         // unique. Appendix F in the Ethereum Yellow paper (https://ethereum.github.io/yellowpaper/paper.pdf), defines
@@ -173,18 +174,18 @@ abstract contract ERC20Permit is ERC20Pausable, IERC2612Permit {
         // vice versa. If your library also generates signatures with 0/1 for v instead 27/28, add 27 to v to accept
         // these malleable signatures as well.
         if (
-            uint256(s) >
+            uint256(_s) >
             0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0
         ) {
-            revert("ECDSA: invalid signature 's' value");
+            revert("ECDSA: invalid signature '_s' value");
         }
 
-        if (v != 27 && v != 28) {
-            revert("ECDSA: invalid signature 'v' value");
+        if (_v != 27 && _v != 28) {
+            revert("ECDSA: invalid signature '_v' value");
         }
 
         // If the signature is valid (and not malleable), return the signer address
-        address signer = ecrecover(hash, v, r, s);
+        address signer = ecrecover(_hash, _v, _r, _s);
         require(signer != address(0), "ECDSA: invalid signature");
 
         return signer;

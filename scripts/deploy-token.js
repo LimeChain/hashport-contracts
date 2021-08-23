@@ -1,10 +1,15 @@
-const deploy = async (controllerAddress, name, symbol, decimals) => {
-    console.log('Deployng Wrapped Token...');
-    const WrappedToken = await ethers.getContractFactory("WrappedToken");
-    const wrappedTokenInstance = await WrappedToken.deploy(name, symbol, decimals, controllerAddress);
-    await wrappedTokenInstance.deployed();
-    console.log(`Wrtapped token deployed successfully at address ${wrappedTokenInstance.address}`);
-    console.log('Deployment script finished successfully');
-};
+const hardhat = require('hardhat')
+const ethers = hardhat.ethers;
 
-module.exports = deploy;
+async function deployToken(name, symbol, decimals) {
+  await hardhat.run('compile');
+
+  const tokenFactory = await ethers.getContractFactory('Token');
+  const token = await tokenFactory.deploy(name, symbol, decimals);
+
+  console.log('Deploying contract, please wait...');
+  await token.deployed();
+  console.log('Token deployed to address: ', token.address);
+}
+
+module.exports = deployToken;

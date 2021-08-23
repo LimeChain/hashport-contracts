@@ -10,16 +10,15 @@
     "license": "ISC",
     "dependencies": {
         "@hashgraph/sdk": "^2.0.7",
-        "@openzeppelin/contracts": "^3.3.0",
-        "yargs": "^16.2.0"
+        "@openzeppelin/contracts": "^4.2.0"
     },
     "devDependencies": {
         "@nomiclabs/hardhat-ethers": "^2.0.2",
         "@nomiclabs/hardhat-waffle": "^2.0.1",
         "chai": "^4.3.4",
         "ethereum-waffle": "^3.3.0",
-        "ethers": "^5.1.0",
-        "hardhat": "^2.1.2",
+        "ethers": "^5.4.4",
+        "hardhat": "^2.1.6",
         "hardhat-gas-reporter": "^1.0.4",
         "solidity-coverage": "^0.7.16"
     }
