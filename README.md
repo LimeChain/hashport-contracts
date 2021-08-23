@@ -26,7 +26,7 @@ This repository contains the smart contracts for the [Hedera <-> EVM Bridge](htt
 ## Overview
 Core functionality of [Hedera <-> EVM Bridge](https://github.com/LimeChain/hedera-evm-bridge-validator).
 
-In essence, the business logic behind the smart contracts is to allow the possibility to transfer a token from one network to another `EVM` network.
+In essence, the business logic behind the smart contracts is to allow the possibility to transfer a token from one network to another.
 Of course, you cannot directly transfer the token to the network, so in order this to be possible it has to have a representation of that token, a so-called `wrapped` version of the original `native` token.
 In our terms, a `wrapped` token on a given network is a representation of a `native` token on another network. A `native` token can have `wrapped` representations on more than one `EVM` network.
 
