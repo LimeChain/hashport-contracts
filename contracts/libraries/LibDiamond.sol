@@ -30,6 +30,8 @@ library LibDiamond {
         mapping(bytes4 => bool) supportedInterfaces;
         // owner of the contract
         address contractOwner;
+        // used to restrict certial functionality in case of an emergency stop
+        bool paused;
     }
 
     function diamondStorage()
@@ -48,15 +50,37 @@ library LibDiamond {
         address indexed newOwner
     );
 
+    event Paused(address indexed account);
+    event Unpaused(address indexed account);
+
     function setContractOwner(address _newOwner) internal {
         DiamondStorage storage ds = diamondStorage();
         address previousOwner = ds.contractOwner;
         ds.contractOwner = _newOwner;
+        ds.paused = false;
         emit OwnershipTransferred(previousOwner, _newOwner);
+    }
+
+    function pause() internal {
+        enforceNotPaused();
+        DiamondStorage storage ds = diamondStorage();
+        ds.paused = true;
+        emit Paused(msg.sender);
+    }
+
+    function unpause() internal {
+        enforcePaused();
+        DiamondStorage storage ds = diamondStorage();
+        ds.paused = false;
+        emit Unpaused(msg.sender);
     }
 
     function contractOwner() internal view returns (address contractOwner_) {
         contractOwner_ = diamondStorage().contractOwner;
+    }
+
+    function paused() internal view returns (bool) {
+        return diamondStorage().paused;
     }
 
     function enforceIsContractOwner() internal view {
@@ -64,6 +88,14 @@ library LibDiamond {
             msg.sender == diamondStorage().contractOwner,
             "LibDiamond: Must be contract owner"
         );
+    }
+
+    function enforceNotPaused() internal view {
+        require(!diamondStorage().paused, "LibDiamond: paused");
+    }
+
+    function enforcePaused() internal view {
+        require(diamondStorage().paused, "LibDiamond: not paused");
     }
 
     event DiamondCut(

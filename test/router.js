@@ -13,6 +13,7 @@ describe('Router', async () => {
   let router;
   let routerFacet;
   let ownershipFacet;
+  let pausableFacet;
   let governanceFacet;
   let feeCalculatorFacet;
   let cutFacet;
@@ -50,6 +51,10 @@ describe('Router', async () => {
     routerFacet = await routerFacetFactory.deploy();
     await routerFacet.deployed();
 
+    const pausableFacetFactory = await ethers.getContractFactory('PausableFacet');
+    pausableFacet = await pausableFacetFactory.deploy();
+    await pausableFacet.deployed();
+
     const ownershipFacetFactory = await ethers.getContractFactory('OwnershipFacet');
     ownershipFacet = await ownershipFacetFactory.deploy();
     await ownershipFacet.deployed();
@@ -76,6 +81,7 @@ describe('Router', async () => {
       [feeCalculatorFacet.address, 0, getSelectors(feeCalculatorFacet)],
       [governanceFacet.address, 0, getSelectors(governanceFacet)],
       [ownershipFacet.address, 0, getSelectors(ownershipFacet)],
+      [pausableFacet.address, 0, getSelectors(pausableFacet)],
       [routerFacet.address, 0, getSelectors(routerFacet)],
     ];
 
@@ -99,6 +105,7 @@ describe('Router', async () => {
       expect(diamond.address).to.be.properAddress;
       expect(router.address).to.be.properAddress;
       expect(routerFacet.address).to.be.properAddress;
+      expect(pausableFacet.address).to.be.properAddress;
       expect(ownershipFacet.address).to.be.properAddress;
       expect(feeCalculatorFacet.address).to.be.properAddress;
       expect(cutFacet.address).to.be.properAddress;
@@ -115,12 +122,16 @@ describe('Router', async () => {
       expect(await router.membersPrecision()).to.equal(GOVERNANCE_PRECISION);
       expect(await router.membersPercentage()).to.equal(GOVERNANCE_PERCENTAGE);
 
+      // Pausable
+      expect(await router.paused()).to.be.false;
+
       // Ownership
       expect(await router.owner()).to.equal(owner.address);
 
       expect(await router.facetAddresses())
-        .to.include(ownershipFacet.address)
         .to.include(routerFacet.address)
+        .to.include(pausableFacet.address)
+        .to.include(ownershipFacet.address)
         .to.include(feeCalculatorFacet.address)
         .to.include(cutFacet.address)
         .to.include(loupeFacet.address);
@@ -142,6 +153,9 @@ describe('Router', async () => {
             break;
           case ownershipFacet.address:
             expect(facet.functionSelectors).to.deep.equal(getSelectors(ownershipFacet));
+            break;
+          case pausableFacet.address:
+            expect(facet.functionSelectors).to.deep.equal(getSelectors(pausableFacet));
             break;
           case routerFacet.address:
             expect(facet.functionSelectors).to.deep.equal(getSelectors(routerFacet));
@@ -436,6 +450,70 @@ describe('Router', async () => {
     });
   });
 
+  describe('PausableFacet', async () => {
+    it('should pause successfully', async () => {
+      await router.pause();
+
+      expect(await router.paused()).to.be.true;
+    });
+
+    it('should emit pause event', async () => {
+      await expect(router.pause())
+        .to.emit(router, 'Paused')
+        .withArgs(owner.address);
+    });
+
+    it('should unpause successfully', async () => {
+      // given
+      await router.pause();
+
+      // when
+      await router.unpause();
+
+      // then
+      expect(await router.paused()).to.be.false;
+    });
+
+    it('should emit unpause event', async () => {
+      // given
+      await router.pause()
+      // then
+      await expect(router.unpause())
+        .to.emit(router, 'Unpaused')
+        .withArgs(owner.address);
+    });
+
+    it('should revert pause when already paused', async () => {
+      const expectedRevertMessage = 'LibDiamond: paused';
+      // given
+      await router.pause();
+
+      await expect(router.pause())
+        .to.be.revertedWith(expectedRevertMessage);
+    });
+
+    it('should revert unpause when already unpaused', async () => {
+      const expectedRevertMessage = 'LibDiamond: not paused';
+
+      await expect(router.unpause())
+        .to.be.revertedWith(expectedRevertMessage);
+    });
+
+    it('should revert pause when caller is not owner', async () => {
+      const expectedRevertMessage = 'LibDiamond: Must be contract owner';
+
+      await expect(router.connect(nonMember).unpause())
+        .to.be.revertedWith(expectedRevertMessage);
+    });
+
+    it('should revert unpause when caller is not owner', async () => {
+      const expectedRevertMessage = 'LibDiamond: Must be contract owner';
+
+      await expect(router.connect(nonMember).unpause())
+        .to.be.revertedWith(expectedRevertMessage);
+    });
+  });
+
   describe('RouterFacet', async () => {
     describe('updateNativeToken', async () => {
       it('should successfully add native token', async () => {
@@ -628,6 +706,18 @@ describe('Router', async () => {
           .to.be.revertedWith(expectedRevertMessage);
       });
 
+      it('should revert when contract is paused', async () => {
+        // given:
+        const expectedRevertMessage = 'LibDiamond: paused';
+        await router.pause();
+
+        // then
+        await expect(router
+          .connect(nonMember)
+          .lock(1, nativeToken.address, amount, receiver))
+          .to.be.revertedWith(expectedRevertMessage);
+      });
+
       it('should lock with permit', async () => {
         const permit = await createPermit(nonMember, router.address, amount, permitDeadline, nativeToken);
         await router.connect(nonMember).lockWithPermit(1, nativeToken.address, amount, receiver, permitDeadline, permit.v, permit.r, permit.s);
@@ -759,6 +849,16 @@ describe('Router', async () => {
 
       it('should revert when provided data is invalid', async () => {
         const expectedRevertMessage = 'Governance: invalid signer';
+        await expect(router.connect(nonMember)
+          .unlock(1, transactionId, nativeToken.address, 1, receiver, [aliceSignature, bobSignature]))
+          .to.be.revertedWith(expectedRevertMessage);
+      });
+
+      it('should revert when contract is paused', async () => {
+        // given
+        const expectedRevertMessage = 'LibDiamond: paused';
+        await router.pause();
+        // then
         await expect(router.connect(nonMember)
           .unlock(1, transactionId, nativeToken.address, 1, receiver, [aliceSignature, bobSignature]))
           .to.be.revertedWith(expectedRevertMessage);
@@ -900,7 +1000,23 @@ describe('Router', async () => {
           .to.be.revertedWith(expectedRevertMessage);
       });
 
-      describe('pausability/ownership', async () => {
+      it('should revert when contract is paused', async () => {
+        // given
+        const expectedRevertMessage = 'LibDiamond: paused';
+        await router.pause();
+
+        // then
+        await expect(router.connect(nonMember).mint(
+          1,
+          transactionId,
+          wrappedToken.address,
+          receiver,
+          amount,
+          [aliceSignature, bobSignature]))
+          .to.be.revertedWith(expectedRevertMessage);
+      });
+
+      describe('pausability/ownership on tokens', async () => {
         beforeEach(async () => {
           wrappedToken = await wrappedTokenFactory.deploy(wrappedTokenName, wrappedTokenSymbol, wrappedTokenDecimals);
           await wrappedToken.deployed();
@@ -995,6 +1111,15 @@ describe('Router', async () => {
 
       it('should revert when router cannot burn', async () => {
         const expectedRevertMessage = 'Ownable: caller is not the owner';
+        await expect(router.connect(nonMember).burn(1, wrappedToken.address, amount, receiver))
+          .to.be.revertedWith(expectedRevertMessage);
+      });
+
+      it('should revert when contract is paused', async () => {
+        // given
+        const expectedRevertMessage = 'LibDiamond: paused';
+        await router.pause();
+        // then
         await expect(router.connect(nonMember).burn(1, wrappedToken.address, amount, receiver))
           .to.be.revertedWith(expectedRevertMessage);
       });
@@ -1181,6 +1306,14 @@ describe('Router', async () => {
       await expect(router.connect(nonMember).claim(nativeToken.address)).to.be.revertedWith(expectedRevertMessage);
     });
 
+    it('should revert when contract is paused', async () => {
+      const expectedRevertMessage = 'LibDiamond: paused';
+      // given
+      await router.pause();
+      // then
+      await expect(router.connect(alice).claim(nativeToken.address)).to.be.revertedWith(expectedRevertMessage);
+    });
+
     it('should have been claimed after member removal', async () => {
       const claimAmount = serviceFee.div(3);
       await expect(router.updateMember(alice.address, false))
@@ -1304,7 +1437,7 @@ describe('Router', async () => {
 
       const wrappedToken = wrappedTokenFactory.attach(expectedContractAddress);
 
-      const pausabilityFacetFactory = await ethers.getContractFactory('PausabilityFacet');
+      const pausabilityFacetFactory = await ethers.getContractFactory('TokenPausabilityFacet');
       const pausabilityFacet = await pausabilityFacetFactory.deploy();
       await pausabilityFacet.deployed();
 
@@ -1313,7 +1446,7 @@ describe('Router', async () => {
       ];
 
       await expect(router.diamondCut(diamondCut, ethers.constants.AddressZero, '0x')).to.not.be.reverted;
-      const contract = await diamondAsFacet(diamond, 'PausabilityFacet');
+      const contract = await diamondAsFacet(diamond, 'TokenPausabilityFacet');
       await expect(contract.unpause(wrappedToken.address)).to.be.revertedWith('Pausable: not paused');
       await contract.pause(wrappedToken.address);
 

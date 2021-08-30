@@ -7,8 +7,9 @@ import "./IDiamondCut.sol";
 import "./IDiamondLoupe.sol";
 import "./IERC173.sol";
 import "./IFeeCalculator.sol";
-import "./IRouter.sol";
 import "./IGovernance.sol";
+import "./IPausable.sol";
+import "./IRouter.sol";
 
 interface IRouterDiamond is
     IERC165,
@@ -17,5 +18,6 @@ interface IRouterDiamond is
     IGovernance,
     IFeeCalculator,
     IERC173,
+    IPausable,
     IRouter
 {}
