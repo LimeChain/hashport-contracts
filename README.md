@@ -118,6 +118,17 @@ npx hardhat deploy-token \
     --decimals <decimals of the token>
 ```
 
+#### Update Native Token to Router
+Updates a native token to the Router contract:
+```bash
+npx hardhat update-native-token \
+    --network <network name> \
+    --router <address of the router diamond contract> \
+    --native-token <address of the native token> \
+    --fee-percentage <fee percetange for the given token> \
+    --status <true|false (default true)>
+```
+
 ### Tests
 #### Unit Tests
 ```bash
