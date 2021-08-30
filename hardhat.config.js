@@ -35,6 +35,16 @@ task('deploy-token', 'Deploys token to the provided network')
         await deployToken(taskArgs.name, taskArgs.symbol, taskArgs.decimals);
     });
 
+task('update-native-token', 'Updates native token to router')
+    .addParam('router', 'The address of the router contract')
+    .addParam('nativeToken', 'The address of the native token')
+    .addParam('feePercentage', 'The fee percentage for the token')
+    .addParam('status', 'The to-be-updated status of the token', true, types.boolean)
+    .setAction(async (taskArgs) => {
+        const updateNativeToken = require('./scripts/update-native-token');
+        await updateNativeToken(taskArgs.router, taskArgs.nativeToken, taskArgs.feePercentage, taskArgs.status);
+    });
+
 task('deploy-wrapped-token', 'Deploy wrapped token from router contract')
     .addParam('router', 'The address of the router contract')
     .addParam('source', 'The chain id of the soure chain, where the native token is deployed')

@@ -31,7 +31,7 @@ contract FeeCalculatorFacet is IFeeCalculator {
         return LibFeeCalculator.precision();
     }
 
-    /// @notice Sets the service fee for this chain
+    /// @notice Sets the service fee for a token
     /// @param _token The target token
     /// @param _serviceFeePercentage The new service fee
     function setServiceFee(address _token, uint256 _serviceFeePercentage)
