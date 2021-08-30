@@ -30,7 +30,7 @@ library LibDiamond {
         mapping(bytes4 => bool) supportedInterfaces;
         // owner of the contract
         address contractOwner;
-        // used to restrict certial functionality in case of an emergency stop
+        // used to restrict certain functionality in case of an emergency stop
         bool paused;
     }
 
