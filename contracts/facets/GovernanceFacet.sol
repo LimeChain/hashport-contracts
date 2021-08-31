@@ -39,6 +39,11 @@ contract GovernanceFacet is IGovernance {
         }
     }
 
+    /// @return The current admin
+    function admin() external view override returns (address) {
+        return LibGovernance.admin();
+    }
+
     /// @return The current percentage for minimum amount of members signatures
     function membersPercentage() external view override returns (uint256) {
         return LibGovernance.percentage();
@@ -47,6 +52,16 @@ contract GovernanceFacet is IGovernance {
     /// @return The current precision for minimum amount of members signatures
     function membersPrecision() external view override returns (uint256) {
         return LibGovernance.precision();
+    }
+
+    /// @notice Updates the admin address
+    /// @param _newAdmin The address of the new admin
+    function updateAdmin(address _newAdmin) external override {
+        LibDiamond.enforceIsContractOwner();
+        address previousAdmin = LibGovernance.admin();
+        LibGovernance.updateAdmin(_newAdmin);
+
+        emit AdminUpdated(previousAdmin, _newAdmin);
     }
 
     /// @notice Updates the percentage of minimum amount of members signatures required

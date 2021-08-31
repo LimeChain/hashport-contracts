@@ -343,7 +343,7 @@ contract RouterFacet is IRouter {
 
     /// Modifier to make a function callable only when the contract is not paused
     modifier whenNotPaused() {
-        LibDiamond.enforceNotPaused();
+        LibGovernance.enforceNotPaused();
         _;
     }
 }

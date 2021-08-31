@@ -8,6 +8,9 @@ interface IGovernance {
     /// @notice An event emitted once member is updated
     event MemberUpdated(address member, bool status);
 
+    /// @notice An event emitted once the admin is updated
+    event AdminUpdated(address indexed previousAdmin, address indexed newAdmin);
+
     /// @notice Initializes the Governance facet with an initial set of members
     /// @param _members The initial set of members
     /// @param _percentage The percentage of minimum amount of members signatures required
@@ -18,11 +21,18 @@ interface IGovernance {
         uint256 _precision
     ) external;
 
+    /// @return The current admin
+    function admin() external view returns (address);
+
     /// @return The current percentage for minimum amount of members signatures
     function membersPercentage() external view returns (uint256);
 
     /// @return The current precision for minimum amount of members signatures
     function membersPrecision() external view returns (uint256);
+
+    /// @notice Updates the admin address
+    /// @param _newAdmin The address of the new admin
+    function updateAdmin(address _newAdmin) external;
 
     /// @notice Updates the percentage of minimum amount of members signatures required
     /// @param _percentage The new percentage

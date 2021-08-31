@@ -18,6 +18,10 @@ library LibGovernance {
         uint256 precision;
         // Percentage for minimum amount of members signatures required
         uint256 percentage;
+        // Admin of the contract
+        address admin;
+        // used to restrict certain functionality in case of an emergency stop
+        bool paused;
     }
 
     function governanceStorage() internal pure returns (Storage storage gs) {
@@ -25,6 +29,16 @@ library LibGovernance {
         assembly {
             gs.slot := position
         }
+    }
+
+    /// @return Returns the admin
+    function admin() internal view returns (address) {
+        return governanceStorage().admin;
+    }
+
+    /// @return Returns true if the contract is paused, and false otherwise
+    function paused() internal view returns (bool) {
+        return governanceStorage().paused;
     }
 
     /// @return The current percentage for minimum amount of members signatures
@@ -37,6 +51,38 @@ library LibGovernance {
     function precision() internal view returns (uint256) {
         Storage storage gs = governanceStorage();
         return gs.precision;
+    }
+
+    function enforceNotPaused() internal view {
+        require(!governanceStorage().paused, "LibGovernance: paused");
+    }
+
+    function enforcePaused() internal view {
+        require(governanceStorage().paused, "LibGovernance: not paused");
+    }
+
+    function enforceIsAdmin() internal view {
+        require(
+            msg.sender == governanceStorage().admin,
+            "LibGovernance: Must be contract admin"
+        );
+    }
+
+    function updateAdmin(address _newAdmin) internal {
+        Storage storage ds = governanceStorage();
+        ds.admin = _newAdmin;
+    }
+
+    function pause() internal {
+        enforceNotPaused();
+        Storage storage ds = governanceStorage();
+        ds.paused = true;
+    }
+
+    function unpause() internal {
+        enforcePaused();
+        Storage storage ds = governanceStorage();
+        ds.paused = false;
     }
 
     function updateMembersPercentage(uint256 _newPercentage) internal {

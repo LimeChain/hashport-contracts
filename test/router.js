@@ -22,6 +22,7 @@ describe('Router', async () => {
   let alice;
   let bob;
   let carol;
+  let admin;
   let nonMember;
 
   const chainId = network.config.chainId;
@@ -39,7 +40,7 @@ describe('Router', async () => {
   const wrappedTokenDecimals = 18;
 
   beforeEach(async () => {
-    [owner, alice, bob, carol, nonMember] = await ethers.getSigners();
+    [owner, alice, bob, carol, admin, nonMember] = await ethers.getSigners();
 
     nativeTokenFactory = await ethers.getContractFactory('Token');
     nativeToken = await nativeTokenFactory.deploy('NativeToken', 'NT', 18);
@@ -115,6 +116,7 @@ describe('Router', async () => {
       expect(await router.serviceFeePrecision()).to.equal(FEE_CALCULATOR_PRECISION);
 
       // Governance
+      expect(await router.admin()).to.equal(ethers.constants.AddressZero);
       expect(await router.membersCount()).to.equal(1);
       expect(await router.isMember(alice.address)).to.be.true;
       expect(await router.memberAt(0)).to.equal(alice.address);
@@ -234,6 +236,25 @@ describe('Router', async () => {
   });
 
   describe('GovernanceFacet', async () => {
+    describe('updateAdmin', async () => {
+      it('should update admin', async () => {
+        await router.updateAdmin(admin.address);
+
+        expect(await router.admin()).to.equal(admin.address);
+      });
+
+      it('should emit event', async () => {
+        await expect(await router.updateAdmin(admin.address))
+          .to.emit(router, 'AdminUpdated')
+          .withArgs(ethers.constants.AddressZero, admin.address);
+      });
+
+      it('should revert when trying to execute transaction with not owner', async () => {
+        const expectedRevertMessage = 'LibDiamond: Must be contract owner';
+        await expect(router.connect(nonMember).updateAdmin(admin.address)).to.be.revertedWith(expectedRevertMessage);
+      });
+    });
+
     describe('updateMembersPercentage', async () => {
       it('should update members percentage', async () => {
         const newMembersPercentage = GOVERNANCE_PERCENTAGE + 1;
@@ -451,24 +472,28 @@ describe('Router', async () => {
   });
 
   describe('PausableFacet', async () => {
+    beforeEach(async () => {
+      await router.updateAdmin(admin.address);
+    });
+
     it('should pause successfully', async () => {
-      await router.pause();
+      await router.connect(admin).pause();
 
       expect(await router.paused()).to.be.true;
     });
 
     it('should emit pause event', async () => {
-      await expect(router.pause())
+      await expect(router.connect(admin).pause())
         .to.emit(router, 'Paused')
-        .withArgs(owner.address);
+        .withArgs(admin.address);
     });
 
     it('should unpause successfully', async () => {
       // given
-      await router.pause();
+      await router.connect(admin).pause();
 
       // when
-      await router.unpause();
+      await router.connect(admin).unpause();
 
       // then
       expect(await router.paused()).to.be.false;
@@ -476,38 +501,38 @@ describe('Router', async () => {
 
     it('should emit unpause event', async () => {
       // given
-      await router.pause()
+      await router.connect(admin).pause()
       // then
-      await expect(router.unpause())
+      await expect(router.connect(admin).unpause())
         .to.emit(router, 'Unpaused')
-        .withArgs(owner.address);
+        .withArgs(admin.address);
     });
 
     it('should revert pause when already paused', async () => {
-      const expectedRevertMessage = 'LibDiamond: paused';
+      const expectedRevertMessage = 'LibGovernance: paused';
       // given
-      await router.pause();
+      await router.connect(admin).pause();
 
-      await expect(router.pause())
+      await expect(router.connect(admin).pause())
         .to.be.revertedWith(expectedRevertMessage);
     });
 
     it('should revert unpause when already unpaused', async () => {
-      const expectedRevertMessage = 'LibDiamond: not paused';
+      const expectedRevertMessage = 'LibGovernance: not paused';
 
-      await expect(router.unpause())
+      await expect(router.connect(admin).unpause())
         .to.be.revertedWith(expectedRevertMessage);
     });
 
     it('should revert pause when caller is not owner', async () => {
-      const expectedRevertMessage = 'LibDiamond: Must be contract owner';
+      const expectedRevertMessage = 'LibGovernance: Must be contract admin';
 
       await expect(router.connect(nonMember).unpause())
         .to.be.revertedWith(expectedRevertMessage);
     });
 
     it('should revert unpause when caller is not owner', async () => {
-      const expectedRevertMessage = 'LibDiamond: Must be contract owner';
+      const expectedRevertMessage = 'LibGovernance: Must be contract admin';
 
       await expect(router.connect(nonMember).unpause())
         .to.be.revertedWith(expectedRevertMessage);
@@ -708,8 +733,9 @@ describe('Router', async () => {
 
       it('should revert when contract is paused', async () => {
         // given:
-        const expectedRevertMessage = 'LibDiamond: paused';
-        await router.pause();
+        const expectedRevertMessage = 'LibGovernance: paused';
+        await router.updateAdmin(admin.address);
+        await router.connect(admin).pause();
 
         // then
         await expect(router
@@ -729,6 +755,20 @@ describe('Router', async () => {
         expect(routerBalance).to.equal(amount);
 
         expect(await nativeToken.nonces(nonMember.address)).to.equal(1);
+      });
+
+      it('should revert lock with permit when contract is paused', async () => {
+        // given:
+        const expectedRevertMessage = 'LibGovernance: paused';
+        const permit = await createPermit(nonMember, router.address, amount, permitDeadline, nativeToken);
+        await router.updateAdmin(admin.address);
+        await router.connect(admin).pause();
+
+        // then
+        await expect(router
+          .connect(nonMember)
+          .lockWithPermit(1, nativeToken.address, amount, receiver, permitDeadline, permit.v, permit.r, permit.s))
+          .to.be.revertedWith(expectedRevertMessage);
       });
 
       it('should revert when native token is not found', async () => {
@@ -856,8 +896,9 @@ describe('Router', async () => {
 
       it('should revert when contract is paused', async () => {
         // given
-        const expectedRevertMessage = 'LibDiamond: paused';
-        await router.pause();
+        const expectedRevertMessage = 'LibGovernance: paused';
+        await router.updateAdmin(admin.address);
+        await router.connect(admin).pause();
         // then
         await expect(router.connect(nonMember)
           .unlock(1, transactionId, nativeToken.address, 1, receiver, [aliceSignature, bobSignature]))
@@ -1002,8 +1043,9 @@ describe('Router', async () => {
 
       it('should revert when contract is paused', async () => {
         // given
-        const expectedRevertMessage = 'LibDiamond: paused';
-        await router.pause();
+        const expectedRevertMessage = 'LibGovernance: paused';
+        await router.updateAdmin(admin.address);
+        await router.connect(admin).pause();
 
         // then
         await expect(router.connect(nonMember).mint(
@@ -1115,12 +1157,25 @@ describe('Router', async () => {
           .to.be.revertedWith(expectedRevertMessage);
       });
 
-      it('should revert when contract is paused', async () => {
+      it('should revert burn when contract is paused', async () => {
         // given
-        const expectedRevertMessage = 'LibDiamond: paused';
-        await router.pause();
+        const expectedRevertMessage = 'LibGovernance: paused';
+        await router.updateAdmin(admin.address);
+        await router.connect(admin).pause();
         // then
         await expect(router.connect(nonMember).burn(1, wrappedToken.address, amount, receiver))
+          .to.be.revertedWith(expectedRevertMessage);
+      });
+
+      it('should revert burn with permit when contract is paused', async () => {
+        // given
+        const expectedRevertMessage = 'LibGovernance: paused';
+        const permit = await createPermit(nonMember, router.address, amount, permitDeadline, wrappedToken);
+        await router.updateAdmin(admin.address);
+        await router.connect(admin).pause();
+        // then
+        await expect(router.connect(nonMember)
+          .burnWithPermit(1, wrappedToken.address, amount, receiver, permitDeadline, permit.v, permit.r, permit.s))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
@@ -1307,9 +1362,10 @@ describe('Router', async () => {
     });
 
     it('should revert when contract is paused', async () => {
-      const expectedRevertMessage = 'LibDiamond: paused';
+      const expectedRevertMessage = 'LibGovernance: paused';
       // given
-      await router.pause();
+      await router.updateAdmin(admin.address);
+      await router.connect(admin).pause();
       // then
       await expect(router.connect(alice).claim(nativeToken.address)).to.be.revertedWith(expectedRevertMessage);
     });
