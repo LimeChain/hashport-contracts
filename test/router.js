@@ -732,7 +732,7 @@ describe('Router', async () => {
       });
 
       it('should revert when contract is paused', async () => {
-        // given:
+        // given
         const expectedRevertMessage = 'LibGovernance: paused';
         await router.updateAdmin(admin.address);
         await router.connect(admin).pause();
@@ -758,7 +758,7 @@ describe('Router', async () => {
       });
 
       it('should revert lock with permit when contract is paused', async () => {
-        // given:
+        // given
         const expectedRevertMessage = 'LibGovernance: paused';
         const permit = await createPermit(nonMember, router.address, amount, permitDeadline, nativeToken);
         await router.updateAdmin(admin.address);
