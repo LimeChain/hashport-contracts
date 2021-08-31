@@ -61,13 +61,6 @@ library LibGovernance {
         require(governanceStorage().paused, "LibGovernance: not paused");
     }
 
-    function enforceIsAdmin() internal view {
-        require(
-            msg.sender == governanceStorage().admin,
-            "LibGovernance: Must be contract admin"
-        );
-    }
-
     function updateAdmin(address _newAdmin) internal {
         Storage storage ds = governanceStorage();
         ds.admin = _newAdmin;
