@@ -60,7 +60,7 @@ contract RouterFacet is IRouter {
         address _nativeToken,
         uint256 _amount,
         bytes memory _receiver
-    ) public override onlyNativeToken(_nativeToken) {
+    ) public override whenNotPaused onlyNativeToken(_nativeToken) {
         IERC20(_nativeToken).safeTransferFrom(
             msg.sender,
             address(this),
@@ -118,7 +118,7 @@ contract RouterFacet is IRouter {
         uint256 _amount,
         address _receiver,
         bytes[] calldata _signatures
-    ) external override onlyNativeToken(_nativeToken) {
+    ) external override whenNotPaused onlyNativeToken(_nativeToken) {
         LibGovernance.validateSignaturesLength(_signatures.length);
         bytes32 ethHash = computeMessage(
             _sourceChain,
@@ -163,7 +163,7 @@ contract RouterFacet is IRouter {
         address _wrappedToken,
         uint256 _amount,
         bytes memory _receiver
-    ) public override {
+    ) public override whenNotPaused {
         WrappedToken(_wrappedToken).burnFrom(msg.sender, _amount);
         emit Burn(_targetChain, _wrappedToken, _amount, _receiver);
     }
@@ -214,7 +214,7 @@ contract RouterFacet is IRouter {
         address _receiver,
         uint256 _amount,
         bytes[] calldata _signatures
-    ) external override {
+    ) external override whenNotPaused {
         LibGovernance.validateSignaturesLength(_signatures.length);
         bytes32 ethHash = computeMessage(
             _sourceChain,
@@ -338,6 +338,12 @@ contract RouterFacet is IRouter {
             LibRouter.containsNativeToken(_nativeToken),
             "RouterFacet: native token not found"
         );
+        _;
+    }
+
+    /// Modifier to make a function callable only when the contract is not paused
+    modifier whenNotPaused() {
+        LibGovernance.enforceNotPaused();
         _;
     }
 }

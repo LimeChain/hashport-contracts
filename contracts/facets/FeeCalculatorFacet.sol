@@ -92,6 +92,7 @@ contract FeeCalculatorFacet is IFeeCalculator {
 
     /// @notice Sends out the reward for a Token accumulated by the caller
     function claim(address _token) external override onlyMember {
+        LibGovernance.enforceNotPaused();
         uint256 claimableAmount = LibFeeCalculator.claimReward(
             msg.sender,
             _token

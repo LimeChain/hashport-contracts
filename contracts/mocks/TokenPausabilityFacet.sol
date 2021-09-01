@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "../libraries/LibDiamond.sol";
 import "../WrappedToken.sol";
 
-contract PausabilityFacet {
+contract TokenPausabilityFacet {
     function pause(address _token) external {
         LibDiamond.enforceIsContractOwner();
 
