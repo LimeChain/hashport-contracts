@@ -477,7 +477,7 @@ describe('Router', async () => {
     });
 
     it('should pause successfully', async () => {
-      await router.connect(admin).pause();
+      await router.pause();
 
       expect(await router.paused()).to.be.true;
     });
@@ -501,7 +501,7 @@ describe('Router', async () => {
 
     it('should emit unpause event', async () => {
       // given
-      await router.connect(admin).pause()
+      await router.pause()
       // then
       await expect(router.connect(admin).unpause())
         .to.emit(router, 'Unpaused')
@@ -511,7 +511,7 @@ describe('Router', async () => {
     it('should revert pause when already paused', async () => {
       const expectedRevertMessage = 'LibGovernance: paused';
       // given
-      await router.connect(admin).pause();
+      await router.pause();
 
       await expect(router.connect(admin).pause())
         .to.be.revertedWith(expectedRevertMessage);
@@ -524,15 +524,15 @@ describe('Router', async () => {
         .to.be.revertedWith(expectedRevertMessage);
     });
 
-    it('should revert pause when caller is not owner', async () => {
-      const expectedRevertMessage = 'LibGovernance: Must be contract admin';
+    it('should revert pause when caller is neither owner, nor admin', async () => {
+      const expectedRevertMessage = 'PausableFacet: unauthorized';
 
       await expect(router.connect(nonMember).unpause())
         .to.be.revertedWith(expectedRevertMessage);
     });
 
-    it('should revert unpause when caller is not owner', async () => {
-      const expectedRevertMessage = 'LibGovernance: Must be contract admin';
+    it('should revert unpause when caller is neither owner, nor admin', async () => {
+      const expectedRevertMessage = 'PausableFacet: unauthorized';
 
       await expect(router.connect(nonMember).unpause())
         .to.be.revertedWith(expectedRevertMessage);
