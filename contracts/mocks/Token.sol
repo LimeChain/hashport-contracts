@@ -2,7 +2,7 @@
 pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "../ERC20Permit.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 
 /// @notice Mainly used for testing
 contract Token is ERC20Permit, Ownable {
@@ -12,7 +12,7 @@ contract Token is ERC20Permit, Ownable {
         string memory _name,
         string memory _symbol,
         uint8 decimals_
-    ) ERC20(_name, _symbol) {
+    ) ERC20(_name, _symbol) ERC20Permit(_name) {
         _decimals = decimals_;
     }
 

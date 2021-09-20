@@ -2,8 +2,8 @@
 pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "./ERC20Permit.sol";
 
 contract WrappedToken is ERC20Permit, Pausable, Ownable {
     uint8 private immutable _decimals;
@@ -18,7 +18,7 @@ contract WrappedToken is ERC20Permit, Pausable, Ownable {
         string memory _tokenName,
         string memory _tokenSymbol,
         uint8 decimals_
-    ) ERC20(_tokenName, _tokenSymbol) {
+    ) ERC20(_tokenName, _tokenSymbol) ERC20Permit(_tokenName) {
         _decimals = decimals_;
     }
 
