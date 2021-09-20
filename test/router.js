@@ -226,12 +226,13 @@ describe('Router', async () => {
       await expect(router.initFeeCalculator(FEE_CALCULATOR_PRECISION)).to.be.revertedWith(expectedRevertMessage);
     });
 
-    it('should revert governance init if precision is 0', async () => {
-      const expectedRevertMessage = 'FeeCalculatorFacet: precision must not be zero';
+    it('should revert governance init if precision is below 10', async () => {
+      const expectedRevertMessage = 'FeeCalculatorFacet: precision must not be single-digit';
       const feeCalculatorFacetFactory = await ethers.getContractFactory('FeeCalculatorFacet');
       const testFacet = await feeCalculatorFacetFactory.deploy();
       await testFacet.deployed();
       await expect(testFacet.initFeeCalculator(0)).to.be.revertedWith(expectedRevertMessage);
+      await expect(testFacet.initFeeCalculator(9)).to.be.revertedWith(expectedRevertMessage);
     });
   });
 
