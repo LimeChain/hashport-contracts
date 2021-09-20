@@ -275,6 +275,12 @@ describe('Router', async () => {
           .withArgs(newMembersPercentage);
       });
 
+      it('should revert when trying to set percentage to 0', async () => {
+        const expectedRevertMessage = 'LibGovernance: percentage must not be 0';
+
+        await expect(router.updateMembersPercentage(0)).to.be.revertedWith(expectedRevertMessage);
+      });
+
       it('should revert when trying to set percentage equal to precision', async () => {
         const expectedRevertMessage = 'LibGovernance: percentage must be less than precision';
 

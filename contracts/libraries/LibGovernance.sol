@@ -80,6 +80,7 @@ library LibGovernance {
 
     function updateMembersPercentage(uint256 _newPercentage) internal {
         Storage storage gs = governanceStorage();
+        require(_newPercentage != 0, "LibGovernance: percentage must not be 0");
         require(
             _newPercentage < gs.precision,
             "LibGovernance: percentage must be less than precision"
