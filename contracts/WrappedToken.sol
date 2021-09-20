@@ -37,14 +37,14 @@ contract WrappedToken is ERC20Permit, Pausable, Ownable {
      * @param _amount The _amount to be burned
      */
     function burnFrom(address _account, uint256 _amount) public onlyOwner {
-        uint256 decreasedAllowance = allowance(_account, _msgSender()) -
-            _amount;
+        uint256 currentAllowance = allowance(_account, _msgSender());
         require(
-            decreasedAllowance >= 0,
+            currentAllowance >= _amount,
             "ERC20: burn amount exceeds allowance"
         );
-
-        _approve(_account, _msgSender(), decreasedAllowance);
+        unchecked {
+            _approve(_account, _msgSender(), currentAllowance - _amount);
+        }
         _burn(_account, _amount);
     }
 

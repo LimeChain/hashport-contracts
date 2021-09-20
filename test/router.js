@@ -1147,8 +1147,10 @@ describe('Router', async () => {
       });
 
       it('should revert with no approved tokens', async () => {
+        const expectedRevertMessage = 'ERC20: burn amount exceeds allowance';
         await wrappedToken.transferOwnership(router.address);
-        await expect(router.connect(nonMember).burn(1, wrappedToken.address, amount, receiver)).to.be.reverted;
+        await expect(router.connect(nonMember).burn(1, wrappedToken.address, amount, receiver))
+          .to.be.revertedWith(expectedRevertMessage);
       });
 
       it('should revert when router cannot burn', async () => {
