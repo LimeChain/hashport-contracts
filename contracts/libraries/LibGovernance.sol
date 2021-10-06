@@ -131,8 +131,15 @@ library LibGovernance {
         Storage storage gs = governanceStorage();
         uint256 members = gs.membersSet.length();
         require(_n <= members, "LibGovernance: Invalid number of signatures");
+
+        uint256 mulMembersPercentage = members * gs.percentage;
+        uint256 requiredSignaturesLength = mulMembersPercentage / gs.precision;
+        if (mulMembersPercentage % gs.precision != 0) {
+            requiredSignaturesLength++;
+        }
+
         require(
-            _n > (members * gs.percentage) / gs.precision,
+            _n >= requiredSignaturesLength,
             "LibGovernance: Invalid number of signatures"
         );
     }
