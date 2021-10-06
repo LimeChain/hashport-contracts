@@ -226,12 +226,13 @@ describe('Router', async () => {
       await expect(router.initFeeCalculator(FEE_CALCULATOR_PRECISION)).to.be.revertedWith(expectedRevertMessage);
     });
 
-    it('should revert governance init if precision is 0', async () => {
-      const expectedRevertMessage = 'FeeCalculatorFacet: precision must not be zero';
+    it('should revert governance init if precision is below 10', async () => {
+      const expectedRevertMessage = 'FeeCalculatorFacet: precision must not be single-digit';
       const feeCalculatorFacetFactory = await ethers.getContractFactory('FeeCalculatorFacet');
       const testFacet = await feeCalculatorFacetFactory.deploy();
       await testFacet.deployed();
       await expect(testFacet.initFeeCalculator(0)).to.be.revertedWith(expectedRevertMessage);
+      await expect(testFacet.initFeeCalculator(9)).to.be.revertedWith(expectedRevertMessage);
     });
   });
 
@@ -272,6 +273,12 @@ describe('Router', async () => {
         await expect(await router.updateMembersPercentage(newMembersPercentage))
           .to.emit(router, 'MembersPercentageUpdated')
           .withArgs(newMembersPercentage);
+      });
+
+      it('should revert when trying to set percentage to 0', async () => {
+        const expectedRevertMessage = 'LibGovernance: percentage must not be 0';
+
+        await expect(router.updateMembersPercentage(0)).to.be.revertedWith(expectedRevertMessage);
       });
 
       it('should revert when trying to set percentage equal to precision', async () => {
@@ -1147,8 +1154,10 @@ describe('Router', async () => {
       });
 
       it('should revert with no approved tokens', async () => {
+        const expectedRevertMessage = 'ERC20: burn amount exceeds allowance';
         await wrappedToken.transferOwnership(router.address);
-        await expect(router.connect(nonMember).burn(1, wrappedToken.address, amount, receiver)).to.be.reverted;
+        await expect(router.connect(nonMember).burn(1, wrappedToken.address, amount, receiver))
+          .to.be.revertedWith(expectedRevertMessage);
       });
 
       it('should revert when router cannot burn', async () => {

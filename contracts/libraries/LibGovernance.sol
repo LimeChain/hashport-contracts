@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
@@ -80,6 +80,7 @@ library LibGovernance {
 
     function updateMembersPercentage(uint256 _newPercentage) internal {
         Storage storage gs = governanceStorage();
+        require(_newPercentage != 0, "LibGovernance: percentage must not be 0");
         require(
             _newPercentage < gs.precision,
             "LibGovernance: percentage must be less than precision"
@@ -130,8 +131,15 @@ library LibGovernance {
         Storage storage gs = governanceStorage();
         uint256 members = gs.membersSet.length();
         require(_n <= members, "LibGovernance: Invalid number of signatures");
+
+        uint256 mulMembersPercentage = members * gs.percentage;
+        uint256 requiredSignaturesLength = mulMembersPercentage / gs.precision;
+        if (mulMembersPercentage % gs.precision != 0) {
+            requiredSignaturesLength++;
+        }
+
         require(
-            _n > (members * gs.percentage) / gs.precision,
+            _n >= requiredSignaturesLength,
             "LibGovernance: Invalid number of signatures"
         );
     }

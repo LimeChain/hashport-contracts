@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "./ERC20Permit.sol";
 
 contract WrappedToken is ERC20Permit, Pausable, Ownable {
     uint8 private immutable _decimals;
@@ -18,7 +18,7 @@ contract WrappedToken is ERC20Permit, Pausable, Ownable {
         string memory _tokenName,
         string memory _tokenSymbol,
         uint8 decimals_
-    ) ERC20(_tokenName, _tokenSymbol) {
+    ) ERC20(_tokenName, _tokenSymbol) ERC20Permit(_tokenName) {
         _decimals = decimals_;
     }
 
@@ -37,14 +37,14 @@ contract WrappedToken is ERC20Permit, Pausable, Ownable {
      * @param _amount The _amount to be burned
      */
     function burnFrom(address _account, uint256 _amount) public onlyOwner {
-        uint256 decreasedAllowance = allowance(_account, _msgSender()) -
-            _amount;
+        uint256 currentAllowance = allowance(_account, _msgSender());
         require(
-            decreasedAllowance >= 0,
+            currentAllowance >= _amount,
             "ERC20: burn amount exceeds allowance"
         );
-
-        _approve(_account, _msgSender(), decreasedAllowance);
+        unchecked {
+            _approve(_account, _msgSender(), currentAllowance - _amount);
+        }
         _burn(_account, _amount);
     }
 

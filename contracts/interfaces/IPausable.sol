@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.3;
 
 interface IPausable {
     // Emitted once the pause is triggered by an `account`

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -19,8 +19,8 @@ contract FeeCalculatorFacet is IFeeCalculator {
             .feeCalculatorStorage();
         require(!fcs.initialized, "FeeCalculatorFacet: already initialized");
         require(
-            _precision != 0,
-            "FeeCalculatorFacet: precision must not be zero"
+            _precision >= 10,
+            "FeeCalculatorFacet: precision must not be single-digit"
         );
         fcs.initialized = true;
         fcs.precision = _precision;

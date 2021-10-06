@@ -66,11 +66,14 @@ task('deploy-wrapped-token', 'Deploy wrapped token from router contract')
 
 module.exports = {
     solidity: {
-        version: '0.8.0',
+        version: '0.8.3',
         settings: {
             optimizer: {
                 enabled: true,
                 runs: 200,
+                details: {
+                    yul: false
+                }
             },
         },
     },

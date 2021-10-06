@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
@@ -16,7 +16,7 @@ contract Router {
     constructor(
         IDiamondCut.FacetCut[] memory _diamondCut,
         DiamondArgs memory _args
-    ) payable {
+    ) {
         LibDiamond.diamondCut(_diamondCut, address(0), new bytes(0));
         LibDiamond.setContractOwner(_args.owner);
 
@@ -31,7 +31,7 @@ contract Router {
 
     // Find facet for function that is called and execute the
     // function if a facet is found and return any value.
-    fallback() external {
+    fallback() external payable {
         LibDiamond.DiamondStorage storage ds = LibDiamond.diamondStorage();
         address facet = ds.selectorToFacetAndPosition[msg.sig].facetAddress;
         require(facet != address(0), "Diamond: Function does not exist");

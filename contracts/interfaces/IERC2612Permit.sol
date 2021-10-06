@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.3;
 
 /**
  * @dev Interface of the ERC2612 standard as defined in the EIP.
