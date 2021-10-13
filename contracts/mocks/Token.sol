@@ -16,11 +16,11 @@ contract Token is ERC20Permit, Ownable {
         _decimals = decimals_;
     }
 
-    function mint(address _account, uint256 _amount) public onlyOwner {
+    function mint(address _account, uint256 _amount) public {
         super._mint(_account, _amount);
     }
 
-    function burn(address _account, uint256 _amount) public onlyOwner {
+    function burn(address _account, uint256 _amount) public {
         super._burn(_account, _amount);
     }
 
