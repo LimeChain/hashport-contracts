@@ -13,7 +13,16 @@ async function deployWrappedToken(routerAddress, sourceChain, nativeToken, name,
   console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
   const receipt = await tx.wait();
 
-  console.log(`Deployed wrapped token at [${receipt.events[1].args.wrappedToken}]`);
+  const wrappedTokenAddress = receipt.events[1].args.wrappedToken;
+
+  console.log(`Deployed wrapped token at [${wrappedTokenAddress}]`);
+
+  console.log('Verification, please wait...');
+
+  await hardhat.run('verify:verify', {
+    address: wrappedTokenAddress,
+    constructorArguments: [name, symbol, decimals]
+  });
 }
 
 module.exports = deployWrappedToken;

@@ -75,6 +75,44 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
   console.log('FeeCalculatorFacet address: ', feeCalculatorFacet.address);
   console.log('DiamondCutFacet address: ', cutFacet.address);
   console.log('DiamondLoupeFacet address: ', loupeFacet.address);
+
+  console.log('Verification, please wait...');
+
+  // Verification
+  await hardhat.run('verify:verify', {
+    address: routerFacet.address,
+    constructorArguments: []
+  });
+
+  await hardhat.run('verify:verify', {
+    address: ownershipFacet.address,
+    constructorArguments: []
+  });
+
+  await hardhat.run('verify:verify', {
+    address: feeCalculatorFacet.address,
+    constructorArguments: []
+  });
+
+  await hardhat.run('verify:verify', {
+    address: governanceFacet.address,
+    constructorArguments: []
+  });
+
+  await hardhat.run('verify:verify', {
+    address: cutFacet.address,
+    constructorArguments: []
+  });
+
+  await hardhat.run('verify:verify', {
+    address: loupeFacet.address,
+    constructorArguments: []
+  });
+
+  await hardhat.run('verify:verify', {
+    address: diamond.address,
+    constructorArguments: [diamondCut, args]
+  });
 }
 
 module.exports = deployRouter;

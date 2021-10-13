@@ -6,6 +6,7 @@ const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY || 'f39fd6e51aad88
 /**
  * @type import('hardhat/config').HardhatUserConfig
  */
+require("@nomiclabs/hardhat-etherscan");
 require('@nomiclabs/hardhat-waffle');
 require('solidity-coverage');
 require('hardhat-gas-reporter');
@@ -93,6 +94,9 @@ module.exports = {
             url: `https://rpc-mumbai.maticvigil.com`,
             accounts: [`0x${DEPLOYER_PRIVATE_KEY}`]
         },
+    },
+    etherscan: {
+        apiKey: ''
     },
     mocha: {
         timeout: 20000,
