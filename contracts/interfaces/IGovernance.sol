@@ -51,4 +51,7 @@ interface IGovernance {
 
     /// @return The address of a member at a given index
     function memberAt(uint256 _index) external view returns (address);
+
+    /// @return Checks if the provided signatures are enough for submission
+    function hasValidSignaturesLength(uint256 _n) external view returns (bool);
 }

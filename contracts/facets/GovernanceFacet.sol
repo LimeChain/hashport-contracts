@@ -115,4 +115,14 @@ contract GovernanceFacet is IGovernance {
     function memberAt(uint256 _index) external view override returns (address) {
         return LibGovernance.memberAt(_index);
     }
+
+    /// @return Checks if the provided signatures are enough for submission
+    function hasValidSignaturesLength(uint256 _n)
+        external
+        view
+        override
+        returns (bool)
+    {
+        return LibGovernance.hasValidSignaturesLength(_n);
+    }
 }

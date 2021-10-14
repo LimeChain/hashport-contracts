@@ -126,11 +126,13 @@ library LibGovernance {
         return gs.membersSet.at(_index);
     }
 
-    /// @notice Accepts number of signatures in the range (n/2; n] where n is the number of members
-    function validateSignaturesLength(uint256 _n) internal view {
+    /// @notice Checks if the provided amount of signatures is enough for submission
+    function hasValidSignaturesLength(uint256 _n) internal view returns (bool) {
         Storage storage gs = governanceStorage();
         uint256 members = gs.membersSet.length();
-        require(_n <= members, "LibGovernance: Invalid number of signatures");
+        if (_n > members) {
+            return false;
+        }
 
         uint256 mulMembersPercentage = members * gs.percentage;
         uint256 requiredSignaturesLength = mulMembersPercentage / gs.precision;
@@ -138,8 +140,13 @@ library LibGovernance {
             requiredSignaturesLength++;
         }
 
+        return _n >= requiredSignaturesLength;
+    }
+
+    /// @notice Validates the provided signatures length
+    function validateSignaturesLength(uint256 _n) internal view {
         require(
-            _n >= requiredSignaturesLength,
+            hasValidSignaturesLength(_n),
             "LibGovernance: Invalid number of signatures"
         );
     }
