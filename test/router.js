@@ -422,6 +422,22 @@ describe('Router', async () => {
         expect(await router.claimedRewardsPerAccount(alice.address, nativeToken.address)).to.equal(rewardPerMember);
       });
     });
+
+    describe('hasValidSignaturesLength', async () => {
+      beforeEach(async () => {
+        await router.updateMember(bob.address, true);
+        await router.updateMember(carol.address, true);
+      });
+      it('should have valid signatures length', async () => {
+        await expect(await router.hasValidSignaturesLength(2)).to.be.true;
+        await expect(await router.hasValidSignaturesLength(3)).to.be.true;
+      });
+
+      it('should have invalid signatures length', async () => {
+        await expect(await router.hasValidSignaturesLength(1)).to.be.false;
+        await expect(await router.hasValidSignaturesLength(4)).to.be.false;
+      });
+    });
   });
 
   describe('FeeCalculatorFacet', async () => {
