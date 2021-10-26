@@ -65,6 +65,15 @@ task('deploy-wrapped-token', 'Deploy wrapped token from router contract')
             taskArgs.decimals);
     });
 
+task('update-member', 'Update member in router contract')
+    .addParam('router', 'The address of the router contract')
+    .addParam('member', 'The address of the member')
+    .addParam('status', 'The to-be-updated status of the member', true, types.boolean)
+    .setAction(async (taskArgs) => {
+        const updateMember = require('./scripts/update-member');
+        await updateMember(taskArgs.router, taskArgs.member, taskArgs.status);
+    });
+
 module.exports = {
     solidity: {
         version: '0.8.3',
