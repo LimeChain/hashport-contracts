@@ -5,7 +5,12 @@ interface IFeeCalculator {
     /// @notice An event emitted once the service fee is modified
     event ServiceFeeSet(address account, address token, uint256 newServiceFee);
     /// @notice An event emitted once a member claims fees accredited to him
-    event Claim(address member, address token, uint256 amount);
+    event Claim(
+        address indexed member,
+        address indexed memberAdmin,
+        address token,
+        uint256 amount
+    );
 
     /// @notice Construct a new FeeCalculator contract
     /// @param _precision The precision for every fee calculator
@@ -44,6 +49,7 @@ interface IFeeCalculator {
         view
         returns (uint256);
 
-    /// @notice Sends out the reward accumulated by the caller for the specified token
-    function claim(address _token) external;
+    /// @notice Sends out the reward accumulated by the member for the specified token
+    /// to the member admin
+    function claim(address _token, address _member) external;
 }

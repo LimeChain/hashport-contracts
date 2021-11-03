@@ -12,8 +12,10 @@ library LibGovernance {
 
     struct Storage {
         bool initialized;
-        // the set of active validators
+        // Set of active validators
         EnumerableSet.AddressSet membersSet;
+        // A 1:1 map of active validators -> validator admin
+        mapping(address => address) membersAdmins;
         // Precision for calculation of minimum amount of members signatures required
         uint256 precision;
         // Percentage for minimum amount of members signatures required
@@ -108,6 +110,10 @@ library LibGovernance {
         }
     }
 
+    function updateMemberAdmin(address _account, address _admin) internal {
+        governanceStorage().membersAdmins[_account] = _admin;
+    }
+
     /// @notice Returns true/false depending on whether a given address is member or not
     function isMember(address _member) internal view returns (bool) {
         Storage storage gs = governanceStorage();
@@ -124,6 +130,12 @@ library LibGovernance {
     function memberAt(uint256 _index) internal view returns (address) {
         Storage storage gs = governanceStorage();
         return gs.membersSet.at(_index);
+    }
+
+    /// @notice Returns the admin of the member
+    function memberAdmin(address _account) internal view returns (address) {
+        Storage storage gs = governanceStorage();
+        return gs.membersAdmins[_account];
     }
 
     /// @notice Checks if the provided amount of signatures is enough for submission

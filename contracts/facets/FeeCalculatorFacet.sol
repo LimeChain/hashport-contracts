@@ -90,22 +90,25 @@ contract FeeCalculatorFacet is IFeeCalculator {
         );
     }
 
-    /// @notice Sends out the reward for a Token accumulated by the caller
-    function claim(address _token) external override onlyMember {
+    /// @notice Sends out the reward accumulated by the member for the specified token
+    /// to the member admin
+    function claim(address _token, address _member)
+        external
+        override
+        onlyMember(_member)
+    {
         LibGovernance.enforceNotPaused();
-        uint256 claimableAmount = LibFeeCalculator.claimReward(
-            msg.sender,
-            _token
-        );
-        IERC20(_token).safeTransfer(msg.sender, claimableAmount);
-        emit Claim(msg.sender, _token, claimableAmount);
+        uint256 claimableAmount = LibFeeCalculator.claimReward(_member, _token);
+        address memberAdmin = LibGovernance.memberAdmin(_member);
+        IERC20(_token).safeTransfer(memberAdmin, claimableAmount);
+        emit Claim(_member, memberAdmin, _token, claimableAmount);
     }
 
     /// @notice Accepts only `msg.sender` part of the members
-    modifier onlyMember() {
+    modifier onlyMember(address _member) {
         require(
-            LibGovernance.isMember(msg.sender),
-            "FeeCalculatorFacet: msg.sender is not a member"
+            LibGovernance.isMember(_member),
+            "FeeCalculatorFacet: _member is not a member"
         );
         _;
     }
