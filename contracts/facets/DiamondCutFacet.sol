@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.3;
 
-import "@openzeppelin/contracts/utils/Counters.sol";
 import "../interfaces/IDiamondCut.sol";
 import "../libraries/LibDiamond.sol";
 import "../libraries/LibGovernance.sol";
 
 contract DiamondCutFacet is IDiamondCut {
-    using Counters for Counters.Counter;
-
     /// @notice Add/replace/remove any number of functions and optionally execute
     ///         a function with delegatecall
     /// @param _diamondCut Contains the facet addresses and function selectors

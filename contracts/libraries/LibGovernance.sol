@@ -2,12 +2,10 @@
 pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 library LibGovernance {
     using EnumerableSet for EnumerableSet.AddressSet;
-    using Counters for Counters.Counter;
     bytes32 constant STORAGE_POSITION = keccak256("governance.storage");
 
     struct Storage {

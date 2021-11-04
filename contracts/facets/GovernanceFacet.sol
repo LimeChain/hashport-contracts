@@ -2,7 +2,6 @@
 pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
 import "../interfaces/IGovernance.sol";
 import "../libraries/LibDiamond.sol";
 import "../libraries/LibGovernance.sol";
@@ -10,7 +9,6 @@ import "../libraries/LibFeeCalculator.sol";
 import "../libraries/LibRouter.sol";
 
 contract GovernanceFacet is IGovernance {
-    using Counters for Counters.Counter;
     using SafeERC20 for IERC20;
 
     function initGovernance(

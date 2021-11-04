@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.3;
 
-import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../interfaces/IFeeCalculator.sol";
 import "../libraries/LibDiamond.sol";
@@ -9,7 +8,6 @@ import "../libraries/LibFeeCalculator.sol";
 import "../libraries/LibRouter.sol";
 
 contract FeeCalculatorFacet is IFeeCalculator {
-    using Counters for Counters.Counter;
     using SafeERC20 for IERC20;
 
     /// @notice Construct a new FeeCalculator contract
