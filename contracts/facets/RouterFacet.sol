@@ -2,7 +2,6 @@
 pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
 import "../WrappedToken.sol";
 import "../interfaces/IERC2612Permit.sol";
 import "../interfaces/IRouter.sol";
@@ -12,7 +11,6 @@ import "../libraries/LibRouter.sol";
 import "../libraries/LibGovernance.sol";
 
 contract RouterFacet is IRouter {
-    using Counters for Counters.Counter;
     using SafeERC20 for IERC20;
 
     /// @notice Constructs the Router contract instance

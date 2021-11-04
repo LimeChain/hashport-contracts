@@ -40,7 +40,7 @@ describe('Router', async () => {
   const wrappedTokenDecimals = 18;
 
   beforeEach(async () => {
-    [owner, alice, bob, carol, admin, nonMember] = await ethers.getSigners();
+    [owner, alice, aliceAdmin, bob, bobAdmin, carol, carolAdmin, admin, nonMember] = await ethers.getSigners();
 
     nativeTokenFactory = await ethers.getContractFactory('Token');
     nativeToken = await nativeTokenFactory.deploy('NativeToken', 'NT', 18);
@@ -96,7 +96,7 @@ describe('Router', async () => {
 
     router = await ethers.getContractAt('IRouterDiamond', diamond.address);
 
-    await router.initGovernance([alice.address], GOVERNANCE_PERCENTAGE, GOVERNANCE_PRECISION);
+    await router.initGovernance([alice.address], [aliceAdmin.address], GOVERNANCE_PERCENTAGE, GOVERNANCE_PRECISION);
     await router.initRouter();
     await router.initFeeCalculator(FEE_CALCULATOR_PRECISION);
   });
@@ -120,6 +120,7 @@ describe('Router', async () => {
       expect(await router.membersCount()).to.equal(1);
       expect(await router.isMember(alice.address)).to.be.true;
       expect(await router.memberAt(0)).to.equal(alice.address);
+      expect(await router.memberAdmin(alice.address)).to.equal(aliceAdmin.address);
 
       expect(await router.membersPrecision()).to.equal(GOVERNANCE_PRECISION);
       expect(await router.membersPercentage()).to.equal(GOVERNANCE_PERCENTAGE);
@@ -176,7 +177,7 @@ describe('Router', async () => {
       const testFacet = await governanceFacetFactory.deploy();
       await testFacet.deployed();
 
-      await expect(testFacet.initGovernance([], GOVERNANCE_PERCENTAGE, GOVERNANCE_PRECISION)).to.be.revertedWith(expectedRevertMessage);
+      await expect(testFacet.initGovernance([], [], GOVERNANCE_PERCENTAGE, GOVERNANCE_PRECISION)).to.be.revertedWith(expectedRevertMessage);
     });
 
     it('should not initialize RouterFacet twice', async () => {
@@ -186,7 +187,17 @@ describe('Router', async () => {
 
     it('should not initialize GovernanceFacet twice', async () => {
       const expectedRevertMessage = 'GovernanceFacet: already initialized';
-      await expect(router.initGovernance([alice.address], GOVERNANCE_PERCENTAGE, GOVERNANCE_PRECISION)).to.be.revertedWith(expectedRevertMessage);
+      await expect(router.initGovernance([alice.address], [aliceAdmin.address], GOVERNANCE_PERCENTAGE, GOVERNANCE_PRECISION)).to.be.revertedWith(expectedRevertMessage);
+    });
+
+    it('should not initialize GovernanceFacet when members length are different', async () => {
+      const expectedRevertMessage = 'GovernanceFacet: not matching members length';
+      const governanceFacetFactory = await ethers.getContractFactory('GovernanceFacet');
+      const testFacet = await governanceFacetFactory.deploy();
+      await testFacet.deployed();
+      await expect(testFacet.initGovernance([alice.address], [], GOVERNANCE_PERCENTAGE, GOVERNANCE_PRECISION)).to.be.revertedWith(expectedRevertMessage);
+      await expect(testFacet.initGovernance([alice.address], [aliceAdmin.address, bobAdmin.address], GOVERNANCE_PERCENTAGE, GOVERNANCE_PRECISION)).to.be.revertedWith(expectedRevertMessage);
+      await expect(testFacet.initGovernance([alice.address, bob.address], [aliceAdmin.address], GOVERNANCE_PERCENTAGE, GOVERNANCE_PRECISION)).to.be.revertedWith(expectedRevertMessage);
     });
 
     it('should revert governance init if precision is 0', async () => {
@@ -194,7 +205,7 @@ describe('Router', async () => {
       const governanceFacetFactory = await ethers.getContractFactory('GovernanceFacet');
       const testFacet = await governanceFacetFactory.deploy();
       await testFacet.deployed();
-      await expect(testFacet.initGovernance([alice.address], GOVERNANCE_PERCENTAGE, 0)).to.be.revertedWith(expectedRevertMessage);
+      await expect(testFacet.initGovernance([alice.address], [aliceAdmin.address], GOVERNANCE_PERCENTAGE, 0)).to.be.revertedWith(expectedRevertMessage);
     });
 
     it('should revert governance init if percentage is more than precision', async () => {
@@ -202,7 +213,7 @@ describe('Router', async () => {
       const governanceFacetFactory = await ethers.getContractFactory('GovernanceFacet');
       const testFacet = await governanceFacetFactory.deploy();
       await testFacet.deployed();
-      await expect(testFacet.initGovernance([alice.address], GOVERNANCE_PRECISION + 1, GOVERNANCE_PRECISION)).to.be.revertedWith(expectedRevertMessage);
+      await expect(testFacet.initGovernance([alice.address], [aliceAdmin.address], GOVERNANCE_PRECISION + 1, GOVERNANCE_PRECISION)).to.be.revertedWith(expectedRevertMessage);
     });
 
     it('should revert governance init if percentage is equal to precision', async () => {
@@ -210,7 +221,7 @@ describe('Router', async () => {
       const governanceFacetFactory = await ethers.getContractFactory('GovernanceFacet');
       const testFacet = await governanceFacetFactory.deploy();
       await testFacet.deployed();
-      await expect(testFacet.initGovernance([alice.address], GOVERNANCE_PRECISION, GOVERNANCE_PRECISION)).to.be.revertedWith(expectedRevertMessage);
+      await expect(testFacet.initGovernance([alice.address], [aliceAdmin.address], GOVERNANCE_PRECISION, GOVERNANCE_PRECISION)).to.be.revertedWith(expectedRevertMessage);
     });
 
     it('should revert governance init with duplicate addresses as members', async () => {
@@ -218,7 +229,7 @@ describe('Router', async () => {
       const governanceFacetFactory = await ethers.getContractFactory('GovernanceFacet');
       const testFacet = await governanceFacetFactory.deploy();
       await testFacet.deployed();
-      await expect(testFacet.initGovernance([alice.address, alice.address], GOVERNANCE_PERCENTAGE, GOVERNANCE_PRECISION)).to.be.revertedWith(expectedRevertMessage);
+      await expect(testFacet.initGovernance([alice.address, alice.address], [aliceAdmin.address, aliceAdmin.address], GOVERNANCE_PERCENTAGE, GOVERNANCE_PRECISION)).to.be.revertedWith(expectedRevertMessage);
     });
 
     it('should not initialize FeeCalculatorFacet twice', async () => {
@@ -301,7 +312,7 @@ describe('Router', async () => {
 
     describe('updateMember', async () => {
       it('should add a member', async () => {
-        await router.updateMember(bob.address, true);
+        await router.updateMember(bob.address, bobAdmin.address, true);
 
         const bobStatus = await router.isMember(bob.address);
         expect(bobStatus).to.be.true;
@@ -311,55 +322,62 @@ describe('Router', async () => {
 
         const expectedCount = 2;
         expect(await router.membersCount()).to.equal(expectedCount);
+
+        expect(await router.memberAdmin(bob.address)).to.equal(bobAdmin.address);
       });
 
       it('should emit add event', async () => {
-        await expect(await router.updateMember(bob.address, true))
+        await expect(await router.updateMember(bob.address, bobAdmin.address, true))
           .to.emit(router, 'MemberUpdated')
-          .withArgs(bob.address, true);
+          .withArgs(bob.address, true)
+          .to.emit(router, 'MemberAdminUpdated')
+          .withArgs(bob.address, bobAdmin.address);
       });
 
       it('should revert setting a member twice', async () => {
         const expectedRevertMessage = 'LibGovernance: Account already added';
-        await expect(router.updateMember(alice.address, true)).to.be.revertedWith(expectedRevertMessage);
+        await expect(router.updateMember(alice.address, aliceAdmin.address, true)).to.be.revertedWith(expectedRevertMessage);
       });
 
       it('should revert when trying to remove the last member', async () => {
         const expectedRevertMessage = 'LibGovernance: contract would become memberless';
-        await expect(router.updateMember(alice.address, false)).to.be.revertedWith(expectedRevertMessage);
+        await expect(router.updateMember(alice.address, aliceAdmin.address, false)).to.be.revertedWith(expectedRevertMessage);
       });
 
       it('should remove a member', async () => {
-        await router.updateMember(bob.address, true);
+        await router.updateMember(bob.address, bobAdmin.address, true);
         expect(await router.membersCount()).to.equal(2);
 
-        await router.updateMember(alice.address, false);
+        await router.updateMember(alice.address, aliceAdmin.address, false);
 
         const aliceMember = await router.isMember(alice.address);
 
         expect(aliceMember).to.be.false;
         expect(await router.membersCount()).to.equal(1);
+        expect(await router.memberAdmin(alice.address)).to.equal(ethers.constants.AddressZero);
       });
 
       it('should emit remove event', async () => {
-        await router.updateMember(bob.address, true);
-        await expect(await router.updateMember(alice.address, false))
+        await router.updateMember(bob.address, bobAdmin.address, true);
+        await expect(await router.updateMember(alice.address, aliceAdmin.address, false))
           .to.emit(router, 'MemberUpdated')
-          .withArgs(alice.address, false);
+          .withArgs(alice.address, false)
+          .to.emit(router, 'MemberAdminUpdated')
+          .withArgs(alice.address, ethers.constants.AddressZero);
       });
 
       it('should revert removing a member twice', async () => {
-        await router.updateMember(bob.address, true);
-        await router.updateMember(carol.address, true);
+        await router.updateMember(bob.address, bobAdmin.address, true);
+        await router.updateMember(carol.address, carolAdmin.address, true);
 
-        await router.updateMember(alice.address, false);
+        await router.updateMember(alice.address, aliceAdmin.address, false);
         const expectedRevertMessage = 'LibGovernance: Account is not a member';
-        await expect(router.updateMember(alice.address, false)).to.be.revertedWith(expectedRevertMessage);
+        await expect(router.updateMember(alice.address, aliceAdmin.address, false)).to.be.revertedWith(expectedRevertMessage);
       });
 
       it('should revert when executing transaction with not owner', async () => {
         const expectedRevertMessage = 'LibDiamond: Must be contract owner';
-        await expect(router.connect(nonMember).updateMember(alice.address, false)).to.be.revertedWith(expectedRevertMessage);
+        await expect(router.connect(nonMember).updateMember(alice.address, aliceAdmin.address, false)).to.be.revertedWith(expectedRevertMessage);
       });
 
       it('should correctly accrue fees after addition of a new member', async () => {
@@ -377,7 +395,7 @@ describe('Router', async () => {
         expect(beforeMemberUpdateTokenFeeData.previousAccrued).to.equal(0);
 
         // when
-        await router.updateMember(bob.address, true);
+        await router.updateMember(bob.address, bobAdmin.address, true);
 
         // then
         const afterMemberUpdateTokenFeeData = await router.tokenFeeData(nativeToken.address);
@@ -394,7 +412,7 @@ describe('Router', async () => {
         const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
         const rewardPerMember = serviceFee.div(2);
 
-        await router.updateMember(bob.address, true);
+        await router.updateMember(bob.address, bobAdmin.address, true);
         await router.updateNativeToken(nativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
         await nativeToken.mint(nonMember.address, amount);
 
@@ -408,11 +426,13 @@ describe('Router', async () => {
 
         // when
         await expect(
-          router.updateMember(alice.address, false))
+          router.updateMember(alice.address, aliceAdmin.address, false))
           .to.emit(router, 'MemberUpdated')
           .withArgs(alice.address, false)
+          .to.emit(router, 'MemberAdminUpdated')
+          .withArgs(alice.address, ethers.constants.AddressZero)
           .to.emit(nativeToken, 'Transfer')
-          .withArgs(router.address, alice.address, rewardPerMember);
+          .withArgs(router.address, aliceAdmin.address, rewardPerMember);
 
         const afterMemberUpdateTokenFeeData = await router.tokenFeeData(nativeToken.address);
         expect(afterMemberUpdateTokenFeeData.feesAccrued).to.equal(serviceFee);
@@ -423,10 +443,38 @@ describe('Router', async () => {
       });
     });
 
+    describe('updateMemberAdmin', async () => {
+      it('should update member admin', async () => {
+        await router.connect(aliceAdmin).updateMemberAdmin(alice.address, nonMember.address);
+
+        expect(await router.memberAdmin(alice.address)).to.equal(nonMember.address);
+      });
+
+      it('should emit event with args', async () => {
+        await expect(router.connect(aliceAdmin).updateMemberAdmin(alice.address, nonMember.address))
+          .to.emit(router, 'MemberAdminUpdated')
+          .withArgs(alice.address, nonMember.address);
+      });
+
+      it('should revert when member is not an actual member', async () => {
+        const expectedRevertMessage = 'GovernanceFacet: _member is not an actual member';
+
+        await expect(router.updateMemberAdmin(nonMember.address, aliceAdmin.address))
+          .to.be.revertedWith(expectedRevertMessage);
+      });
+
+      it('should revert when caller is not the previous admin', async () => {
+        const expectedRevertMessage = 'GovernanceFacet: caller is not the old admin';
+
+        await expect(router.connect(nonMember).updateMemberAdmin(alice.address, aliceAdmin.address))
+          .to.be.revertedWith(expectedRevertMessage);
+      });
+    });
+
     describe('hasValidSignaturesLength', async () => {
       beforeEach(async () => {
-        await router.updateMember(bob.address, true);
-        await router.updateMember(carol.address, true);
+        await router.updateMember(bob.address, bobAdmin.address, true);
+        await router.updateMember(carol.address, carolAdmin.address, true);
       });
       it('should have valid signatures length', async () => {
         await expect(await router.hasValidSignaturesLength(2)).to.be.true;
@@ -834,8 +882,8 @@ describe('Router', async () => {
         await nativeToken.mint(router.address, amount);
         await router.updateNativeToken(nativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
 
-        await router.updateMember(bob.address, true);
-        await router.updateMember(carol.address, true);
+        await router.updateMember(bob.address, bobAdmin.address, true);
+        await router.updateMember(carol.address, carolAdmin.address, true);
 
         receiver = owner.address;
 
@@ -945,8 +993,8 @@ describe('Router', async () => {
       let wrappedToken;
 
       beforeEach(async () => {
-        await router.updateMember(bob.address, true);
-        await router.updateMember(carol.address, true);
+        await router.updateMember(bob.address, bobAdmin.address, true);
+        await router.updateMember(carol.address, carolAdmin.address, true);
 
         receiver = owner.address;
         const wrappedTokenTx = await router.deployWrappedToken(1, nativeToken.address, { name: wrappedTokenName, symbol: wrappedTokenSymbol, decimals: wrappedTokenDecimals });
@@ -1223,8 +1271,8 @@ describe('Router', async () => {
     beforeEach(async () => {
       await nativeToken.mint(nonMember.address, amount);
       await router.updateNativeToken(nativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
-      await router.updateMember(bob.address, true);
-      await router.updateMember(carol.address, true);
+      await router.updateMember(bob.address, bobAdmin.address, true);
+      await router.updateMember(carol.address, carolAdmin.address, true);
 
       await nativeToken.connect(nonMember).approve(router.address, amount);
       await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
@@ -1236,25 +1284,25 @@ describe('Router', async () => {
 
     it('should claim service fees for native token', async () => {
       // when
-      await router.connect(alice).claim(nativeToken.address);
+      await router.connect(alice).claim(nativeToken.address, alice.address);
 
       // then
-      const aliceBalance = await nativeToken.balanceOf(alice.address);
-      const bobBalance = await nativeToken.balanceOf(bob.address);
-      const carolBalance = await nativeToken.balanceOf(carol.address);
+      const aliceAdminBalance = await nativeToken.balanceOf(aliceAdmin.address);
+      const bobAdminBalance = await nativeToken.balanceOf(bobAdmin.address);
+      const carolAdminBalance = await nativeToken.balanceOf(carolAdmin.address);
       const routerBalance = await nativeToken.balanceOf(router.address);
 
       const aliceClaimedRewards = await router.claimedRewardsPerAccount(alice.address, nativeToken.address);
       const bobClaimedRewards = await router.claimedRewardsPerAccount(bob.address, nativeToken.address);
       const carolClaimedRewards = await router.claimedRewardsPerAccount(carol.address, nativeToken.address);
 
-      expect(aliceBalance)
+      expect(aliceAdminBalance)
         .to.equal(expectedMemberFeeRewardAfterClaim)
         .to.equal(aliceClaimedRewards);
-      expect(bobBalance)
+      expect(bobAdminBalance)
         .to.equal(0)
         .to.equal(bobClaimedRewards);
-      expect(carolBalance)
+      expect(carolAdminBalance)
         .to.equal(0)
         .to.equal(carolClaimedRewards);
       expect(routerBalance)
@@ -1283,27 +1331,27 @@ describe('Router', async () => {
       expectedPrevAccruedAfterClaim = expectedMemberFeeRewardAfterClaim.mul(3);
 
       // when
-      await router.connect(alice).claim(nativeToken.address);
-      await router.connect(bob).claim(nativeToken.address);
-      await router.connect(carol).claim(nativeToken.address);
+      await router.connect(alice).claim(nativeToken.address, alice.address);
+      await router.connect(bob).claim(nativeToken.address, bob.address);
+      await router.connect(carol).claim(nativeToken.address, carol.address);
 
       // then
-      const aliceBalance = await nativeToken.balanceOf(alice.address);
-      const bobBalance = await nativeToken.balanceOf(bob.address);
-      const carolBalance = await nativeToken.balanceOf(carol.address);
+      const aliceAdminBalance = await nativeToken.balanceOf(aliceAdmin.address);
+      const bobAdminBalance = await nativeToken.balanceOf(bobAdmin.address);
+      const caroAdminlBalance = await nativeToken.balanceOf(carolAdmin.address);
       const routerBalance = await nativeToken.balanceOf(router.address);
 
       const aliceClaimedRewards = await router.claimedRewardsPerAccount(alice.address, nativeToken.address);
       const bobClaimedRewards = await router.claimedRewardsPerAccount(bob.address, nativeToken.address);
       const carolClaimedRewards = await router.claimedRewardsPerAccount(carol.address, nativeToken.address);
 
-      expect(aliceBalance)
+      expect(aliceAdminBalance)
         .to.equal(serviceFee.div(3))
         .to.equal(aliceClaimedRewards);
-      expect(bobBalance)
+      expect(bobAdminBalance)
         .to.equal(serviceFee.div(3))
         .to.equal(bobClaimedRewards);
-      expect(carolBalance)
+      expect(caroAdminlBalance)
         .to.equal(serviceFee.div(3))
         .to.equal(carolClaimedRewards);
       expect(routerBalance)
@@ -1337,27 +1385,27 @@ describe('Router', async () => {
       expectedPrevAccruedAfterClaim = expectedMemberFeeRewardAfterClaim.mul(3);
 
       // when
-      await router.connect(alice).claim(nativeToken.address);
-      await router.connect(bob).claim(nativeToken.address);
-      await router.connect(carol).claim(nativeToken.address);
+      await router.connect(alice).claim(nativeToken.address, alice.address);
+      await router.connect(bob).claim(nativeToken.address, bob.address);
+      await router.connect(carol).claim(nativeToken.address, carol.address);
 
       // then
-      const aliceBalance = await nativeToken.balanceOf(alice.address);
-      const bobBalance = await nativeToken.balanceOf(bob.address);
-      const carolBalance = await nativeToken.balanceOf(carol.address);
+      const aliceAdminBalance = await nativeToken.balanceOf(aliceAdmin.address);
+      const bobAdminBalance = await nativeToken.balanceOf(bobAdmin.address);
+      const carolAdminBalance = await nativeToken.balanceOf(carolAdmin.address);
       const routerBalance = await nativeToken.balanceOf(router.address);
 
       const aliceClaimedRewards = await router.claimedRewardsPerAccount(alice.address, nativeToken.address);
       const bobClaimedRewards = await router.claimedRewardsPerAccount(bob.address, nativeToken.address);
       const carolClaimedRewards = await router.claimedRewardsPerAccount(carol.address, nativeToken.address);
 
-      expect(aliceBalance)
+      expect(aliceAdminBalance)
         .to.equal(serviceFee.div(3))
         .to.equal(aliceClaimedRewards);
-      expect(bobBalance)
+      expect(bobAdminBalance)
         .to.equal(serviceFee.div(3))
         .to.equal(bobClaimedRewards);
-      expect(carolBalance)
+      expect(carolAdminBalance)
         .to.equal(serviceFee.div(3))
         .to.equal(carolClaimedRewards);
       expect(routerBalance)
@@ -1374,16 +1422,16 @@ describe('Router', async () => {
 
     it('should emit event with args', async () => {
       const claimAmount = serviceFee.div(3);
-      await expect(router.connect(alice).claim(nativeToken.address))
+      await expect(router.claim(nativeToken.address, alice.address))
         .to.emit(router, 'Claim')
-        .withArgs(alice.address, nativeToken.address, claimAmount)
+        .withArgs(alice.address, aliceAdmin.address, nativeToken.address, claimAmount)
         .to.emit(nativeToken, 'Transfer')
-        .withArgs(router.address, alice.address, claimAmount);
+        .withArgs(router.address, aliceAdmin.address, claimAmount);
     });
 
-    it('should revert when claimer is not a member', async () => {
-      const expectedRevertMessage = 'FeeCalculatorFacet: msg.sender is not a member';
-      await expect(router.connect(nonMember).claim(nativeToken.address)).to.be.revertedWith(expectedRevertMessage);
+    it('should revert when claimed address is not a member', async () => {
+      const expectedRevertMessage = 'FeeCalculatorFacet: _member is not a member';
+      await expect(router.claim(nativeToken.address, nonMember.address)).to.be.revertedWith(expectedRevertMessage);
     });
 
     it('should revert when contract is paused', async () => {
@@ -1392,18 +1440,18 @@ describe('Router', async () => {
       await router.updateAdmin(admin.address);
       await router.connect(admin).pause();
       // then
-      await expect(router.connect(alice).claim(nativeToken.address)).to.be.revertedWith(expectedRevertMessage);
+      await expect(router.claim(nativeToken.address, alice.address)).to.be.revertedWith(expectedRevertMessage);
     });
 
     it('should have been claimed after member removal', async () => {
       const claimAmount = serviceFee.div(3);
-      await expect(router.updateMember(alice.address, false))
+      await expect(router.updateMember(alice.address, ethers.constants.AddressZero, false))
         .to.emit(nativeToken, 'Transfer')
-        .withArgs(router.address, alice.address, claimAmount);
+        .withArgs(router.address, aliceAdmin.address, claimAmount);
 
-      const aliceBalance = await nativeToken.balanceOf(alice.address);
+      const aliceAdminBalance = await nativeToken.balanceOf(aliceAdmin.address);
       const aliceClaimedRewards = await router.claimedRewardsPerAccount(alice.address, nativeToken.address);
-      expect(aliceBalance)
+      expect(aliceAdminBalance)
         .to.equal(claimAmount)
         .to.equal(aliceClaimedRewards);
 
@@ -1422,8 +1470,8 @@ describe('Router', async () => {
 
   describe('Diamond', async () => {
     beforeEach(async () => {
-      await router.updateMember(bob.address, true);
-      await router.updateMember(carol.address, true);
+      await router.updateMember(bob.address, bobAdmin.address, true);
+      await router.updateMember(carol.address, carolAdmin.address, true);
     });
 
     it('should add new functions', async () => {
@@ -1565,14 +1613,14 @@ describe('Router', async () => {
     });
 
     it('adds member with zero existing tokens', async () => {
-      await router.updateMember(bob.address, true);
+      await router.updateMember(bob.address, bobAdmin.address, true);
     });
 
     it('adds member with one existing token', async () => {
       await router.updateNativeToken(nativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
       await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
 
-      await router.updateMember(bob.address, true);
+      await router.updateMember(bob.address, bobAdmin.address, true);
     });
 
     it('adds member with two existing tokens', async () => {
@@ -1588,7 +1636,7 @@ describe('Router', async () => {
       await router.connect(nonMember).lock(1, otherNativeToken.address, amount, owner.address);
 
       // when
-      await router.updateMember(bob.address, true);
+      await router.updateMember(bob.address, bobAdmin.address, true);
     });
   });
 });
