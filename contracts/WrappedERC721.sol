@@ -3,9 +3,8 @@ pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
 
-contract WrappedERC721 is ERC721Burnable, Pausable, Ownable {
+contract WrappedERC721 is ERC721Burnable, Ownable {
     // Mapping from tokenID to metadata
     mapping(uint256 => string) private _metadata;
 
@@ -36,25 +35,5 @@ contract WrappedERC721 is ERC721Burnable, Pausable, Ownable {
         );
 
         return _metadata[tokenId];
-    }
-
-    /// @notice Pauses the contract
-    function pause() public onlyOwner {
-        super._pause();
-    }
-
-    /// @notice Unpauses the contract
-    function unpause() public onlyOwner {
-        super._unpause();
-    }
-
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 tokenId
-    ) internal virtual override {
-        super._beforeTokenTransfer(from, to, tokenId);
-
-        require(!paused(), "WrappedERC721: token transfer while paused");
     }
 }
