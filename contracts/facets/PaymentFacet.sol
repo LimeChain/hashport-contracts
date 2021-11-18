@@ -17,7 +17,7 @@ contract PaymentFacet is IPayment {
     /// @param _token The target token
     /// @param _status Whether the token will be added or removed
     function setPaymentToken(address _token, bool _status) external override {
-        require(_token != address(0), "_token must not be 0x0");
+        require(_token != address(0), "PaymentFacet: _token must not be 0x0");
         LibDiamond.enforceIsContractOwner();
         LibPayment.updatePaymentToken(_token, _status);
 

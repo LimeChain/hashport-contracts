@@ -129,6 +129,26 @@ contract ERC721PortalFacet is IERC721PortalFacet, ERC721Holder {
         emit SetERC721Payment(_erc721, _payment, _fee);
     }
 
+    /// @notice Returns the payment token for an ERC-721
+    function erc721Payment(address _erc721)
+        external
+        view
+        override
+        returns (address)
+    {
+        return LibERC721.erc721Payment(_erc721);
+    }
+
+    /// @notice Returns the payment fee for an ERC-721
+    function erc721Fee(address _erc721)
+        external
+        view
+        override
+        returns (uint256)
+    {
+        return LibERC721.erc721Fee(_erc721);
+    }
+
     /// @notice Computes the bytes32 ethereum signed message hash for signatures
     /// @param _sourceChain The chain where the bridge transaction was initiated from
     /// @param _targetChain The target chain of the bridge transaction.
