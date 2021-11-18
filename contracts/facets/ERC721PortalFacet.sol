@@ -2,6 +2,7 @@
 pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "../interfaces/IERC721PortalFacet.sol";
 import "../libraries/LibDiamond.sol";
 import "../libraries/LibGovernance.sol";
@@ -11,7 +12,7 @@ import "../libraries/LibRouter.sol";
 import "../libraries/LibERC721.sol";
 import "../WrappedERC721.sol";
 
-contract ERC721PortalFacet is IERC721PortalFacet {
+contract ERC721PortalFacet is IERC721PortalFacet, ERC721Holder {
     using SafeERC20 for IERC20;
 
     /// @notice Mints `_tokenId` wrapped to the `receiver` address.
