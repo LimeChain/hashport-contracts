@@ -78,7 +78,7 @@ contract ERC721PortalFacet is IERC721PortalFacet, ERC721Holder {
         address payment = LibERC721.erc721Payment(_wrappedToken);
         require(
             LibPayment.containsPaymentToken(payment),
-            "payment token not supported"
+            "ERC721PortalFacet: payment token not supported"
         );
         uint256 fee = LibERC721.erc721Fee(_wrappedToken);
 
@@ -87,25 +87,6 @@ contract ERC721PortalFacet is IERC721PortalFacet, ERC721Holder {
 
         WrappedERC721(_wrappedToken).burn(_tokenId);
         emit BurnERC721(_targetChain, _wrappedToken, _tokenId, _receiver);
-    }
-
-    /// @notice Deploys a wrapped version of an ERC-721/NFT token to the current chain
-    /// @param _sourceChain The chain where `nativeToken` is originally deployed to
-    /// @param _nativeToken The address of the token
-    /// @param _tokenParams The name/symbol to use for the wrapped version of `nativeToken`
-    function deployWrappedTokenERC721(
-        uint256 _sourceChain,
-        bytes memory _nativeToken,
-        WrappedTokenERC721Params memory _tokenParams
-    ) external override {
-        LibDiamond.enforceIsContractOwner();
-
-        WrappedERC721 t = new WrappedERC721(
-            _tokenParams.name,
-            _tokenParams.symbol
-        );
-
-        emit WrappedTokenERC721Deployed(_sourceChain, _nativeToken, address(t));
     }
 
     /// @notice Sets ERC-721 contract payment token and fee amount
@@ -121,7 +102,7 @@ contract ERC721PortalFacet is IERC721PortalFacet, ERC721Holder {
 
         require(
             LibPayment.containsPaymentToken(_payment),
-            "payment token not supported"
+            "ERC721PortalFacet: payment token not supported"
         );
 
         LibERC721.setERC721PaymentFee(_erc721, _payment, _fee);

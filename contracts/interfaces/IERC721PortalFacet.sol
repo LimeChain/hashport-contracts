@@ -67,16 +67,6 @@ interface IERC721PortalFacet {
         bytes memory _receiver
     ) external;
 
-    /// @notice Deploys a wrapped version of an ERC-721/NFT token to the current chain
-    /// @param _sourceChain The chain where `nativeToken` is originally deployed to
-    /// @param _nativeToken The address of the token
-    /// @param _tokenParams The name/symbol to use for the wrapped version of `nativeToken`
-    function deployWrappedTokenERC721(
-        uint256 _sourceChain,
-        bytes memory _nativeToken,
-        WrappedTokenERC721Params memory _tokenParams
-    ) external;
-
     /// @notice Sets ERC-721 contract payment token and fee amount
     /// @param _erc721 The target ERC-721 contract
     /// @param _payment The target payment token
