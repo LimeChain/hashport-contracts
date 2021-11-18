@@ -54,7 +54,7 @@ interface IERC721PortalFacet {
         bytes[] calldata _signatures
     ) external;
 
-    /// @notice Burns `_tokenId` of `wrappedToken` initializes a portal transaction to the target chain
+    /// @notice Burns `_tokenId` of `wrappedToken` and initializes a portal transaction to the target chain
     ///         The wrappedToken's fee payment is transferred to the contract upon execution.
     /// @param _targetChain The target chain to which the wrapped asset will be transferred
     /// @param _wrappedToken The address of the wrapped token
