@@ -1766,6 +1766,7 @@ describe('Router', async () => {
         });
 
         describe('with ERC-721', async () => {
+          let paymentToken;
 
           beforeEach(async () => {
             const erc721PortalFacetFactory = await ethers.getContractFactory('ERC721PortalFacet');
@@ -1787,6 +1788,11 @@ describe('Router', async () => {
             wrappedERC721 = await wrappedERC721Factory.deploy(wrappedTokenName, wrappedTokenSymbol);
             await wrappedERC721.deployed();
             await wrappedERC721.transferOwnership(router.address);
+
+            paymentToken = await nativeTokenFactory.deploy('OtherNativeToken', 'NT', 18);
+            await paymentToken.deployed();
+            await paymentToken.mint(nonMember.address, amount);
+            await payment.setPaymentToken(paymentToken.address, true);
           });
 
           it('should correctly accrue fees after addition of a new member when token payments exist', async () => {
@@ -1848,7 +1854,7 @@ describe('Router', async () => {
             expect(await router.claimedRewardsPerAccount(bob.address, nativeToken.address)).to.equal(totalAccrued);
           });
 
-          it('should correctly accrue fees after removal of a member when when token payments exist', async () => {
+          it('should correctly accrue fees after removal of a member when token payments exist', async () => {
             // given
             const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
             const totalAccrued = serviceFee.add(ERC721BurnFee);
@@ -1913,6 +1919,155 @@ describe('Router', async () => {
             expect(afterMemberUpdateTokenFeeData.previousAccrued).to.equal(afterMemberUpdateTokenFeeData.feesAccrued);
 
             expect(await router.claimedRewardsPerAccount(alice.address, nativeToken.address)).to.equal(rewardPerMember);
+          });
+
+          it('should correctly accrue fees after addition of a new member when different native and token payments exist', async () => {
+            // given
+            await router.updateNativeToken(nativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+            await nativeToken.mint(nonMember.address, amount);
+
+            await nativeToken.connect(nonMember).approve(router.address, amount);
+            await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
+            const receiver = nonMember.address;
+
+            const encodeData = ethers.utils.defaultAbiCoder.encode(
+              ['uint256', 'uint256', 'bytes', 'address', 'uint256', 'string', 'address'],
+              [1, chainId, transactionId, wrappedERC721.address, tokenID, metadata, receiver]);
+            const hashMsg = ethers.utils.keccak256(encodeData);
+            hashData = ethers.utils.arrayify(hashMsg);
+
+            const aliceSignature = await alice.signMessage(hashData);
+
+            // and
+            await erc721Portal.setERC721Payment(wrappedERC721.address, paymentToken.address, ERC721BurnFee);
+            // and
+            await erc721Portal.mintERC721(
+              1,
+              transactionId,
+              wrappedERC721.address,
+              tokenID,
+              metadata,
+              receiver,
+              [aliceSignature]);
+            // and
+            await nativeToken.mint(nonMember.address, amount);
+            // and
+            await paymentToken.connect(nonMember).approve(router.address, ERC721BurnFee);
+            // and
+            await wrappedERC721.connect(nonMember).approve(router.address, tokenID);
+            // and
+            await erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, receiver);
+            // and
+            const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+
+            const beforeMemberUpdateNativeTokenFeeData = await router.tokenFeeData(nativeToken.address);
+            expect(beforeMemberUpdateNativeTokenFeeData.feesAccrued).to.equal(serviceFee);
+            expect(beforeMemberUpdateNativeTokenFeeData.accumulator).to.equal(0);
+            expect(beforeMemberUpdateNativeTokenFeeData.previousAccrued).to.equal(0);
+
+            const beforeMemberUpdatePaymentTokenFeeData = await router.tokenFeeData(paymentToken.address);
+            expect(beforeMemberUpdatePaymentTokenFeeData.feesAccrued).to.equal(ERC721BurnFee);
+            expect(beforeMemberUpdatePaymentTokenFeeData.accumulator).to.equal(0);
+            expect(beforeMemberUpdatePaymentTokenFeeData.previousAccrued).to.equal(0);
+
+            // when
+            await router.updateMember(bob.address, bobAdmin.address, true);
+
+            // then
+            const afterMemberUpdateNativeTokenFeeData = await router.tokenFeeData(nativeToken.address);
+            expect(afterMemberUpdateNativeTokenFeeData.feesAccrued).to.equal(serviceFee);
+            expect(afterMemberUpdateNativeTokenFeeData.accumulator).to.equal(serviceFee);
+            expect(afterMemberUpdateNativeTokenFeeData.previousAccrued).to.equal(afterMemberUpdateNativeTokenFeeData.feesAccrued);
+
+            expect(await router.claimedRewardsPerAccount(alice.address, nativeToken.address)).to.equal(0);
+            expect(await router.claimedRewardsPerAccount(bob.address, nativeToken.address)).to.equal(serviceFee);
+            // and
+            const afterMemberUpdatePaymentTokenFeeData = await router.tokenFeeData(paymentToken.address);
+            expect(afterMemberUpdatePaymentTokenFeeData.feesAccrued).to.equal(ERC721BurnFee);
+            expect(afterMemberUpdatePaymentTokenFeeData.accumulator).to.equal(ERC721BurnFee);
+            expect(afterMemberUpdatePaymentTokenFeeData.previousAccrued).to.equal(afterMemberUpdatePaymentTokenFeeData.feesAccrued);
+
+            expect(await router.claimedRewardsPerAccount(alice.address, paymentToken.address)).to.equal(0);
+            expect(await router.claimedRewardsPerAccount(bob.address, paymentToken.address)).to.equal(ERC721BurnFee);
+          });
+
+          it('should correctly accrue fees after removal of a member when different native and token payments exist', async () => {
+            // given
+            const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+            const serviceFeeRewardPerMember = serviceFee.div(2);
+            const paymentTokenRewardPerMember = ERC721BurnFee.div(2);
+            // and
+            await router.updateMember(bob.address, bobAdmin.address, true);
+            // and
+            await router.updateNativeToken(nativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+            await nativeToken.mint(nonMember.address, amount);
+
+            await nativeToken.connect(nonMember).approve(router.address, amount);
+            await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
+            const receiver = nonMember.address;
+
+            const encodeData = ethers.utils.defaultAbiCoder.encode(
+              ['uint256', 'uint256', 'bytes', 'address', 'uint256', 'string', 'address'],
+              [1, chainId, transactionId, wrappedERC721.address, tokenID, metadata, receiver]);
+            const hashMsg = ethers.utils.keccak256(encodeData);
+            hashData = ethers.utils.arrayify(hashMsg);
+
+            const aliceSignature = await alice.signMessage(hashData);
+
+            // and
+            await erc721Portal.setERC721Payment(wrappedERC721.address, paymentToken.address, ERC721BurnFee);
+            // and
+            await erc721Portal.mintERC721(
+              1,
+              transactionId,
+              wrappedERC721.address,
+              tokenID,
+              metadata,
+              receiver,
+              [aliceSignature]);
+            // and
+            await nativeToken.mint(nonMember.address, amount);
+            // and
+            await paymentToken.connect(nonMember).approve(router.address, ERC721BurnFee);
+            // and
+            await wrappedERC721.connect(nonMember).approve(router.address, tokenID);
+            // and
+            await erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, receiver);
+
+            const beforeMemberUpdateNativeTokenFeeData = await router.tokenFeeData(nativeToken.address);
+            expect(beforeMemberUpdateNativeTokenFeeData.feesAccrued).to.equal(serviceFee);
+            expect(beforeMemberUpdateNativeTokenFeeData.accumulator).to.equal(0);
+            expect(beforeMemberUpdateNativeTokenFeeData.previousAccrued).to.equal(0);
+
+            const beforeMemberUpdatePaymentTokenFeeData = await router.tokenFeeData(paymentToken.address);
+            expect(beforeMemberUpdatePaymentTokenFeeData.feesAccrued).to.equal(ERC721BurnFee);
+            expect(beforeMemberUpdatePaymentTokenFeeData.accumulator).to.equal(0);
+            expect(beforeMemberUpdatePaymentTokenFeeData.previousAccrued).to.equal(0);
+
+            // when
+            await expect(
+              router.updateMember(alice.address, aliceAdmin.address, false))
+              .to.emit(router, 'MemberUpdated')
+              .withArgs(alice.address, false)
+              .to.emit(router, 'MemberAdminUpdated')
+              .withArgs(alice.address, ethers.constants.AddressZero)
+              .to.emit(nativeToken, 'Transfer')
+              .withArgs(router.address, aliceAdmin.address, serviceFeeRewardPerMember)
+              .to.emit(paymentToken, 'Transfer')
+              .withArgs(router.address, aliceAdmin.address, paymentTokenRewardPerMember);
+
+            const afterMemberUpdateNativeTokenFeeData = await router.tokenFeeData(nativeToken.address);
+            expect(afterMemberUpdateNativeTokenFeeData.feesAccrued).to.equal(serviceFee);
+            expect(afterMemberUpdateNativeTokenFeeData.accumulator).to.equal(serviceFeeRewardPerMember);
+            expect(afterMemberUpdateNativeTokenFeeData.previousAccrued).to.equal(afterMemberUpdateNativeTokenFeeData.feesAccrued);
+            expect(await router.claimedRewardsPerAccount(alice.address, nativeToken.address)).to.equal(serviceFeeRewardPerMember);
+
+            const afterMemberUpdatePaymentTokenFeeData = await router.tokenFeeData(paymentToken.address);
+            expect(afterMemberUpdatePaymentTokenFeeData.feesAccrued).to.equal(ERC721BurnFee);
+            expect(afterMemberUpdatePaymentTokenFeeData.accumulator).to.equal(paymentTokenRewardPerMember);
+            expect(afterMemberUpdatePaymentTokenFeeData.previousAccrued).to.equal(afterMemberUpdatePaymentTokenFeeData.feesAccrued);
+
+            expect(await router.claimedRewardsPerAccount(alice.address, paymentToken.address)).to.equal(paymentTokenRewardPerMember);
           });
         });
       });
