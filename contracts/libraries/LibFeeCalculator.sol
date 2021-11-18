@@ -116,4 +116,13 @@ library LibFeeCalculator {
 
         return _fc.accumulator;
     }
+
+    /// @notice Accrues fees to a fee calculator
+    /// @param _token The target token to which fee calculator the amount will be accrued
+    /// @param _amount The amount to be accrued
+    function accrueFee(address _token, uint256 _amount) internal {
+        LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
+        FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[_token];
+        fc.feesAccrued = fc.feesAccrued + _amount;
+    }
 }

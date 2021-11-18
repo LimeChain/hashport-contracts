@@ -1,14 +1,28 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.3;
 
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../interfaces/IERC721PortalFacet.sol";
 import "../libraries/LibDiamond.sol";
 import "../libraries/LibGovernance.sol";
+import "../libraries/LibFeeCalculator.sol";
+import "../libraries/LibPayment.sol";
 import "../libraries/LibRouter.sol";
+import "../libraries/LibERC721.sol";
 import "../WrappedERC721.sol";
 
 contract ERC721PortalFacet is IERC721PortalFacet {
-    // TODO:
+    using SafeERC20 for IERC20;
+
+    /// @notice Mints `_tokenId` wrapped to the `receiver` address.
+    ///         Must be authorised by the configured supermajority threshold of `signatures` from the `members` set.
+    /// @param _sourceChain ID of the source chain
+    /// @param _transactionId The source transaction ID + log index
+    /// @param _wrappedToken The address of the wrapped ERC-721 token on the current chain
+    /// @param _tokenId The target token ID
+    /// @param _metadata The tokenID's metadata, used to be queried as ERC-721.tokenURI
+    /// @param _receiver The address of the receiver on this chain
+    /// @param _signatures The array of signatures from the members, authorising the operation
     function mintERC721(
         uint256 _sourceChain,
         bytes memory _transactionId,
@@ -48,7 +62,36 @@ contract ERC721PortalFacet is IERC721PortalFacet {
         );
     }
 
-    // TODO:
+    /// @notice Burns `_tokenId` of `wrappedToken` initializes a portal transaction to the target chain
+    ///         The wrappedToken's fee payment is transferred to the contract upon execution.
+    /// @param _targetChain The target chain to which the wrapped asset will be transferred
+    /// @param _wrappedToken The address of the wrapped token
+    /// @param _tokenId The tokenID of `wrappedToken` to burn
+    /// @param _receiver The address of the receiver on the target chain
+    function burnERC721(
+        uint256 _targetChain,
+        address _wrappedToken,
+        uint256 _tokenId,
+        bytes memory _receiver
+    ) public override whenNotPaused {
+        address payment = LibERC721.erc721Payment(_wrappedToken);
+        require(
+            LibPayment.containsPaymentToken(payment),
+            "payment token not supported"
+        );
+        uint256 fee = LibERC721.erc721Fee(_wrappedToken);
+
+        IERC20(payment).safeTransferFrom(msg.sender, address(this), fee);
+        LibFeeCalculator.accrueFee(payment, fee);
+
+        WrappedERC721(_wrappedToken).burn(_tokenId);
+        emit BurnERC721(_targetChain, _wrappedToken, _tokenId, _receiver);
+    }
+
+    /// @notice Deploys a wrapped version of an ERC-721/NFT token to the current chain
+    /// @param _sourceChain The chain where `nativeToken` is originally deployed to
+    /// @param _nativeToken The address of the token
+    /// @param _tokenParams The name/symbol to use for the wrapped version of `nativeToken`
     function deployWrappedTokenERC721(
         uint256 _sourceChain,
         bytes memory _nativeToken,
@@ -62,6 +105,27 @@ contract ERC721PortalFacet is IERC721PortalFacet {
         );
 
         emit WrappedTokenERC721Deployed(_sourceChain, _nativeToken, address(t));
+    }
+
+    /// @notice Sets ERC-721 contract payment token and fee amount
+    /// @param _erc721 The target ERC-721 contract
+    /// @param _payment The target payment token
+    /// @param _fee The fee required upon every portal transfer
+    function setERC721Payment(
+        address _erc721,
+        address _payment,
+        uint256 _fee
+    ) external override {
+        LibDiamond.enforceIsContractOwner();
+
+        require(
+            LibPayment.containsPaymentToken(_payment),
+            "payment token not supported"
+        );
+
+        LibERC721.setERC721PaymentFee(_erc721, _payment, _fee);
+
+        emit SetERC721Payment(_erc721, _payment, _fee);
     }
 
     /// @notice Computes the bytes32 ethereum signed message hash for signatures
