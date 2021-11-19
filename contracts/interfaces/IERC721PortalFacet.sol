@@ -78,8 +78,10 @@ interface IERC721PortalFacet {
     ) external;
 
     /// @notice Returns the payment token for an ERC-721
+    /// @param _erc721 The address of the ERC-721 Token
     function erc721Payment(address _erc721) external view returns (address);
 
     /// @notice Returns the payment fee for an ERC-721
+    /// @param _erc721 The address of the ERC-721 Token
     function erc721Fee(address _erc721) external view returns (uint256);
 }

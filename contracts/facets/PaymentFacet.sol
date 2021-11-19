@@ -95,6 +95,7 @@ contract PaymentFacet is IPayment {
     }
 
     /// @notice Gets the payment token at a given index
+    /// @param _index The token index
     function paymentTokenAt(uint256 _index)
         external
         view

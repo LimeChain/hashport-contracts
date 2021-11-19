@@ -35,5 +35,6 @@ interface IPayment {
     function totalPaymentTokens() external view returns (uint256);
 
     /// @notice Gets the payment token at a given index
+    /// @param _index The token index
     function paymentTokenAt(uint256 _index) external view returns (address);
 }
