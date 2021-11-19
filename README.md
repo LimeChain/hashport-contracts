@@ -140,7 +140,7 @@ npx hardhat update-native-token \
 ```
 
 ### Upgrade diamond to support ERC-721
-Ugrades the diamond to support ERC-721:
+Upgrades the diamond to support ERC-721:
 ```bash
 npx hardhat upgrade-erc721-support \
     --network <network name> \
