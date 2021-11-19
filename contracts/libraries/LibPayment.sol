@@ -58,14 +58,4 @@ library LibPayment {
         PaymentStorage storage ps = paymentStorage();
         return ps.tokens.contains(_token);
     }
-
-    /// @notice Gets the total amount of payment tokens
-    function totalPaymentTokens() internal view returns (uint256) {
-        return paymentStorage().tokens.length();
-    }
-
-    /// @notice Gets the payment token at a given index
-    function paymentTokenAt(uint256 _index) internal view returns (address) {
-        return paymentStorage().tokens.at(_index);
-    }
 }

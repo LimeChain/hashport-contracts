@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.3;
 
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
 import "../interfaces/IPayment.sol";
 import "../libraries/LibDiamond.sol";
 import "../libraries/LibPayment.sol";
@@ -32,7 +30,7 @@ contract PaymentFacet is IPayment {
 
     /// @notice Gets the total amount of token payments
     function totalPaymentTokens() external view override returns (uint256) {
-        return LibPayment.totalPaymentTokens();
+        return LibPayment.tokensCount();
     }
 
     /// @notice Gets the payment token at a given index
@@ -43,6 +41,6 @@ contract PaymentFacet is IPayment {
         override
         returns (address)
     {
-        return LibPayment.paymentTokenAt(_index);
+        return LibPayment.tokenAt(_index);
     }
 }
