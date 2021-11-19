@@ -1911,7 +1911,9 @@ describe('Router', async () => {
               .to.emit(router, 'MemberAdminUpdated')
               .withArgs(alice.address, ethers.constants.AddressZero)
               .to.emit(nativeToken, 'Transfer')
-              .withArgs(router.address, aliceAdmin.address, rewardPerMember);
+              .withArgs(router.address, aliceAdmin.address, rewardPerMember)
+              .to.emit(nativeToken, 'Transfer')
+              .withArgs(router.address, aliceAdmin.address, 0);
 
             const afterMemberUpdateTokenFeeData = await router.tokenFeeData(nativeToken.address);
             expect(afterMemberUpdateTokenFeeData.feesAccrued).to.equal(totalAccrued);
