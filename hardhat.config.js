@@ -74,6 +74,13 @@ task('update-member', 'Update member in router contract')
         await updateMember(taskArgs.router, taskArgs.member, taskArgs.status);
     });
 
+task('upgrade-erc721-support', 'Upgrades the router diamond with Payment and ERC-721 facets')
+    .addParam('router', 'The address of the router contract')
+    .setAction(async (taskArgs) => {
+        const upgradeErc721Support = require('./scripts/upgrade-erc721-support');
+        await upgradeErc721Support(taskArgs.router);
+    });
+
 module.exports = {
     solidity: {
         version: '0.8.3',

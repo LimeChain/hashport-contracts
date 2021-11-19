@@ -1773,7 +1773,7 @@ describe('Router', async () => {
             erc721PortalFacet = await erc721PortalFacetFactory.deploy();
             await erc721PortalFacet.deployed();
 
-            // Diamond cut to add Payment Facet
+            // Diamond cut to add ERC-721 Portal Facet
             const diamondAddCut = [{
               facetAddress: erc721PortalFacet.address,
               action: 0, // Add
@@ -2086,7 +2086,7 @@ describe('Router', async () => {
         erc721PortalFacet = await erc721PortalFacetFactory.deploy();
         await erc721PortalFacet.deployed();
 
-        // Diamond cut to add Payment Facet
+        // Diamond cut to add ERC-721 Portal Facet
         const diamondAddCut = [{
           facetAddress: erc721PortalFacet.address,
           action: 0, // Add
