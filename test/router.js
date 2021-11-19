@@ -1479,7 +1479,6 @@ describe('Router', async () => {
   describe('ERC-721 support', async () => {
     let paymentFacet; // Actual PaymentFacet Contract
     let payment; // Wrapped Diamond contract to a IPayment
-    const updatedFunction = 'updateMember(address,address,bool)';
     const tokenID = 1;
     const metadata = 'https://hello.zyx/1';
     const ERC721BurnFee = ethers.utils.parseEther('1');
@@ -1488,19 +1487,6 @@ describe('Router', async () => {
       const paymentFacetFactory = await ethers.getContractFactory('PaymentFacet');
       paymentFacet = await paymentFacetFactory.deploy();
       await paymentFacet.deployed();
-
-      // Remove old updateMember function
-      const sigHash = await governanceFacet.interface.getSighash(updatedFunction);
-      const diamondRemoveCut = [{
-        facetAddress: ethers.constants.AddressZero,
-        action: 2, // Remove
-        functionSelectors: [sigHash]
-      }];
-      await router.diamondCut(diamondRemoveCut, ethers.constants.AddressZero, "0x");
-
-      const expectedRevertMessage = 'Diamond: Function does not exist';
-      await expect(router.updateMember(alice.address, aliceAdmin.address, false))
-        .to.be.revertedWith(expectedRevertMessage);
 
       // Diamond cut to add Payment Facet
       const diamondAddCut = [{
@@ -1516,8 +1502,6 @@ describe('Router', async () => {
 
     describe('PaymentFacet', async () => {
       it('should diamond cut successfully', async () => {
-        const sigHash = governanceFacet.interface.getSighash(updatedFunction);
-
         expect(await router.facetAddresses())
           .to.include(routerFacet.address)
           .to.include(pausableFacet.address)
@@ -1526,10 +1510,6 @@ describe('Router', async () => {
           .to.include(cutFacet.address)
           .to.include(loupeFacet.address)
           .to.include(paymentFacet.address);
-
-        const expectedGovernanceSelectors = getSelectors(governanceFacet)
-          .filter(selector => selector !== sigHash)
-          .sort();
 
         const facets = await router.facets();
         for (const facet of facets) {
@@ -1544,8 +1524,7 @@ describe('Router', async () => {
               expect(facet.functionSelectors).to.deep.equal(getSelectors(feeCalculatorFacet));
               break;
             case governanceFacet.address:
-              const sorted = facet.functionSelectors.slice().sort();
-              expect(sorted).to.deep.equal(expectedGovernanceSelectors);
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(governanceFacet));
               break;
             case ownershipFacet.address:
               expect(facet.functionSelectors).to.deep.equal(getSelectors(ownershipFacet));
@@ -1631,6 +1610,96 @@ describe('Router', async () => {
           await expect(payment.setPaymentToken(nativeToken.address, false))
             .to.be.revertedWith(expectedRevertMessage);
         });
+      });
+    });
+
+    describe('GovernanceV2', async () => {
+      let governanceV2Facet;
+      let governanceV2;
+      const updatedFunction = 'updateMember(address,address,bool)';
+
+      beforeEach(async () => {
+        // Remove old updateMember function
+        const sigHash = await governanceFacet.interface.getSighash(updatedFunction);
+        const diamondRemoveCut = [{
+          facetAddress: ethers.constants.AddressZero,
+          action: 2, // Remove
+          functionSelectors: [sigHash]
+        }];
+        await router.diamondCut(diamondRemoveCut, ethers.constants.AddressZero, "0x");
+
+        const governanceV2Factory = await ethers.getContractFactory('GovernanceV2Facet');
+        governanceV2Facet = await governanceV2Factory.deploy();
+        await governanceV2Facet.deployed();
+
+        const expectedRevertMessage = 'Diamond: Function does not exist';
+        await expect(router.updateMember(alice.address, aliceAdmin.address, false))
+          .to.be.revertedWith(expectedRevertMessage);
+
+        // Diamond cut to add Payment Facet
+        const diamondAddCut = [{
+          facetAddress: governanceV2Facet.address,
+          action: 0, // Add
+          functionSelectors: getSelectors(governanceV2Facet),
+        }];
+
+        await router.diamondCut(diamondAddCut, ethers.constants.AddressZero, "0x");
+
+        governanceV2 = await ethers.getContractAt('IGovernanceV2', diamond.address);
+      });
+
+      it('should diamond cut successfully', async () => {
+        const sigHash = governanceFacet.interface.getSighash(updatedFunction);
+
+        expect(await router.facetAddresses())
+          .to.include(routerFacet.address)
+          .to.include(pausableFacet.address)
+          .to.include(ownershipFacet.address)
+          .to.include(feeCalculatorFacet.address)
+          .to.include(cutFacet.address)
+          .to.include(loupeFacet.address)
+          .to.include(paymentFacet.address)
+          .to.include(governanceV2Facet.address);
+
+        const expectedGovernanceSelectors = getSelectors(governanceFacet)
+          .filter(selector => selector !== sigHash)
+          .sort();
+
+        const facets = await router.facets();
+        for (const facet of facets) {
+          switch (facet.facetAddress) {
+            case cutFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(cutFacet));
+              break;
+            case loupeFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(loupeFacet));
+              break;
+            case feeCalculatorFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(feeCalculatorFacet));
+              break;
+            case governanceFacet.address:
+              const sorted = facet.functionSelectors.slice().sort();
+              expect(sorted).to.deep.equal(expectedGovernanceSelectors);
+              break;
+            case ownershipFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(ownershipFacet));
+              break;
+            case pausableFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(pausableFacet));
+              break;
+            case routerFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(routerFacet));
+              break;
+            case paymentFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(paymentFacet));
+              break;
+            case governanceV2Facet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(governanceV2Facet));
+              break;
+            default:
+              throw 'invalid facet address'
+          }
+        }
       });
 
       describe('updateMember', async () => {
@@ -2106,8 +2175,6 @@ describe('Router', async () => {
       });
 
       it('should diamond cut successfully', async () => {
-        const sigHash = governanceFacet.interface.getSighash(updatedFunction);
-
         expect(await router.facetAddresses())
           .to.include(routerFacet.address)
           .to.include(pausableFacet.address)
@@ -2117,10 +2184,6 @@ describe('Router', async () => {
           .to.include(loupeFacet.address)
           .to.include(paymentFacet.address)
           .to.include(erc721PortalFacet.address);
-
-        const expectedGovernanceSelectors = getSelectors(governanceFacet)
-          .filter(selector => selector !== sigHash)
-          .sort();
 
         const facets = await router.facets();
         for (const facet of facets) {
@@ -2135,8 +2198,7 @@ describe('Router', async () => {
               expect(facet.functionSelectors).to.deep.equal(getSelectors(feeCalculatorFacet));
               break;
             case governanceFacet.address:
-              const sorted = facet.functionSelectors.slice().sort();
-              expect(sorted).to.deep.equal(expectedGovernanceSelectors);
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(governanceFacet));
               break;
             case ownershipFacet.address:
               expect(facet.functionSelectors).to.deep.equal(getSelectors(ownershipFacet));
@@ -2506,7 +2568,7 @@ describe('Router', async () => {
               .burnERC721(1, wrappedERC721.address, tokenID, receiver)
           )
             .to.emit(erc721Portal, 'BurnERC721')
-            .withArgs(1, wrappedERC721.address, tokenID, receiver.toLowerCase())
+            .withArgs(1, wrappedERC721.address, tokenID, receiver.toLowerCase(), ERC721BurnFee)
             .to.emit(wrappedERC721, 'Transfer')
             .withArgs(nonMember.address, ethers.constants.AddressZero, tokenID);
         });

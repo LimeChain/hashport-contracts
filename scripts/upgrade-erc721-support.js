@@ -20,6 +20,12 @@ async function upgradeErc721Support(routerAddress) {
   await erc721PortalFacet.deployed();
   console.log('ERC-721 Portal Facet address: ', erc721PortalFacet.address);
 
+  const governanceV2FacetFactory = await ethers.getContractFactory('GovernanceV2Facet');
+  const governanceV2Facet = await governanceV2FacetFactory.deploy();
+  console.log('Deploying GovernanceV2Facet, please wait...');
+  await governanceV2Facet.deployed();
+  console.log('GovernanceV2Facet address: ', governanceV2Facet.address);
+
   const governanceFacet = await ethers.getContractAt('GovernanceFacet', null);
   const sigHash = await governanceFacet.interface.getSighash(updatedFunction);
 
@@ -30,9 +36,20 @@ async function upgradeErc721Support(routerAddress) {
   }];
 
   const router = await ethers.getContractAt('IRouterDiamond', routerAddress);
+
   const diamondRemoveTx = await router.diamondCut(diamondRemoveCut, ethers.constants.AddressZero, "0x");
   console.log(`Diamond Cut updateMember removal [${diamondRemoveTx.hash}] submitted, waiting to be mined...`);
   await diamondRemoveTx.wait();
+
+  const diamondAddCutGovernanceV2 = [{
+    facetAddress: governanceV2Facet.address,
+    action: 0, // Add
+    functionSelectors: getSelectors(governanceV2Facet)
+  }];
+
+  const diamondAddGovernanceV2Tx = await router.diamondCut(diamondAddCutGovernanceV2, ethers.constants.AddressZero, "0x");
+  console.log(`Diamond Cut Add GovernanceV2Facet [${diamondAddGovernanceV2Tx.hash}] submitted, waiting to be mined...`);
+  await diamondAddGovernanceV2Tx.wait();
 
   // Diamond cut to add Payment Facet
   const diamondAddCutPayment = [{

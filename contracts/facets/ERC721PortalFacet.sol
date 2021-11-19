@@ -15,7 +15,7 @@ import "../WrappedERC721.sol";
 contract ERC721PortalFacet is IERC721PortalFacet, ERC721Holder {
     using SafeERC20 for IERC20;
 
-    /// @notice Mints `_tokenId` wrapped to the `receiver` address.
+    /// @notice Mints wrapped `_tokenId` to the `receiver` address.
     ///         Must be authorised by the configured supermajority threshold of `signatures` from the `members` set.
     /// @param _sourceChain ID of the source chain
     /// @param _transactionId The source transaction ID + log index
@@ -86,7 +86,7 @@ contract ERC721PortalFacet is IERC721PortalFacet, ERC721Holder {
         LibFeeCalculator.accrueFee(payment, fee);
 
         WrappedERC721(_wrappedToken).burn(_tokenId);
-        emit BurnERC721(_targetChain, _wrappedToken, _tokenId, _receiver);
+        emit BurnERC721(_targetChain, _wrappedToken, _tokenId, _receiver, fee);
     }
 
     /// @notice Sets ERC-721 contract payment token and fee amount

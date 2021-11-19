@@ -22,20 +22,14 @@ interface IERC721PortalFacet {
         uint256 targetChain,
         address wrappedToken,
         uint256 tokenId,
-        bytes receiver
-    );
-
-    /// @notice An event emitted once a new wrapped ERC-721 token is deployed by the contract
-    event WrappedTokenERC721Deployed(
-        uint256 sourceChain,
-        bytes nativeToken,
-        address wrappedTokenERC721
+        bytes receiver,
+        uint256 fee
     );
 
     /// @notice An event emitted once an ERC-721 payment token and fee is modified
     event SetERC721Payment(address erc721, address payment, uint256 fee);
 
-    /// @notice Mints `_tokenId` wrapped to the `receiver` address.
+    /// @notice Mints wrapped `_tokenId` to the `receiver` address.
     ///         Must be authorised by the configured supermajority threshold of `signatures` from the `members` set.
     /// @param _sourceChain ID of the source chain
     /// @param _transactionId The source transaction ID + log index
