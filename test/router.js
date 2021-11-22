@@ -1624,13 +1624,13 @@ describe('Router', async () => {
         await governanceV2Facet.deployed();
 
         // Diamond cut to replace Payment Facet
-        const diamondAddCut = [{
+        const diamondReplaceCut = [{
           facetAddress: governanceV2Facet.address,
           action: 1, // Replace
           functionSelectors: getSelectors(governanceV2Facet),
         }];
 
-        await router.diamondCut(diamondAddCut, ethers.constants.AddressZero, "0x");
+        await router.diamondCut(diamondReplaceCut, ethers.constants.AddressZero, "0x");
 
         governanceV2 = await ethers.getContractAt('IGovernanceV2', diamond.address);
       });
