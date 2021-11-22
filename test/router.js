@@ -1619,27 +1619,14 @@ describe('Router', async () => {
       const updatedFunction = 'updateMember(address,address,bool)';
 
       beforeEach(async () => {
-        // Remove old updateMember function
-        const sigHash = await governanceFacet.interface.getSighash(updatedFunction);
-        const diamondRemoveCut = [{
-          facetAddress: ethers.constants.AddressZero,
-          action: 2, // Remove
-          functionSelectors: [sigHash]
-        }];
-        await router.diamondCut(diamondRemoveCut, ethers.constants.AddressZero, "0x");
-
         const governanceV2Factory = await ethers.getContractFactory('GovernanceV2Facet');
         governanceV2Facet = await governanceV2Factory.deploy();
         await governanceV2Facet.deployed();
 
-        const expectedRevertMessage = 'Diamond: Function does not exist';
-        await expect(router.updateMember(alice.address, aliceAdmin.address, false))
-          .to.be.revertedWith(expectedRevertMessage);
-
-        // Diamond cut to add Payment Facet
+        // Diamond cut to replace Payment Facet
         const diamondAddCut = [{
           facetAddress: governanceV2Facet.address,
-          action: 0, // Add
+          action: 1, // Replace
           functionSelectors: getSelectors(governanceV2Facet),
         }];
 
