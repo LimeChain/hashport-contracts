@@ -1615,7 +1615,6 @@ describe('Router', async () => {
 
     describe('GovernanceV2', async () => {
       let governanceV2Facet;
-      let governanceV2;
       const updatedFunction = 'updateMember(address,address,bool)';
 
       beforeEach(async () => {
@@ -1631,8 +1630,6 @@ describe('Router', async () => {
         }];
 
         await router.diamondCut(diamondReplaceCut, ethers.constants.AddressZero, "0x");
-
-        governanceV2 = await ethers.getContractAt('IGovernanceV2', diamond.address);
       });
 
       it('should diamond cut successfully', async () => {
