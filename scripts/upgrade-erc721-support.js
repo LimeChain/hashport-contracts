@@ -12,32 +12,17 @@ async function upgradeErc721Support(routerAddress) {
   await paymentFacet.deployed();
   console.log('PaymentFacet address: ', paymentFacet.address);
 
-  await hardhat.run('verify:verify', {
-    address: paymentFacet.address,
-    constructorArguments: []
-  });
-
   const erc721PortalFacetFactory = await ethers.getContractFactory('ERC721PortalFacet');
   const erc721PortalFacet = await erc721PortalFacetFactory.deploy();
   console.log('Deploying ERC-721 Portal Facet, please wait...');
   await erc721PortalFacet.deployed();
   console.log('ERC-721 Portal Facet address: ', erc721PortalFacet.address);
 
-  await hardhat.run('verify:verify', {
-    address: erc721PortalFacet.address,
-    constructorArguments: []
-  });
-
   const governanceV2FacetFactory = await ethers.getContractFactory('GovernanceV2Facet');
   const governanceV2Facet = await governanceV2FacetFactory.deploy();
   console.log('Deploying GovernanceV2Facet, please wait...');
   await governanceV2Facet.deployed();
   console.log('GovernanceV2Facet address: ', governanceV2Facet.address);
-
-  await hardhat.run('verify:verify', {
-    address: governanceV2Facet.address,
-    constructorArguments: []
-  });
 
   const router = await ethers.getContractAt('IRouterDiamond', routerAddress);
 
@@ -72,6 +57,21 @@ async function upgradeErc721Support(routerAddress) {
   const diamondAddERC721PortalTx = await router.diamondCut(diamondAddCutERC721Portal, ethers.constants.AddressZero, "0x");
   console.log(`Diamond Cut Add ERC-721 Portal [${diamondAddERC721PortalTx.hash}] submitted, waiting to be mined...`);
   await diamondAddERC721PortalTx.wait();
+
+  await hardhat.run('verify:verify', {
+    address: erc721PortalFacet.address,
+    constructorArguments: []
+  });
+
+  await hardhat.run('verify:verify', {
+    address: paymentFacet.address,
+    constructorArguments: []
+  });
+
+  await hardhat.run('verify:verify', {
+    address: governanceV2Facet.address,
+    constructorArguments: []
+  });
 }
 
 module.exports = upgradeErc721Support;
