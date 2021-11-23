@@ -41,10 +41,6 @@ async function upgradeErc721Support(routerAddress) {
 
   const router = await ethers.getContractAt('IRouterDiamond', routerAddress);
 
-  const diamondRemoveTx = await router.diamondCut(diamondRemoveCut, ethers.constants.AddressZero, "0x");
-  console.log(`Diamond Cut updateMember removal [${diamondRemoveTx.hash}] submitted, waiting to be mined...`);
-  await diamondRemoveTx.wait();
-
   const diamondReplaceCutGovernanceV2 = [{
     facetAddress: governanceV2Facet.address,
     action: 1, // Replace
