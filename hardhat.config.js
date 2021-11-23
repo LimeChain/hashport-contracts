@@ -65,6 +65,15 @@ task('deploy-wrapped-token', 'Deploy wrapped token from router contract')
             taskArgs.decimals);
     });
 
+task('deploy-wrapped-erc721-transfer-ownership', 'Deploys Wrapped ERC-721 and transfer ownership to Router')
+    .addParam('router', 'The address of the router contract')
+    .addParam('name', 'Name for ERC-721')
+    .addParam('symbol', ' Symbol for ERC-721')
+    .setAction(async (taskArgs) => {
+        const deployWrappedERC721TransferOwnership = require('./scripts/deploy-wrapped-erc721-transfer-ownership');
+        await deployWrappedERC721TransferOwnership(taskArgs.router, taskArgs.name, taskArgs.symbol);
+    });
+
 task('update-member', 'Update member in router contract')
     .addParam('router', 'The address of the router contract')
     .addParam('member', 'The address of the member')
@@ -72,6 +81,13 @@ task('update-member', 'Update member in router contract')
     .setAction(async (taskArgs) => {
         const updateMember = require('./scripts/update-member');
         await updateMember(taskArgs.router, taskArgs.member, taskArgs.status);
+    });
+
+task('upgrade-erc721-support', 'Upgrades the router diamond with Payment and ERC-721 facets')
+    .addParam('router', 'The address of the router contract')
+    .setAction(async (taskArgs) => {
+        const upgradeErc721Support = require('./scripts/upgrade-erc721-support');
+        await upgradeErc721Support(taskArgs.router);
     });
 
 module.exports = {
