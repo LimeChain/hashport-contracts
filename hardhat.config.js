@@ -16,15 +16,19 @@ task('deploy-router', 'Deploys Router contract will all the necessary facets')
     .addParam('governancePercentage', 'The percentage of how many of the total members are required to sign given message', 50, types.int)
     .addParam('governancePrecision', 'The precision of division of required members signatures', 100, types.int)
     .addParam('feeCalculatorPrecision', 'The precision of fee calculations for native tokens', 100_000, types.int)
-    .addVariadicPositionalParam('members', 'The addresses of the members')
+    .addParam('members', 'The addresses of the members')
+    .addParam('membersAdmins', 'The addresses of the members\' admins')
     .setAction(async (taskArgs) => {
         const deployRouter = require('./scripts/deploy-router');
+        const membersArray = taskArgs.members.split(',');
+        const membersAdminsArray = taskArgs.members.split(',');
         await deployRouter(
             taskArgs.owner,
             taskArgs.governancePercentage,
             taskArgs.governancePrecision,
             taskArgs.feeCalculatorPrecision,
-            taskArgs.members);
+            membersArray,
+            membersAdminsArray);
     });
 
 task('deploy-token', 'Deploys token to the provided network')

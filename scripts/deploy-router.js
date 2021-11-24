@@ -3,7 +3,7 @@ const ethers = hardhat.ethers;
 
 const { getSelectors } = require('../util');
 
-async function deployRouter(owner, governancePercentage, governancePrecision, feeCalculatorPrecision, members) {
+async function deployRouter(owner, governancePercentage, governancePrecision, feeCalculatorPrecision, members, membersAdmins) {
   await hardhat.run('compile');
 
   const routerFacetFactory = await ethers.getContractFactory('RouterFacet');
@@ -58,10 +58,11 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
   router = await ethers.getContractAt('IRouterDiamond', diamond.address);
 
   console.log(`Initializing Governance with 
-              members [${members}], 
+              members [${members}],
+              membersAdmins [${membersAdmins}],
               percentage [${governancePercentage}] and
               precision [${governancePrecision}], please wait...`);
-  await (await router.initGovernance(members, governancePercentage, governancePrecision));
+  await (await router.initGovernance(members, membersAdmins, governancePercentage, governancePrecision));
 
   console.log(`Initializing Router, please wait...`);
   await (await router.initRouter());

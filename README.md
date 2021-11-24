@@ -92,7 +92,8 @@ npx hardhat deploy-router \
     --governance-percentage <governance percentage> \
     --governance-precision <governance precision> \
     --fee-calculator-precision <fee calculator precision> \
-    <list of members>
+    --members <list of members, split by `,`>
+    --members-admins <list of members admins, split by `,`>
 ```
 
 #### Wrapped ERC-20 token deployment through Router
