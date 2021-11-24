@@ -11,7 +11,7 @@ async function deployWrappedToken(routerAddress, sourceChain, nativeToken, name,
     { name, symbol, decimals });
 
   console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
-  const receipt = await tx.wait();
+  const receipt = await tx.wait(10); // Wait 10 blocks before verification in case Etherscan nodes do not have the contract bytecode yet.
 
   const wrappedTokenAddress = receipt.events[1].args.wrappedToken;
 
