@@ -94,6 +94,25 @@ task('upgrade-erc721-support', 'Upgrades the router diamond with Payment and ERC
         await upgradeErc721Support(taskArgs.router);
     });
 
+task('set-payment-token', 'Sets the router diamond with Payment token')
+    .addParam('router', 'The address of the router contract')
+    .addParam('paymentToken', 'The address of the payment token')
+    .addParam('status', 'The to-be-updated status of the token', true, types.boolean)
+    .setAction(async (taskArgs) => {
+        const setPaymentToken = require('./scripts/set-payment-token');
+        await setPaymentToken(taskArgs.router, taskArgs.paymentToken, taskArgs.status);
+    });
+
+task('set-erc721-payment', 'Sets the router diamond payment for a Wrapped ERC-721')
+    .addParam('router', 'The address of the router contract')
+    .addParam('erc721', 'The address of the ERC-721')
+    .addParam('paymentToken', 'The address of the payment token')
+    .addParam('fee', 'The amount to be charged upon Wrapped ERC-721 Burn')
+    .setAction(async (taskArgs) => {
+        const setERC721Payment = require('./scripts/set-erc721-payment');
+        await setERC721Payment(taskArgs.router, taskArgs.erc721, taskArgs.paymentToken, taskArgs.fee);
+    });
+
 module.exports = {
     solidity: {
         version: '0.8.3',

@@ -148,6 +148,28 @@ npx hardhat upgrade-erc721-support \
     --router <address of the Router Diamond contract>
 ```
 
+### Set Payment Token
+Requires Router Diamond Contract to be upgraded with PaymentFacet support
+
+```bash
+npx hardhat set-payment-token \
+    --network <network name> \
+    --router <address of the Router Diamond contract> \
+    --payment-token <address of ERC-20 payment token contract> \
+    --status <true|false (default true)>
+```
+
+## Set ERC-721 Payment
+Requires Router Diamond Contract to be upgraded with ERC721PortalFacet & PaymentFacet support
+```bash
+npx hardhat set-erc721-payment \
+    --network <network name> \
+    --router <address of the Router Diamond contract> \
+    --erc721 <address of the ERC-721 contract> \
+    --payment-token <address of the ERC-20 payment token contract> \
+    --fee <required Payment Token fee upon burnERC721 wrapped transfers>
+```
+
 ### Tests
 #### Unit Tests
 ```bash
