@@ -1,6 +1,6 @@
 const { task } = require('hardhat/config');
 
-const INFURA_PROJECT_ID = process.env.INFURA_PROJECT_ID || '';
+const ALCHEMY_PROJECT_ID = process.env.ALCHEMY_PROJECT_ID || '';
 const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY || 'f39fd6e51aad88f6f4ce6ab8827279cfffb92266';
 
 /**
@@ -113,6 +113,56 @@ task('set-erc721-payment', 'Sets the router diamond payment for a Wrapped ERC-72
         await setERC721Payment(taskArgs.router, taskArgs.erc721, taskArgs.paymentToken, taskArgs.fee);
     });
 
+task('mint-erc721', 'Mints wrapped ERC-721 to the corresponding network')
+    .addParam('router', 'The address of the router contract')
+    .addParam('sourceChainId', 'The chain id of the source chain')
+    .addParam('targetChainId', 'The chain id of the target chain')
+    .addParam('transactionId', 'The target transaction id')
+    .addParam('wrappedAsset', 'The address of the wrapped asset')
+    .addParam('tokenId', 'The target token ID')
+    .addParam('metadata', 'The token ID metadata')
+    .addParam('receiver', 'The address of the receiver')
+    .addParam('signatures', 'An array of signatures, split by ","')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const signaturesArray = taskArgs.signatures.split(',');
+        const mintERC721 = require('./scripts/erc-721-mint');
+        await mintERC721(
+            taskArgs.router,
+            taskArgs.sourceChainId,
+            taskArgs.targetChainId,
+            taskArgs.transactionId,
+            taskArgs.wrappedAsset,
+            taskArgs.tokenId,
+            taskArgs.metadata,
+            taskArgs.receiver,
+            signaturesArray);
+    });
+
+task('mint-erc20', 'Mints wrapped ERC-20 to the corresponding network')
+    .addParam('router', 'The address of the router contract')
+    .addParam('sourceChainId', 'The chain id of the source chain')
+    .addParam('targetChainId', 'The chain id of the target chain')
+    .addParam('transactionId', 'The target transaction id')
+    .addParam('wrappedAsset', 'The address of the wrapped asset')
+    .addParam('receiver', 'The address of the receiver')
+    .addParam('amount', 'The amount to be minted')
+    .addParam('signatures', 'An array of signatures, split by ","')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const signaturesArray = taskArgs.signatures.split(',');
+        const mintERC20 = require('./scripts/erc-20-mint');
+        await mintERC20(
+            taskArgs.router,
+            taskArgs.sourceChainId,
+            taskArgs.targetChainId,
+            taskArgs.transactionId,
+            taskArgs.wrappedAsset,
+            taskArgs.receiver,
+            taskArgs.amount,
+            signaturesArray);
+    });
+
 module.exports = {
     solidity: {
         version: '0.8.3',
@@ -135,11 +185,11 @@ module.exports = {
             url: 'http://127.0.0.1:8545',
         },
         ropsten: {
-            url: `https://ropsten.infura.io/v3/${INFURA_PROJECT_ID}`,
+            url: `https://eth-ropsten.alchemyapi.io/v2/${ALCHEMY_PROJECT_ID}`,
             accounts: [`0x${DEPLOYER_PRIVATE_KEY}`]
         },
         mumbai: {
-            url: `https://rpc-mumbai.maticvigil.com`,
+            url: `https://polygon-mumbai.g.alchemy.com/v2/${ALCHEMY_PROJECT_ID}`,
             accounts: [`0x${DEPLOYER_PRIVATE_KEY}`]
         },
     },
