@@ -137,7 +137,31 @@ task('mint-erc721', 'Mints wrapped ERC-721 to the corresponding network')
             taskArgs.metadata,
             taskArgs.receiver,
             signaturesArray);
-    })
+    });
+
+task('mint-erc20', 'Mints wrapped ERC-20 to the corresponding network')
+    .addParam('router', 'The address of the router contract')
+    .addParam('sourceChainId', 'The chain id of the source chain')
+    .addParam('targetChainId', 'The chain id of the target chain')
+    .addParam('transactionId', 'The target transaction id')
+    .addParam('wrappedAsset', 'The address of the wrapped asset')
+    .addParam('receiver', 'The address of the receiver')
+    .addParam('amount', 'The amount to be minted')
+    .addParam('signatures', 'An array of signatures, split by ","')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const signaturesArray = taskArgs.signatures.split(',');
+        const mintERC20 = require('./scripts/erc-20-mint');
+        await mintERC20(
+            taskArgs.router,
+            taskArgs.sourceChainId,
+            taskArgs.targetChainId,
+            taskArgs.transactionId,
+            taskArgs.wrappedAsset,
+            taskArgs.receiver,
+            taskArgs.amount,
+            signaturesArray);
+    });
 
 module.exports = {
     solidity: {

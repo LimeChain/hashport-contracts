@@ -172,6 +172,7 @@ npx hardhat set-erc721-payment \
 
 ## Mint Wrapped ERC-721
 Requires Router Diamond Contract to support ERC721PortalFacet
+Mints Wrapped ERC-721 tokenID to the corresponding network
 ```bash
 npx hardhat mint-erc721 \
     --network <network name> \
@@ -183,6 +184,21 @@ npx hardhat mint-erc721 \
     --token-id <The target token ID to be minted> \
     --metadata <The token ID metadata> \
     --receiver <The address of the receiver> \
+    --signatures <An array of signatures, split by `,`>
+```
+
+## Mint Wrapped ERC-20
+Mints Wrapped ERC-20 amount to the corresponding network
+```bash
+npx hardhat mint-erc20 \
+    --network <network name> \
+    --router <address of the Router Diamond contract> \
+    --source-chain-id <The chain id of the source chain> \
+    --target-chain-id <The chain id of the target chain> \
+    --transaction-id <The target transaction id> \
+    --wrapped-asset <The address of the wrapped ERC-721 token> \
+    --receiver <The address of the receiver> \
+    --amount <The amount to be minted> \
     --signatures <An array of signatures, split by `,`>
 ```
 
