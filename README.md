@@ -74,7 +74,7 @@ Before running any `npx hardhat` scripts, you need to set the following environm
 in [hardhat config](./hardhat.config.js) or export them:
 
 ```
-export INFURA_PROJECT_ID=<INFURA API project ID>
+export ALCHEMY_PROJECT_ID=<PROJECT ID of ALCHEMY>
 export DEPLOYER_PRIVATE_KEY=<private key to use for deployments for the specified network>
 ```
 
@@ -168,6 +168,22 @@ npx hardhat set-erc721-payment \
     --erc721 <address of the ERC-721 contract> \
     --payment-token <address of the ERC-20 payment token contract> \
     --fee <required Payment Token fee upon burnERC721 wrapped transfers>
+```
+
+## Mint Wrapped ERC-721
+Requires Router Diamond Contract to support ERC721PortalFacet
+```bash
+npx hardhat mint-erc721 \
+    --network <network name> \
+    --router <address of the Router Diamond contract> \
+    --source-chain-id <The chain id of the source chain> \
+    --target-chain-id <The chain id of the target chain> \
+    --transaction-id <The target transaction id> \
+    --wrapped-asset <The address of the wrapped ERC-721 token> \
+    --token-id <The target token ID to be minted> \
+    --metadata <The token ID metadata> \
+    --receiver <The address of the receiver> \
+    --signatures <An array of signatures, split by `,`>
 ```
 
 ### Tests
