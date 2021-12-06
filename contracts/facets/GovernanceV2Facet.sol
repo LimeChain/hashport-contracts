@@ -14,6 +14,9 @@ contract GovernanceV2Facet is IGovernanceV2 {
     using SafeERC20 for IERC20;
 
     /// @notice Adds/removes a member account
+    /// @dev Replaces existing {GovernanceFacet-updateMember} function.
+    /// Given that {GovernanceFacet-updateMember} has the same function selector,
+    /// only one of the two functions can exist within the Diamond standard implementation.
     /// @param _account The account to be modified
     /// @param _accountAdmin The admin of the account.
     /// Ignored if member account is removed

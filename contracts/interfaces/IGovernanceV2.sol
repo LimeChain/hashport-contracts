@@ -9,6 +9,9 @@ interface IGovernanceV2 {
     event MemberAdminUpdated(address member, address admin);
 
     /// @notice Adds/removes a member account
+    /// @dev Replaces existing {IGovernance-updateMember}.
+    /// Given that {IGovernance-updateMember} has the same function selector,
+    /// only one of the two functions can exist within the Diamond standard implementation.
     /// @param _account The account to be modified
     /// @param _accountAdmin The admin of the account.
     /// Ignored if member account is removed
