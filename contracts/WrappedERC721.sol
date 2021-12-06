@@ -37,7 +37,7 @@ contract WrappedERC721 is ERC721Burnable, Ownable {
         return _metadata[tokenId];
     }
 
-    function burn(uint256 tokenId) public virtual override {
+    function burn(uint256 tokenId) public virtual override onlyOwner {
         super.burn(tokenId);
 
         delete _metadata[tokenId];
