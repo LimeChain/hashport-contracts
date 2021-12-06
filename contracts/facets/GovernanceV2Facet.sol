@@ -37,8 +37,9 @@ contract GovernanceV2Facet is IGovernanceV2 {
                 LibFeeCalculator.addNewMember(_account, LibPayment.tokenAt(i));
             }
         } else {
+            address accountAdmin = LibGovernance.memberAdmin(_account);
+
             for (uint256 i = 0; i < LibRouter.nativeTokensCount(); i++) {
-                address accountAdmin = LibGovernance.memberAdmin(_account);
                 address token = LibRouter.nativeTokenAt(i);
                 uint256 claimableFees = LibFeeCalculator.claimReward(
                     _account,
@@ -48,7 +49,6 @@ contract GovernanceV2Facet is IGovernanceV2 {
             }
 
             for (uint256 i = 0; i < LibPayment.tokensCount(); i++) {
-                address accountAdmin = LibGovernance.memberAdmin(_account);
                 address token = LibPayment.tokenAt(i);
                 uint256 claimableFees = LibFeeCalculator.claimReward(
                     _account,
