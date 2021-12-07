@@ -98,9 +98,8 @@ contract GovernanceFacet is IGovernance {
                 );
             }
         } else {
-            address accountAdmin = LibGovernance.memberAdmin(_account);
-
             for (uint256 i = 0; i < LibRouter.nativeTokensCount(); i++) {
+                address accountAdmin = LibGovernance.memberAdmin(_account);
                 address token = LibRouter.nativeTokenAt(i);
                 uint256 claimableFees = LibFeeCalculator.claimReward(
                     _account,
