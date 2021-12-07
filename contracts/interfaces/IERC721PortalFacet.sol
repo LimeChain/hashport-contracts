@@ -23,6 +23,7 @@ interface IERC721PortalFacet {
         address wrappedToken,
         uint256 tokenId,
         bytes receiver,
+        address paymentToken,
         uint256 fee
     );
 
@@ -53,12 +54,14 @@ interface IERC721PortalFacet {
     /// @param _targetChain The target chain to which the wrapped asset will be transferred
     /// @param _wrappedToken The address of the wrapped token
     /// @param _tokenId The tokenID of `wrappedToken` to burn
+    /// @param _paymentToken The current payment token
     /// @param _fee The fee amount for the wrapped token's payment token
     /// @param _receiver The address of the receiver on the target chain
     function burnERC721(
         uint256 _targetChain,
         address _wrappedToken,
         uint256 _tokenId,
+        address _paymentToken,
         uint256 _fee,
         bytes memory _receiver
     ) external;
