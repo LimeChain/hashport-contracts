@@ -68,11 +68,15 @@ contract ERC721PortalFacet is IERC721PortalFacet, ERC721Holder {
     /// @param _targetChain The target chain to which the wrapped asset will be transferred
     /// @param _wrappedToken The address of the wrapped token
     /// @param _tokenId The tokenID of `wrappedToken` to burn
+    /// @param _paymentToken The current payment token
+    /// @param _fee The fee amount for the wrapped token's payment token
     /// @param _receiver The address of the receiver on the target chain
     function burnERC721(
         uint256 _targetChain,
         address _wrappedToken,
         uint256 _tokenId,
+        address _paymentToken,
+        uint256 _fee,
         bytes memory _receiver
     ) public override whenNotPaused {
         address payment = LibERC721.erc721Payment(_wrappedToken);
@@ -80,13 +84,28 @@ contract ERC721PortalFacet is IERC721PortalFacet, ERC721Holder {
             LibPayment.containsPaymentToken(payment),
             "ERC721PortalFacet: payment token not supported"
         );
-        uint256 fee = LibERC721.erc721Fee(_wrappedToken);
+        require(
+            _paymentToken == payment,
+            "ERC721PortalFacet: _paymentToken does not match the current set payment token"
+        );
+        uint256 currentFee = LibERC721.erc721Fee(_wrappedToken);
+        require(
+            _fee == currentFee,
+            "ERC721PortalFacet: _fee does not match current set payment token fee"
+        );
 
-        IERC20(payment).safeTransferFrom(msg.sender, address(this), fee);
-        LibFeeCalculator.accrueFee(payment, fee);
+        IERC20(payment).safeTransferFrom(msg.sender, address(this), _fee);
+        LibFeeCalculator.accrueFee(payment, _fee);
 
         WrappedERC721(_wrappedToken).burn(_tokenId);
-        emit BurnERC721(_targetChain, _wrappedToken, _tokenId, _receiver, fee);
+        emit BurnERC721(
+            _targetChain,
+            _wrappedToken,
+            _tokenId,
+            _receiver,
+            payment,
+            _fee
+        );
     }
 
     /// @notice Sets ERC-721 contract payment token and fee amount

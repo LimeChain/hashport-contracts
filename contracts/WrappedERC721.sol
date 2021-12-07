@@ -8,8 +8,8 @@ contract WrappedERC721 is ERC721Burnable, Ownable {
     // Mapping from tokenID to metadata
     mapping(uint256 => string) private _metadata;
 
-    constructor(string memory name, string memory symbol)
-        ERC721(name, symbol)
+    constructor(string memory _name, string memory _symbol)
+        ERC721(_name, _symbol)
     {}
 
     function safeMint(
@@ -37,7 +37,7 @@ contract WrappedERC721 is ERC721Burnable, Ownable {
         return _metadata[tokenId];
     }
 
-    function burn(uint256 tokenId) public virtual override {
+    function burn(uint256 tokenId) public virtual override onlyOwner {
         super.burn(tokenId);
 
         delete _metadata[tokenId];

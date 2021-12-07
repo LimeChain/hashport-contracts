@@ -14,6 +14,9 @@ contract GovernanceV2Facet is IGovernanceV2 {
     using SafeERC20 for IERC20;
 
     /// @notice Adds/removes a member account
+    /// @dev Replaces existing {GovernanceFacet-updateMember} function.
+    /// Given that {GovernanceFacet-updateMember} has the same function selector,
+    /// only one of the two functions can exist within the Diamond standard implementation.
     /// @param _account The account to be modified
     /// @param _accountAdmin The admin of the account.
     /// Ignored if member account is removed
@@ -37,8 +40,9 @@ contract GovernanceV2Facet is IGovernanceV2 {
                 LibFeeCalculator.addNewMember(_account, LibPayment.tokenAt(i));
             }
         } else {
+            address accountAdmin = LibGovernance.memberAdmin(_account);
+
             for (uint256 i = 0; i < LibRouter.nativeTokensCount(); i++) {
-                address accountAdmin = LibGovernance.memberAdmin(_account);
                 address token = LibRouter.nativeTokenAt(i);
                 uint256 claimableFees = LibFeeCalculator.claimReward(
                     _account,
@@ -48,7 +52,6 @@ contract GovernanceV2Facet is IGovernanceV2 {
             }
 
             for (uint256 i = 0; i < LibPayment.tokensCount(); i++) {
-                address accountAdmin = LibGovernance.memberAdmin(_account);
                 address token = LibPayment.tokenAt(i);
                 uint256 claimableFees = LibFeeCalculator.claimReward(
                     _account,

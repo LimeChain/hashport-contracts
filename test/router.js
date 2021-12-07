@@ -1884,7 +1884,7 @@ describe('Router', async () => {
             // and
             await wrappedERC721.connect(nonMember).approve(router.address, tokenID);
             // and
-            await erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, receiver);
+            await erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee, receiver);
             // and
             const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
             const totalAccrued = serviceFee.add(ERC721BurnFee);
@@ -1949,7 +1949,7 @@ describe('Router', async () => {
             // and
             await wrappedERC721.connect(nonMember).approve(router.address, tokenID);
             // and
-            await erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, receiver);
+            await erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee, receiver);
 
             const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(nativeToken.address);
             expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(totalAccrued);
@@ -2011,7 +2011,7 @@ describe('Router', async () => {
             // and
             await wrappedERC721.connect(nonMember).approve(router.address, tokenID);
             // and
-            await erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, receiver);
+            await erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, paymentToken.address, ERC721BurnFee, receiver);
             // and
             const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
 
@@ -2087,7 +2087,7 @@ describe('Router', async () => {
             // and
             await wrappedERC721.connect(nonMember).approve(router.address, tokenID);
             // and
-            await erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, receiver);
+            await erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, paymentToken.address, ERC721BurnFee, receiver);
 
             const beforeMemberUpdateNativeTokenFeeData = await router.tokenFeeData(nativeToken.address);
             expect(beforeMemberUpdateNativeTokenFeeData.feesAccrued).to.equal(serviceFee);
@@ -2524,7 +2524,7 @@ describe('Router', async () => {
           await wrappedERC721.connect(nonMember).approve(router.address, tokenID);
 
           // when
-          await erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, receiver);
+          await erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee, receiver);
 
           // then
           const balance = await wrappedERC721.balanceOf(nonMember.address);
@@ -2549,10 +2549,10 @@ describe('Router', async () => {
           expect(
             await erc721Portal
               .connect(nonMember)
-              .burnERC721(1, wrappedERC721.address, tokenID, receiver)
+              .burnERC721(1, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee, receiver)
           )
             .to.emit(erc721Portal, 'BurnERC721')
-            .withArgs(1, wrappedERC721.address, tokenID, receiver.toLowerCase(), ERC721BurnFee)
+            .withArgs(1, wrappedERC721.address, tokenID, receiver.toLowerCase(), nativeToken.address, ERC721BurnFee)
             .to.emit(wrappedERC721, 'Transfer')
             .withArgs(nonMember.address, ethers.constants.AddressZero, tokenID);
         });
@@ -2562,13 +2562,13 @@ describe('Router', async () => {
           await nativeToken.connect(nonMember).approve(router.address, ERC721BurnFee);
           // then
           const expectedRevertMessage = 'ERC721Burnable: caller is not owner nor approved';
-          await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, receiver))
+          await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee, receiver))
             .to.be.revertedWith(expectedRevertMessage);
         });
 
         it('should revert when no approved ERC-20 payments', async () => {
           const expectedRevertMessage = 'ERC20: transfer amount exceeds allowance';
-          await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, receiver))
+          await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee, receiver))
             .to.be.revertedWith(expectedRevertMessage);
         });
 
@@ -2578,7 +2578,7 @@ describe('Router', async () => {
           await router.updateAdmin(admin.address);
           await router.connect(admin).pause();
           // then
-          await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, receiver))
+          await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee, receiver))
             .to.be.revertedWith(expectedRevertMessage);
         });
 
@@ -2587,7 +2587,20 @@ describe('Router', async () => {
           await payment.setPaymentToken(nativeToken.address, false);
           // then
           const expectedRevertMessage = 'ERC721PortalFacet: payment token not supported';
-          await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, receiver))
+          await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee, receiver))
+            .to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it('should revert when provided burn fee is does not match expected burn fee', async () => {
+          // then
+          const expectedRevertMessage = 'ERC721PortalFacet: _fee does not match current set payment token fee';
+          await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee.mul(2), receiver))
+            .to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it('should revert when provided burn payment token does not match current set payment token', async () => {
+          const expectedRevertMessage = 'ERC721PortalFacet: _paymentToken does not match the current set payment token';
+          await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nonMember.address, ERC721BurnFee, receiver))
             .to.be.revertedWith(expectedRevertMessage);
         });
       });
