@@ -86,7 +86,7 @@ contract ERC721PortalFacet is IERC721PortalFacet, ERC721Holder {
         );
         require(
             _paymentToken == payment,
-            "ERC721PortalFacet: _paymentToken provided does not match the current set payment token"
+            "ERC721PortalFacet: _paymentToken does not match the current set payment token"
         );
         uint256 currentFee = LibERC721.erc721Fee(_wrappedToken);
         require(

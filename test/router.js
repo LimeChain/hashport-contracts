@@ -2599,7 +2599,7 @@ describe('Router', async () => {
         });
 
         it('should revert when provided burn payment token does not match current set payment token', async () => {
-          const expectedRevertMessage = 'ERC721PortalFacet: _paymentToken provided does not match the current set payment token';
+          const expectedRevertMessage = 'ERC721PortalFacet: _paymentToken does not match the current set payment token';
           await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nonMember.address, ERC721BurnFee, receiver))
             .to.be.revertedWith(expectedRevertMessage);
         });
