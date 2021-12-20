@@ -9,7 +9,7 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
-        "@hashgraph/sdk": "^2.0.7",
+        "@hashgraph/sdk": "^2.6.0",
         "@openzeppelin/contracts": "^4.2.0"
     },
     "devDependencies": {

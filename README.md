@@ -187,6 +187,18 @@ npx hardhat mint-erc721 \
     --signatures <An array of signatures, split by `,`>
 ```
 
+## Burn Wrapped ERC-721
+Burns Wrapped ERC-721 tokenId to the corresponding network
+```bash
+npx hardhat burn-erc721 \
+    --network <network name> \
+    --router <address of the Router Diamond contract> \
+    --target-chain-id <The chain id of the target chain> \
+    --wrapped-asset <The address of the wrapped ERC-721 token> \
+    --token-id <The amount to be minted> \
+    --receiver <The address/AccountID of the receiver>
+```
+
 ## Mint Wrapped ERC-20
 Mints Wrapped ERC-20 amount to the corresponding network
 ```bash

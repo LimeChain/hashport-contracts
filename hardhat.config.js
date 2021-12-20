@@ -163,6 +163,23 @@ task('mint-erc20', 'Mints wrapped ERC-20 to the corresponding network')
             signaturesArray);
     });
 
+task('burn-erc721', 'Burns wrapped ERC-721 tokenID to the corresponding network')
+    .addParam('router', 'The address of the router contract')
+    .addParam('targetChainId', 'The chain id of the target chain')
+    .addParam('wrappedAsset', 'The address of the wrapped asset')
+    .addParam('tokenId', 'The id of the token')
+    .addParam('receiver', 'The address of the receiver')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const burnERC721 = require('./scripts/burn-erc-721');
+        await burnERC721(
+            taskArgs.router,
+            taskArgs.targetChainId,
+            taskArgs.wrappedAsset,
+            taskArgs.tokenId,
+            taskArgs.receiver);
+    });
+
 module.exports = {
     solidity: {
         version: '0.8.3',
