@@ -180,6 +180,23 @@ task('burn-erc721', 'Burns wrapped ERC-721 tokenID to the corresponding network'
             taskArgs.receiver);
     });
 
+task('lock-erc20', 'Locks native ERC-20 token amount to the corresponding network')
+    .addParam('router', 'The address of the router contract')
+    .addParam('targetChainId', 'The chain id of the target chain')
+    .addParam('nativeAsset', 'The address of the native asset')
+    .addParam('amount', 'The amount to be locked')
+    .addParam('receiver', 'The address of the receiver')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const lockERC20 = require('./scripts/lock-erc-20');
+        await lockERC20(
+            taskArgs.router,
+            taskArgs.targetChainId,
+            taskArgs.nativeAsset,
+            taskArgs.amount,
+            taskArgs.receiver);
+    });
+
 module.exports = {
     solidity: {
         version: '0.8.3',

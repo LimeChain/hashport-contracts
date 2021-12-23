@@ -195,7 +195,7 @@ npx hardhat burn-erc721 \
     --router <address of the Router Diamond contract> \
     --target-chain-id <The chain id of the target chain> \
     --wrapped-asset <The address of the wrapped ERC-721 token> \
-    --token-id <The amount to be minted> \
+    --token-id <The token id to be burned> \
     --receiver <The address/AccountID of the receiver>
 ```
 
@@ -208,10 +208,22 @@ npx hardhat mint-erc20 \
     --source-chain-id <The chain id of the source chain> \
     --target-chain-id <The chain id of the target chain> \
     --transaction-id <The target transaction id> \
-    --wrapped-asset <The address of the wrapped ERC-721 token> \
+    --wrapped-asset <The address of the wrapped ERC-20 token> \
     --receiver <The address of the receiver> \
     --amount <The amount to be minted> \
     --signatures <An array of signatures, split by `,`>
+```
+
+## Lock Native ERC-20
+Locks Native ERC-20 amount to the corresponding network
+```bash
+npx hardhat lock-erc20 \
+    --network <network name> \
+    --router <address of the Router Diamond contract> \
+    --target-chain-id <The chain id of the target chain> \
+    --native-asset <The address of the native ERC-20 token> \
+    --amount <The amount to be locked> \
+    --receiver <The address/AccountID of the receiver>
 ```
 
 ### Tests
