@@ -87,12 +87,12 @@ export DEPLOYER_PRIVATE_KEY=<private key to use for deployments for the specifie
 
 ```bash
 npx hardhat deploy-router \
-    --network <network name> \ 
+    --network <network name> \
     --owner <owner address> \
     --governance-percentage <governance percentage> \
     --governance-precision <governance precision> \
     --fee-calculator-precision <fee calculator precision> \
-    --members <list of members, split by `,`>
+    --members <list of members, split by `,`> \
     --members-admins <list of members admins, split by `,`>
 ```
 
