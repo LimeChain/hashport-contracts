@@ -62,12 +62,15 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
               membersAdmins [${membersAdmins}],
               percentage [${governancePercentage}] and
               precision [${governancePrecision}], please wait...`);
-  await (await router.initGovernance(members, membersAdmins, governancePercentage, governancePrecision));
+  const initGovernanceTx = await (await router.initGovernance(members, membersAdmins, governancePercentage, governancePrecision));
+  await initGovernanceTx.wait();
 
   console.log(`Initializing Router, please wait...`);
-  await (await router.initRouter());
+  const initRouterTx = await (await router.initRouter());
+  await initRouterTx.wait();
   console.log(`Initializing Fee Calculator with precision [${feeCalculatorPrecision}], please wait...`);
-  await (await router.initFeeCalculator(feeCalculatorPrecision));
+  const initFeeCalculatorTx = await (await router.initFeeCalculator(feeCalculatorPrecision));
+  await initFeeCalculatorTx.wait();
 
   console.log('Router address: ', diamond.address);
   console.log('OwnershipFacet address: ', ownershipFacet.address);
