@@ -226,6 +226,21 @@ npx hardhat lock-erc20 \
     --receiver <The address/AccountID of the receiver>
 ```
 
+## Unlock Native ERC-20
+Unlocks Native ERC-20 amount to the corresponding network
+```bash
+npx hardhat unlock-erc20 \
+    --network <network name> \
+    --router <address of the Router Diamond contract> \
+    --source-chain-id <The chain id of the source chain> \
+    --target-chain-id <The chain id of the target chain> \
+    --transaction-id <The target transaction id> \
+    --native-asset <The address of the native ERC-20 token> \
+    --receiver <The address of the receiver> \
+    --amount <The amount to be minted> \
+    --signatures <An array of signatures, split by `,`>
+```
+
 ### Tests
 #### Unit Tests
 ```bash

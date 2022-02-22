@@ -197,6 +197,30 @@ task('lock-erc20', 'Locks native ERC-20 token amount to the corresponding networ
             taskArgs.receiver);
     });
 
+task('unlock-erc20', 'Unlocks native ERC-20 token amount to the corresponding network')
+    .addParam('router', 'The address of the router contract')
+    .addParam('sourceChainId', 'The chain id of the source chain')
+    .addParam('targetChainId', 'The chain id of the target chain')
+    .addParam('transactionId', 'The target transaction id')
+    .addParam('nativeAsset', 'The address of the native asset')
+    .addParam('receiver', 'The address of the receiver')
+    .addParam('amount', 'The amount to be minted')
+    .addParam('signatures', 'An array of signatures, split by ","')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const unlockERC20 = require('./scripts/erc-20-unlock');
+        const signaturesArray = taskArgs.signatures.split(',');
+        await unlockERC20(
+            taskArgs.router,
+            taskArgs.sourceChainId,
+            taskArgs.targetChainId,
+            taskArgs.transactionId,
+            taskArgs.nativeAsset,
+            taskArgs.receiver,
+            taskArgs.amount,
+            signaturesArray);
+    });
+
 module.exports = {
     solidity: {
         version: '0.8.3',
