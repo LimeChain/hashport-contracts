@@ -230,6 +230,15 @@ task('unlock-erc20', 'Unlocks native ERC-20 token amount to the corresponding ne
             signaturesArray);
     });
 
+task('transfer-ownership', 'Transfers ownership of the given contract')
+    .addParam('contract', 'The address of the contract')
+    .addParam('newOwner', 'The address of the new owner')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const transferOwnership = require('./scripts/transfer-ownership');
+        await transferOwnership(taskArgs.contract, taskArgs.newOwner);
+    });
+
 module.exports = {
     solidity: {
         version: '0.8.3',

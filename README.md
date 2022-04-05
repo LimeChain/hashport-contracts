@@ -251,6 +251,15 @@ npx hardhat unlock-erc20 \
     --signatures <An array of signatures, split by `,`>
 ```
 
+#### Transfer Ownership of a Contract
+Transfers Ownership of a Contract to specified new owner.
+```bash
+npx hardhat transfer-ownership \
+    --network <network name> \
+    --contract <address of the contract> \
+    --new-owner <address of the new owner>
+```
+
 ### Tests
 #### Unit Tests
 ```bash
