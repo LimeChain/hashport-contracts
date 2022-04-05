@@ -40,6 +40,15 @@ task('deploy-token', 'Deploys token to the provided network')
         await deployToken(taskArgs.name, taskArgs.symbol, taskArgs.decimals);
     });
 
+task('deploy-wrapped-token', 'Deploys wrapped token to the provided network')
+    .addParam('name', 'The token name')
+    .addParam('symbol', 'The token symbol')
+    .addParam('decimals', 'The token decimals', 18, types.int)
+    .setAction(async (taskArgs) => {
+        const deployWrappedToken = require('./scripts/deploy-wrapped-token');
+        await deployWrappedToken(taskArgs.name, taskArgs.symbol, taskArgs.decimals);
+    });
+
 task('update-native-token', 'Updates native token to router')
     .addParam('router', 'The address of the router contract')
     .addParam('nativeToken', 'The address of the native token')
@@ -50,7 +59,7 @@ task('update-native-token', 'Updates native token to router')
         await updateNativeToken(taskArgs.router, taskArgs.nativeToken, taskArgs.feePercentage, taskArgs.status);
     });
 
-task('deploy-wrapped-token', 'Deploy wrapped token from router contract')
+task('deploy-router-wrapped-token', 'Deploy wrapped token from router contract')
     .addParam('router', 'The address of the router contract')
     .addParam('source', 'The chain id of the soure chain, where the native token is deployed')
     .addParam('native', 'The native token')
@@ -59,8 +68,8 @@ task('deploy-wrapped-token', 'Deploy wrapped token from router contract')
     .addParam('decimals', 'The token decimals', 18, types.int)
     .setAction(async (taskArgs) => {
         console.log(taskArgs);
-        const deployWrappedToken = require('./scripts/deploy-wrapped-token');
-        await deployWrappedToken(
+        const deployRouterWrappedToken = require('./scripts/deploy-router-wrapped-token');
+        await deployRouterWrappedToken(
             taskArgs.router,
             taskArgs.source,
             taskArgs.native,

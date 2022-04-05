@@ -97,9 +97,9 @@ npx hardhat deploy-router \
 ```
 
 #### Wrapped ERC-20 token deployment through Router
-Deploys a wrapped token for a corresponding token on another chain: 
+Deploys a wrapped token through Router for a corresponding token on another chain: 
 ```bash
-npx hardhat deploy-wrapped-token \
+npx hardhat deploy-router-wrapped-token \
     --network <network name> \
     --router <address of the router diamond contract> \
     --source <id of the source chain, to which the native token is deployed> \
@@ -107,6 +107,16 @@ npx hardhat deploy-wrapped-token \
     --name <name of the wrapped token> \
     --symbol <symbol of the wrapped token> \
     --decimals <decimals of the wrapped token>
+```
+
+#### Wrapped ERC-20 token deployment
+Deploys an instance of a [Wrapped Token](./contracts/WrappedToken.sol) contract, used for testing purposes.
+```bash
+npx hardhat deploy-wrapped-token \
+    --network <network name> \
+    --name <name of the token> \
+    --symbol <symbol of the token> \
+    --decimals <decimals of the token>
 ```
 
 #### Wrapped ERC-721 token deployment and Transfer Ownership to Diamond Router
