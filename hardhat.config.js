@@ -171,6 +171,22 @@ task('mint-erc20', 'Mints wrapped ERC-20 to the corresponding network')
             taskArgs.amount,
             signaturesArray);
     });
+task('burn-erc20', 'Approves & Burns wrapped ERC-20 amount to the corresponding network')
+    .addParam('router', 'The address of the router contract')
+    .addParam('targetChainId', 'The chain id of the target chain')
+    .addParam('wrappedAsset', 'The address of the wrapped asset')
+    .addParam('amount', 'The target amount')
+    .addParam('receiver', 'The address of the receiver on the target network')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const burnERC20 = require('./scripts/burn-erc-20');
+        await burnERC20(
+            taskArgs.router,
+            taskArgs.targetChainId,
+            taskArgs.wrappedAsset,
+            taskArgs.amount,
+            taskArgs.receiver);
+    });
 
 task('burn-erc721', 'Burns wrapped ERC-721 tokenID to the corresponding network')
     .addParam('router', 'The address of the router contract')

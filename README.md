@@ -224,6 +224,18 @@ npx hardhat mint-erc20 \
     --signatures <An array of signatures, split by `,`>
 ```
 
+## Burn Wrapped ERC-20
+Approves & Burns Wrapped ERC-20 amount to the corresponding network
+```bash
+npx hardhat burn-erc20 \
+    --network <network name> \
+    --router <address of the Router Diamond contract> \
+    --target-chain-id <The chain id of the target chain> \
+    --wrapped-asset <The address of the wrapped ERC-20 token> \
+    --amount <The target amount> \
+    --receiver <The address/AccountID of the receiver on the target network>
+```
+
 ## Lock Native ERC-20
 Locks Native ERC-20 amount to the corresponding network
 ```bash
