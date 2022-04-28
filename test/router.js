@@ -2280,9 +2280,13 @@ describe('Router', async () => {
           // then
           const receiverBalance = await wrappedERC721.balanceOf(receiver);
           expect(receiverBalance).to.equal(1);
+          expect(await wrappedERC721.tokenOfOwnerByIndex(receiver, 0)).to.equal(tokenID);
           // and
           expect(await wrappedERC721.ownerOf(tokenID)).to.equal(nonMember.address);
           expect(await wrappedERC721.tokenURI(tokenID)).to.equal(metadata);
+          // and
+          expect(await wrappedERC721.totalSupply()).to.equal(1);
+          expect(await wrappedERC721.tokenByIndex(0)).to.equal(tokenID);
           // and
           expect(await router.hashesUsed(ethers.utils.hashMessage(hashData))).to.be.true;
         });
@@ -2529,10 +2533,13 @@ describe('Router', async () => {
           // then
           const balance = await wrappedERC721.balanceOf(nonMember.address);
           expect(balance).to.equal(0);
+          await expect(wrappedERC721.tokenOfOwnerByIndex(receiver, 0)).to.be.revertedWith('ERC721Enumerable: owner index out of bounds');
           // and
           await expect(wrappedERC721.ownerOf(tokenID)).to.be.revertedWith('ERC721: owner query for nonexistent token');
           await expect(wrappedERC721.tokenURI(tokenID)).to.be.revertedWith('WrappedERC721: URI query for nonexistent token');
           // and
+          await expect(wrappedERC721.tokenByIndex(0)).to.be.revertedWith('ERC721Enumerable: global index out of bounds');
+          expect(await wrappedERC721.totalSupply()).to.equal(0);
           // and
           const tokenFeeData = await router.tokenFeeData(nativeToken.address);
           expect(tokenFeeData.feesAccrued).to.equal(ERC721BurnFee);
