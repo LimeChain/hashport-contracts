@@ -40,6 +40,15 @@ task('deploy-token', 'Deploys token to the provided network')
         await deployToken(taskArgs.name, taskArgs.symbol, taskArgs.decimals);
     });
 
+task('deploy-wrapped-token', 'Deploys wrapped token to the provided network')
+    .addParam('name', 'The token name')
+    .addParam('symbol', 'The token symbol')
+    .addParam('decimals', 'The token decimals', 18, types.int)
+    .setAction(async (taskArgs) => {
+        const deployWrappedToken = require('./scripts/deploy-wrapped-token');
+        await deployWrappedToken(taskArgs.name, taskArgs.symbol, taskArgs.decimals);
+    });
+
 task('update-native-token', 'Updates native token to router')
     .addParam('router', 'The address of the router contract')
     .addParam('nativeToken', 'The address of the native token')
@@ -50,7 +59,7 @@ task('update-native-token', 'Updates native token to router')
         await updateNativeToken(taskArgs.router, taskArgs.nativeToken, taskArgs.feePercentage, taskArgs.status);
     });
 
-task('deploy-wrapped-token', 'Deploy wrapped token from router contract')
+task('deploy-router-wrapped-token', 'Deploy wrapped token from router contract')
     .addParam('router', 'The address of the router contract')
     .addParam('source', 'The chain id of the soure chain, where the native token is deployed')
     .addParam('native', 'The native token')
@@ -59,8 +68,8 @@ task('deploy-wrapped-token', 'Deploy wrapped token from router contract')
     .addParam('decimals', 'The token decimals', 18, types.int)
     .setAction(async (taskArgs) => {
         console.log(taskArgs);
-        const deployWrappedToken = require('./scripts/deploy-wrapped-token');
-        await deployWrappedToken(
+        const deployRouterWrappedToken = require('./scripts/deploy-router-wrapped-token');
+        await deployRouterWrappedToken(
             taskArgs.router,
             taskArgs.source,
             taskArgs.native,
@@ -162,6 +171,22 @@ task('mint-erc20', 'Mints wrapped ERC-20 to the corresponding network')
             taskArgs.amount,
             signaturesArray);
     });
+task('burn-erc20', 'Approves & Burns wrapped ERC-20 amount to the corresponding network')
+    .addParam('router', 'The address of the router contract')
+    .addParam('targetChainId', 'The chain id of the target chain')
+    .addParam('wrappedAsset', 'The address of the wrapped asset')
+    .addParam('amount', 'The target amount')
+    .addParam('receiver', 'The address of the receiver on the target network')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const burnERC20 = require('./scripts/burn-erc-20');
+        await burnERC20(
+            taskArgs.router,
+            taskArgs.targetChainId,
+            taskArgs.wrappedAsset,
+            taskArgs.amount,
+            taskArgs.receiver);
+    });
 
 task('burn-erc721', 'Burns wrapped ERC-721 tokenID to the corresponding network')
     .addParam('router', 'The address of the router contract')
@@ -195,6 +220,39 @@ task('lock-erc20', 'Locks native ERC-20 token amount to the corresponding networ
             taskArgs.nativeAsset,
             taskArgs.amount,
             taskArgs.receiver);
+    });
+
+task('unlock-erc20', 'Unlocks native ERC-20 token amount to the corresponding network')
+    .addParam('router', 'The address of the router contract')
+    .addParam('sourceChainId', 'The chain id of the source chain')
+    .addParam('targetChainId', 'The chain id of the target chain')
+    .addParam('transactionId', 'The target transaction id')
+    .addParam('nativeAsset', 'The address of the native asset')
+    .addParam('receiver', 'The address of the receiver')
+    .addParam('amount', 'The amount to be minted')
+    .addParam('signatures', 'An array of signatures, split by ","')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const unlockERC20 = require('./scripts/erc-20-unlock');
+        const signaturesArray = taskArgs.signatures.split(',');
+        await unlockERC20(
+            taskArgs.router,
+            taskArgs.sourceChainId,
+            taskArgs.targetChainId,
+            taskArgs.transactionId,
+            taskArgs.nativeAsset,
+            taskArgs.receiver,
+            taskArgs.amount,
+            signaturesArray);
+    });
+
+task('transfer-ownership', 'Transfers ownership of the given contract')
+    .addParam('contract', 'The address of the contract')
+    .addParam('newOwner', 'The address of the new owner')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const transferOwnership = require('./scripts/transfer-ownership');
+        await transferOwnership(taskArgs.contract, taskArgs.newOwner);
     });
 
 module.exports = {

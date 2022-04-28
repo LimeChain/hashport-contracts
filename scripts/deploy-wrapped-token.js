@@ -1,26 +1,21 @@
 const hardhat = require('hardhat')
 const ethers = hardhat.ethers;
 
-async function deployWrappedToken(routerAddress, sourceChain, nativeToken, name, symbol, decimals) {
+async function deployWrappedToken(name, symbol, decimals) {
   await hardhat.run('compile');
 
-  const router = await ethers.getContractAt('IRouterDiamond', routerAddress);
-  const tx = await router.deployWrappedToken(
-    sourceChain,
-    ethers.utils.toUtf8Bytes(nativeToken),
-    { name, symbol, decimals });
+  const tokenFactory = await ethers.getContractFactory('WrappedToken');
+  const token = await tokenFactory.deploy(name, symbol, decimals);
 
-  console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
-  const receipt = await tx.wait(10); // Wait 10 blocks before verification in case Etherscan nodes do not have the contract bytecode yet.
-
-  const wrappedTokenAddress = receipt.events[1].args.wrappedToken;
-
-  console.log(`Deployed wrapped token at [${wrappedTokenAddress}]`);
+  console.log('Deploying contract, please wait...');
+  await token.deployed();
+  console.log('Wrapped Token deployed to address: ', token.address);
+  await token.deployTransaction.wait(10);
 
   console.log('Verification, please wait...');
 
   await hardhat.run('verify:verify', {
-    address: wrappedTokenAddress,
+    address: token.address,
     constructorArguments: [name, symbol, decimals]
   });
 }

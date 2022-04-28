@@ -97,9 +97,9 @@ npx hardhat deploy-router \
 ```
 
 #### Wrapped ERC-20 token deployment through Router
-Deploys a wrapped token for a corresponding token on another chain: 
+Deploys a wrapped token through Router for a corresponding token on another chain: 
 ```bash
-npx hardhat deploy-wrapped-token \
+npx hardhat deploy-router-wrapped-token \
     --network <network name> \
     --router <address of the router diamond contract> \
     --source <id of the source chain, to which the native token is deployed> \
@@ -107,6 +107,16 @@ npx hardhat deploy-wrapped-token \
     --name <name of the wrapped token> \
     --symbol <symbol of the wrapped token> \
     --decimals <decimals of the wrapped token>
+```
+
+#### Wrapped ERC-20 token deployment
+Deploys an instance of a [Wrapped Token](./contracts/WrappedToken.sol) contract, used for testing purposes.
+```bash
+npx hardhat deploy-wrapped-token \
+    --network <network name> \
+    --name <name of the token> \
+    --symbol <symbol of the token> \
+    --decimals <decimals of the token>
 ```
 
 #### Wrapped ERC-721 token deployment and Transfer Ownership to Diamond Router
@@ -214,6 +224,18 @@ npx hardhat mint-erc20 \
     --signatures <An array of signatures, split by `,`>
 ```
 
+## Burn Wrapped ERC-20
+Approves & Burns Wrapped ERC-20 amount to the corresponding network
+```bash
+npx hardhat burn-erc20 \
+    --network <network name> \
+    --router <address of the Router Diamond contract> \
+    --target-chain-id <The chain id of the target chain> \
+    --wrapped-asset <The address of the wrapped ERC-20 token> \
+    --amount <The target amount> \
+    --receiver <The address/AccountID of the receiver on the target network>
+```
+
 ## Lock Native ERC-20
 Locks Native ERC-20 amount to the corresponding network
 ```bash
@@ -224,6 +246,30 @@ npx hardhat lock-erc20 \
     --native-asset <The address of the native ERC-20 token> \
     --amount <The amount to be locked> \
     --receiver <The address/AccountID of the receiver>
+```
+
+## Unlock Native ERC-20
+Unlocks Native ERC-20 amount to the corresponding network
+```bash
+npx hardhat unlock-erc20 \
+    --network <network name> \
+    --router <address of the Router Diamond contract> \
+    --source-chain-id <The chain id of the source chain> \
+    --target-chain-id <The chain id of the target chain> \
+    --transaction-id <The target transaction id> \
+    --native-asset <The address of the native ERC-20 token> \
+    --receiver <The address of the receiver> \
+    --amount <The amount to be minted> \
+    --signatures <An array of signatures, split by `,`>
+```
+
+#### Transfer Ownership of a Contract
+Transfers Ownership of a Contract to specified new owner.
+```bash
+npx hardhat transfer-ownership \
+    --network <network name> \
+    --contract <address of the contract> \
+    --new-owner <address of the new owner>
 ```
 
 ### Tests
