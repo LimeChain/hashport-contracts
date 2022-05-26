@@ -150,7 +150,7 @@ npx hardhat update-native-token \
     --status <true|false (default true)>
 ```
 
-### Upgrade diamond to support ERC-721
+#### Upgrade diamond to support ERC-721
 Upgrades the diamond to support ERC-721:
 ```bash
 npx hardhat upgrade-erc721-support \
@@ -158,7 +158,7 @@ npx hardhat upgrade-erc721-support \
     --router <address of the Router Diamond contract>
 ```
 
-### Set Payment Token
+#### Set Payment Token
 Requires Router Diamond Contract to be upgraded with PaymentFacet support
 
 ```bash
@@ -169,7 +169,7 @@ npx hardhat set-payment-token \
     --status <true|false (default true)>
 ```
 
-## Set ERC-721 Payment
+#### Set ERC-721 Payment
 Requires Router Diamond Contract to be upgraded with ERC721PortalFacet & PaymentFacet support
 ```bash
 npx hardhat set-erc721-payment \
@@ -180,7 +180,7 @@ npx hardhat set-erc721-payment \
     --fee <required Payment Token fee upon burnERC721 wrapped transfers>
 ```
 
-## Mint Wrapped ERC-721
+#### Mint Wrapped ERC-721
 Requires Router Diamond Contract to support ERC721PortalFacet
 Mints Wrapped ERC-721 tokenID to the corresponding network
 ```bash
@@ -197,7 +197,7 @@ npx hardhat mint-erc721 \
     --signatures <An array of signatures, split by `,`>
 ```
 
-## Burn Wrapped ERC-721
+#### Burn Wrapped ERC-721
 Burns Wrapped ERC-721 tokenId to the corresponding network
 ```bash
 npx hardhat burn-erc721 \
@@ -209,7 +209,7 @@ npx hardhat burn-erc721 \
     --receiver <The address/AccountID of the receiver>
 ```
 
-## Mint Wrapped ERC-20
+#### Mint Wrapped ERC-20
 Mints Wrapped ERC-20 amount to the corresponding network
 ```bash
 npx hardhat mint-erc20 \
@@ -224,7 +224,7 @@ npx hardhat mint-erc20 \
     --signatures <An array of signatures, split by `,`>
 ```
 
-## Burn Wrapped ERC-20
+#### Burn Wrapped ERC-20
 Approves & Burns Wrapped ERC-20 amount to the corresponding network
 ```bash
 npx hardhat burn-erc20 \
@@ -236,7 +236,7 @@ npx hardhat burn-erc20 \
     --receiver <The address/AccountID of the receiver on the target network>
 ```
 
-## Lock Native ERC-20
+#### Lock Native ERC-20
 Locks Native ERC-20 amount to the corresponding network
 ```bash
 npx hardhat lock-erc20 \
@@ -248,7 +248,7 @@ npx hardhat lock-erc20 \
     --receiver <The address/AccountID of the receiver>
 ```
 
-## Unlock Native ERC-20
+#### Unlock Native ERC-20
 Unlocks Native ERC-20 amount to the corresponding network
 ```bash
 npx hardhat unlock-erc20 \
