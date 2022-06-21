@@ -129,6 +129,16 @@ npx hardhat deploy-wrapped-erc721-transfer-ownership \
     --symbol <symbol of the ERC-721>
 ```
 
+#### Wrapped ERC-721Pausable token deployment and Transfer Ownership to Diamond Router
+Deploys a wrapped ERC-721Pausable and transfers ownership to Diamond Router
+```bash
+npx hardhat deploy-wrapped-erc721-pausable-transfer-ownership \
+    --network <network name> \
+    --router <address of the router diamond contract> \
+    --name <name of the ERC-721> \
+    --symbol <symbol of the ERC-721>
+```
+
 #### Token deployment
 Deploys an instance of a [Token](./contracts/mocks/Token.sol) contract, used for testing purposes.
 ```bash

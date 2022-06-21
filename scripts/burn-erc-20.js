@@ -20,7 +20,7 @@ async function burnERC20(routerAddress, targetChain, wrappedAsset, amount, recei
   const burnERC20Tx = await routerContract.burn(targetChain, wrappedAsset, amount, receiverAddress);
   console.log(`Burn ERC-20 Portal transaction for [${wrappedAsset}], amount [${amount}], receiver [${receiverAddress} - ${receiver}]. Tx hash: [${burnERC20Tx.hash}]. Waiting to be mined...`);
   await burnERC20Tx.wait();
-  console.log(`Tx ${burnERC20Tx.hash} successfully mined.`);
+  console.log(`Tx [${burnERC20Tx.hash}] successfully mined.`);
 }
 
 module.exports = burnERC20;

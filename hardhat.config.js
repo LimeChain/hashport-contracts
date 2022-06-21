@@ -87,6 +87,15 @@ task('deploy-wrapped-erc721-transfer-ownership', 'Deploys Wrapped ERC-721 and tr
         await deployWrappedERC721TransferOwnership(taskArgs.router, taskArgs.name, taskArgs.symbol);
     });
 
+task('deploy-wrapped-erc721-pausable-transfer-ownership', 'Deploys Wrapped ERC-721Pausable and transfer ownership to Router')
+    .addParam('router', 'The address of the router contract')
+    .addParam('name', 'Name for ERC-721Pausable')
+    .addParam('symbol', ' Symbol for ERC-721Pausable')
+    .setAction(async (taskArgs) => {
+        const deployWrappedERC721PausableTransferOwnership = require('./scripts/deploy-wrapped-erc721-pausable-transfer-ownership');
+        await deployWrappedERC721PausableTransferOwnership(taskArgs.router, taskArgs.name, taskArgs.symbol);
+    });
+
 task('update-member', 'Update member in router contract')
     .addParam('router', 'The address of the router contract')
     .addParam('member', 'The address of the member')

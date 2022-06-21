@@ -33,7 +33,7 @@ async function burnERC721(routerAddress, targetChain, wrappedAsset, tokenId, rec
   const burnERC721Tx = await erc721PortalFacet.burnERC721(targetChain, wrappedAsset, tokenId, paymentTokenAddress, fee, receiverAddress);
   console.log(`Burn ERC-721 Portal transaction for [${wrappedAsset}], tokenId [${tokenId}]. Tx hash: [${burnERC721Tx.hash}]. Waiting to be mined...`);
   await burnERC721Tx.wait();
-  console.log(`Tx ${burnERC721Tx.hash} successfully mined.`);
+  console.log(`Tx [${burnERC721Tx.hash}] successfully mined.`);
 }
 
 module.exports = burnERC721;
