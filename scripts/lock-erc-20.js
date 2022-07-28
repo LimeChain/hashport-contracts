@@ -6,7 +6,7 @@ async function lockERC20(routerAddress, targetChain, nativeAsset, amount, receiv
   await hardhat.run('compile');
 
   let receiverAddress = receiver;
-  if (targetChain === '0') {
+  if (targetChain === '0' || targetChain === '295' || targetChain === '296') {
     receiverAddress = (AccountId.fromString(receiver)).toBytes();
   }
 

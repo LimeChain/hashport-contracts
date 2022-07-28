@@ -6,7 +6,7 @@ async function burnERC20(routerAddress, targetChain, wrappedAsset, amount, recei
   await hardhat.run('compile');
 
   let receiverAddress = receiver;
-  if (targetChain === '0') {
+  if (targetChain === '0' || targetChain === '295' || targetChain === '296') {
     receiverAddress = (AccountId.fromString(receiver)).toBytes();
   }
 
