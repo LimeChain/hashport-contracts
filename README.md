@@ -48,7 +48,39 @@ You can read more [here](https://github.com/LimeChain/hedera-evm-bridge-validato
 Smart Contracts use [EIP-2535](https://eips.ethereum.org/EIPS/eip-2535).
 
 ## Contract Addresses & ABI
-This is still under development, and the contracts have not been deployed on mainnets yet.
+
+### ABIs
+
+ABIs are available under `./abi` directory.
+
+### Mainnet deployed contract addresses:
+
+Ethereum:
+ - Router address:  `0x367e59b559283C8506207d75B0c5D8C66c4Cd4B7`
+ - OwnershipFacet address: `0x3fad3c29973bea5e964d9d90ebb8c84cb921e6c8`
+ - GovernanceFacet address: `0x48b3d6e97a8237f51861afb7f6512fb85a52d7ee`
+ - RouterFacet address:  `0xf9fe427563b12ec644e79a42b68e148273942b34`
+ - FeeCalculatorFacet address: `0x2bf0c79ce13a405a1f752f77227a28eec621f94c`
+ - DiamondCutFacet address: `0xe79c9bb508f00ab7b03cf3043929639e86626ef9`
+ - DiamondLoupeFacet address: `0x6f1fb462c6e328e8acccf59e58445a2fe18ff01e`
+ - PausableFacet address: `0x11481c1136d42c60c5bf29dfb9cb7eed90845814`
+ - GovernanceV2Facet: `0x4AF1069ffD125f4Ce782Dc54330272CCDA42b403`
+ - PaymentFacet: `0xF50329F6F000308538f978299cc1f670460Db514`
+ - ERC721PortalFacet: `0x7327B01eF3bce998CA97541Ed510eC6E0D96e22B`
+
+Polygon:
+ - Router address:  `0xf4C0153A8bdB3dfe8D135cE3bE0D45e14e5Ce53D`
+ - OwnershipFacet address:  `0x590243Fa41Af4383237E83a4CE5490a5AD9DacE3`
+ - GovernanceFacet address:  `0x8088Cb9ba08224c7Ecff05d4b9EE32DCAac1Fabc`
+ - RouterFacet address:  `0xA2F8f68d5d83f90b8401990196D0c233Dc0D4D7F`
+ - FeeCalculatorFacet address:  `0x9010EE70EC5d75Be46Ba5f7366776A3C7ad9Ab1f`
+ - DiamondCutFacet address:  `0x2232a10986375fdc9315F682551E141FC2A0a785`
+ - DiamondLoupeFacet address:  `0x8e1E4560C1571E4aBe2Be524CE62FE398bF8CAAD`
+ - PausableFacet address:  `0x9E4EAbD511acf7DC7594caBff98120139f9A43e1`
+ - GovernanceV2Facet: `0x0381D726d3146E2171FFE48ae04BBC20A473f1B8`
+ - PaymentFacet: `0x382D0017eb5B1301dd462172CbC0433848b0cB74`
+ - ERC721PortalFacet: `0x2f20f10840E959Ae9dAf3DDD63534B99e7C950dA`
+
 
 ## Development
 ### Prerequisites
