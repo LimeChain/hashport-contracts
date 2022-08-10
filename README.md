@@ -49,10 +49,6 @@ Smart Contracts use [EIP-2535](https://eips.ethereum.org/EIPS/eip-2535).
 
 ## Contract Addresses & ABI
 
-### ABIs
-
-ABIs are available under `./abi` directory.
-
 ### Mainnet deployed contract addresses:
 
 Ethereum:
@@ -80,6 +76,10 @@ Polygon:
  - GovernanceV2Facet: `0x0381D726d3146E2171FFE48ae04BBC20A473f1B8`
  - PaymentFacet: `0x382D0017eb5B1301dd462172CbC0433848b0cB74`
  - ERC721PortalFacet: `0x2f20f10840E959Ae9dAf3DDD63534B99e7C950dA`
+
+### ABIs
+
+Facet ABIs are available under `./abi` directory.
 
 
 ## Development
