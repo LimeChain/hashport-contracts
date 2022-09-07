@@ -1,0 +1,12 @@
+name: Slither Static Analysis
+on:
+  pull_request:
+    branches: [ "main" ]
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: crytic/slither-action@v0.1.1
+        with:
+          slither-args: "--exclude-low --exclude-informational --exclude-optimization --exclude unused-return,uninitialized-local-variables"

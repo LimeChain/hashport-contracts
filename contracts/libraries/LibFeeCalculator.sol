@@ -111,6 +111,7 @@ library LibFeeCalculator {
     function accrue(FeeCalculator storage _fc) internal returns (uint256) {
         uint256 members = LibGovernance.membersCount();
         uint256 amount = (_fc.feesAccrued - _fc.previousAccrued) / members;
+        //slither-disable-next-line divide-before-multiply
         _fc.previousAccrued += amount * members;
         _fc.accumulator = _fc.accumulator + amount;
 
