@@ -21,7 +21,7 @@ task('deploy-router', 'Deploys Router contract will all the necessary facets')
     .setAction(async (taskArgs) => {
         const deployRouter = require('./scripts/deploy-router');
         const membersArray = taskArgs.members.split(',');
-        const membersAdminsArray = taskArgs.members.split(',');
+        const membersAdminsArray = taskArgs.membersAdmins.split(',');
         await deployRouter(
             taskArgs.owner,
             taskArgs.governancePercentage,
