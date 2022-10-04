@@ -108,7 +108,7 @@ task('update-member', 'Update member in router contract')
 task('upgrade-erc721-support', 'Upgrades the router diamond with Payment and ERC-721 facets')
     .addParam('router', 'The address of the router contract')
     .setAction(async (taskArgs) => {
-        const upgradeErc721Support = require('./scripts/upgrade-erc721-support');
+        const { upgradeErc721Support } = require('./scripts/upgrade-erc721-support');
         await upgradeErc721Support(taskArgs.router);
     });
 

@@ -116,6 +116,10 @@ export DEPLOYER_PRIVATE_KEY=<private key to use for deployments for the specifie
 * Initializes `GovernanceFacet` with the provided list of members, governance percentage, and governance precision
 * Initializes `RouterFacet`
 * Initializes `FeeCalculatorFacet` with the provided fee precision. 
+* As a second step - the script will update the router as follows:
+    * Add `PaymentFacet`
+    * Add `ERC721PortalFacet`
+    * Replace `GovernanceFacet` with `GovernanceV2Facet`
 
 ```bash
 npx hardhat deploy-router \

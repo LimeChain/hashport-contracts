@@ -3,6 +3,8 @@ const ethers = hardhat.ethers;
 
 const { getSelectors } = require('../util');
 
+const { performUpgradeErc721Support } = require('./upgrade-erc721-support');
+
 async function deployRouter(owner, governancePercentage, governancePrecision, feeCalculatorPrecision, members, membersAdmins) {
   await hardhat.run('compile');
 
@@ -36,6 +38,11 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
   console.log('Deploying DiamondLoupeFacet, please wait...');
   await loupeFacet.deployed();
 
+  const pausableFacetFactory = await ethers.getContractFactory('PausableFacet');
+  pausableFacet = await pausableFacetFactory.deploy();
+  console.log('Deploying PausableFacet, please wait...');
+  await pausableFacet.deployed();
+
   const diamondCut = [
     // 0 stands for FacetCutAction.Add
     [cutFacet.address, 0, getSelectors(cutFacet)],
@@ -44,6 +51,7 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
     [governanceFacet.address, 0, getSelectors(governanceFacet)],
     [ownershipFacet.address, 0, getSelectors(ownershipFacet)],
     [routerFacet.address, 0, getSelectors(routerFacet)],
+    [pausableFacet.address, 0, getSelectors(pausableFacet)],
   ];
 
   const args = [
@@ -79,10 +87,13 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
   console.log('FeeCalculatorFacet address: ', feeCalculatorFacet.address);
   console.log('DiamondCutFacet address: ', cutFacet.address);
   console.log('DiamondLoupeFacet address: ', loupeFacet.address);
+  console.log('PausableFacet address: ', pausableFacet.address);
+
+  console.log('Upgrade router');
+  const upgradeContratItems = await performUpgradeErc721Support(diamond.address);
 
   console.log('Verification, please wait...');
 
-  // Verification
   await hardhat.run('verify:verify', {
     address: routerFacet.address,
     constructorArguments: []
@@ -114,9 +125,21 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
   });
 
   await hardhat.run('verify:verify', {
+    address: pausableFacet.address,
+    constructorArguments: []
+  });
+
+  await hardhat.run('verify:verify', {
     address: diamond.address,
     constructorArguments: [diamondCut, args]
   });
+
+  for (const contract in upgradeContratItems) {
+    await hardhat.run('verify:verify', {
+      address: contract.address,
+      constructorArguments: contract.args
+    });
+  }
 }
 
 module.exports = deployRouter;

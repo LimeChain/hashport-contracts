@@ -4,6 +4,20 @@ const ethers = hardhat.ethers;
 const { getSelectors } = require('../util');
 
 async function upgradeErc721Support(routerAddress) {
+
+  const contracts = await performUpgradeErc721Support(routerAddress);
+
+  for (const contract in contracts) {
+    await hardhat.run('verify:verify', {
+      address: contract.address,
+      constructorArguments: contract.args
+    });
+  }
+}
+
+async function performUpgradeErc721Support(routerAddress) {
+  const result = []; // {title:'', address: '', args: null}
+
   await hardhat.run('compile');
 
   const paymentFacetFactory = await ethers.getContractFactory('PaymentFacet');
@@ -11,18 +25,21 @@ async function upgradeErc721Support(routerAddress) {
   console.log('Deploying PaymentFacet, please wait...');
   await paymentFacet.deployed();
   console.log('PaymentFacet address: ', paymentFacet.address);
+  result.push({ title: 'PaymentFacet', address: paymentFacet.address, args: [] });
 
   const erc721PortalFacetFactory = await ethers.getContractFactory('ERC721PortalFacet');
   const erc721PortalFacet = await erc721PortalFacetFactory.deploy();
   console.log('Deploying ERC-721 Portal Facet, please wait...');
   await erc721PortalFacet.deployed();
   console.log('ERC-721 Portal Facet address: ', erc721PortalFacet.address);
+  result.push({ title: 'ERC721PortalFacet', address: erc721PortalFacet.address, args: [] });
 
   const governanceV2FacetFactory = await ethers.getContractFactory('GovernanceV2Facet');
   const governanceV2Facet = await governanceV2FacetFactory.deploy();
   console.log('Deploying GovernanceV2Facet, please wait...');
   await governanceV2Facet.deployed();
   console.log('GovernanceV2Facet address: ', governanceV2Facet.address);
+  result.push({ title: 'GovernanceV2Facet', address: governanceV2Facet.address, args: [] });
 
   const router = await ethers.getContractAt('IRouterDiamond', routerAddress);
 
@@ -58,20 +75,7 @@ async function upgradeErc721Support(routerAddress) {
   console.log(`Diamond Cut Add ERC-721 Portal [${diamondAddERC721PortalTx.hash}] submitted, waiting to be mined...`);
   await diamondAddERC721PortalTx.wait();
 
-  await hardhat.run('verify:verify', {
-    address: erc721PortalFacet.address,
-    constructorArguments: []
-  });
-
-  await hardhat.run('verify:verify', {
-    address: paymentFacet.address,
-    constructorArguments: []
-  });
-
-  await hardhat.run('verify:verify', {
-    address: governanceV2Facet.address,
-    constructorArguments: []
-  });
+  return result;
 }
 
-module.exports = upgradeErc721Support;
+module.exports = { upgradeErc721Support, performUpgradeErc721Support };
