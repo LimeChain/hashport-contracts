@@ -5,6 +5,17 @@ const expect = chai.expect;
 
 const { createPermit, diamondAsFacet, getInterfaceId, getSelectors } = require('../util');
 
+const enumFeeType = {
+  Flat: 0,
+  Percentage: 1
+}
+
+const enumFacetCutAction = {
+  Add: 0,
+  Replace: 1,
+  Remove: 2
+}
+
 describe('Router', async () => {
   let nativeToken;
   let nativeTokenFactory;
@@ -18,12 +29,16 @@ describe('Router', async () => {
   let feeCalculatorFacet;
   let cutFacet;
   let loupeFacet;
+  let feePolicyFacet;
   let owner;
   let alice;
   let bob;
   let carol;
   let admin;
   let nonMember;
+  let feePolicyUser_1;
+  let feePolicyUser_2;
+  let feePolicyUser_3;
 
   const chainId = network.config.chainId;
   const GOVERNANCE_PRECISION = 100;
@@ -40,7 +55,7 @@ describe('Router', async () => {
   const wrappedTokenDecimals = 18;
 
   before(async () => {
-    [owner, alice, aliceAdmin, bob, bobAdmin, carol, carolAdmin, admin, nonMember] = await ethers.getSigners();
+    [owner, alice, aliceAdmin, bob, bobAdmin, carol, carolAdmin, admin, nonMember, feePolicyUser_1, feePolicyUser_2, feePolicyUser_3] = await ethers.getSigners();
 
     nativeTokenFactory = await ethers.getContractFactory('Token');
     nativeToken = await nativeTokenFactory.deploy('NativeToken', 'NT', 18);
@@ -2614,6 +2629,306 @@ describe('Router', async () => {
     });
   });
 
+  describe('FeePolicyFacet', async () => {
+    beforeEach(async () => {
+      const RouterFacetFactory = await ethers.getContractFactory('RouterFacet');
+      routerFacet = await RouterFacetFactory.deploy();
+      await routerFacet.deployed();
+
+      const FeeCalculatorFacetFactory = await ethers.getContractFactory('FeeCalculatorFacet');
+      feeCalculatorFacet = await FeeCalculatorFacetFactory.deploy();
+      await feeCalculatorFacet.deployed();
+
+      const GovernanceFacetFactory = await ethers.getContractFactory('GovernanceFacet');
+      governanceFacet = await GovernanceFacetFactory.deploy();
+      await governanceFacet.deployed();
+
+      const GovernanceV2FacetFactory = await ethers.getContractFactory('GovernanceV2Facet');
+      governanceV2Facet = await GovernanceV2FacetFactory.deploy();
+      await governanceV2Facet.deployed();
+
+      const ERC721PortalFacetFactory = await ethers.getContractFactory('ERC721PortalFacet');
+      erc721PortalFacet = await ERC721PortalFacetFactory.deploy();
+      await erc721PortalFacet.deployed();
+
+      const FeePolicyFacetFactory = await ethers.getContractFactory('FeePolicyFacet');
+      feePolicyFacet = await FeePolicyFacetFactory.deploy();
+      await feePolicyFacet.deployed();
+
+      const diamondCut = [
+        { facetAddress: routerFacet.address, action: enumFacetCutAction.Replace, functionSelectors: getSelectors(routerFacet) },
+        { facetAddress: feeCalculatorFacet.address, action: enumFacetCutAction.Replace, functionSelectors: getSelectors(feeCalculatorFacet) },
+        { facetAddress: governanceFacet.address, action: enumFacetCutAction.Replace, functionSelectors: getSelectors(governanceFacet) },
+        { facetAddress: erc721PortalFacet.address, action: enumFacetCutAction.Add, functionSelectors: getSelectors(erc721PortalFacet) },
+        { facetAddress: feePolicyFacet.address, action: enumFacetCutAction.Add, functionSelectors: getSelectors(feePolicyFacet) }
+      ];
+
+      await router.diamondCut(diamondCut, ethers.constants.AddressZero, "0x");
+    });
+
+    it('should diamond cut successfully', async () => {
+      expect(await router.facetAddresses())
+        .to.include(routerFacet.address)
+        .to.include(pausableFacet.address)
+        .to.include(ownershipFacet.address)
+        .to.include(feeCalculatorFacet.address)
+        .to.include(cutFacet.address)
+        .to.include(loupeFacet.address)
+        .to.include(erc721PortalFacet.address)
+        .to.include(feePolicyFacet.address);
+
+      const facets = await router.facets();
+      for (const facet of facets) {
+        switch (facet.facetAddress) {
+          case cutFacet.address:
+            expect(facet.functionSelectors).to.deep.equal(getSelectors(cutFacet));
+            break;
+          case loupeFacet.address:
+            expect(facet.functionSelectors).to.deep.equal(getSelectors(loupeFacet));
+            break;
+          case feeCalculatorFacet.address:
+            expect(facet.functionSelectors).to.deep.equal(getSelectors(feeCalculatorFacet));
+            break;
+          case governanceFacet.address:
+            expect(facet.functionSelectors).to.deep.equal(getSelectors(governanceFacet));
+            break;
+          case ownershipFacet.address:
+            expect(facet.functionSelectors).to.deep.equal(getSelectors(ownershipFacet));
+            break;
+          case pausableFacet.address:
+            expect(facet.functionSelectors).to.deep.equal(getSelectors(pausableFacet));
+            break;
+          case routerFacet.address:
+            expect(facet.functionSelectors).to.deep.equal(getSelectors(routerFacet));
+            break;
+          case erc721PortalFacet.address:
+            expect(facet.functionSelectors).to.deep.equal(getSelectors(erc721PortalFacet));
+            break;
+          case feePolicyFacet.address:
+            expect(facet.functionSelectors).to.deep.equal(getSelectors(feePolicyFacet));
+            break;
+          default:
+            throw 'invalid facet address'
+        }
+      }
+    });
+
+    describe('Fee policy Store management', async () => {
+      let FeePolicyStore;
+      let testNativeToken1;
+      let testNativeToken2;
+      let testNativeToken3;
+
+      beforeEach(async () => {
+        const FeePolicyStoreFactory = await ethers.getContractFactory('EntityFeePolicyStore');
+        FeePolicyStore = await FeePolicyStoreFactory.deploy();
+        await FeePolicyStore.deployed();
+
+        await FeePolicyStore.transferOwnership(router.address);
+
+        const testNativeTokenFactory = await ethers.getContractFactory('Token');
+
+        testNativeToken1 = await testNativeTokenFactory.deploy('NativeToken1', 'NT1', 18);
+        await testNativeToken1.deployed();
+
+        testNativeToken2 = await testNativeTokenFactory.deploy('NativeToken2', 'NT2', 18);
+        await testNativeToken2.deployed();
+
+        testNativeToken3 = await testNativeTokenFactory.deploy('NativeToken3', 'NT3', 18);
+        await testNativeToken3.deployed();
+      });
+
+      it('should not allow non router execution', async () => {
+        const _store = await ethers.getContractAt('EntityFeePolicyStore', FeePolicyStore.address);
+
+        await expect(_store.setFlatFeeTokenPolicy(testNativeToken1.address, 1000)).to.be.reverted;
+      });
+
+      it('should deploy fee policy store and transfer ownership', async () => {
+        expect(await FeePolicyStore.owner()).to.equal(router.address);
+      });
+
+      it('shold add users to fee policy store', async () => {
+        await expect(router.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address, feePolicyUser_2.address, feePolicyUser_3.address])).to.not.be.reverted;
+
+        expect(await router.feePolicyStoreAddress(feePolicyUser_1.address)).to.equal(FeePolicyStore.address);
+        expect(await router.feePolicyStoreAddress(feePolicyUser_2.address)).to.equal(FeePolicyStore.address);
+        expect(await router.feePolicyStoreAddress(feePolicyUser_3.address)).to.equal(FeePolicyStore.address);
+      });
+
+      it('shold remove users to fee policy store', async () => {
+        await router.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address, feePolicyUser_2.address, feePolicyUser_3.address]);
+
+        await expect(router.removeFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_3.address])).to.not.be.reverted;
+        expect(await router.feePolicyStoreAddress(feePolicyUser_1.address)).to.equal(FeePolicyStore.address);
+        expect(await router.feePolicyStoreAddress(feePolicyUser_2.address)).to.equal(FeePolicyStore.address);
+        expect(await router.feePolicyStoreAddress(feePolicyUser_3.address)).to.equal('0x0000000000000000000000000000000000000000');
+      });
+
+      it('should set flat token policy', async () => {
+        await expect(router.setFlatFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, 1000)).to.not.be.reverted;
+      });
+
+      it('should set percentage token policy', async () => {
+        await expect(router.setPercentageFeeTokenPolicy(FeePolicyStore.address, testNativeToken2.address, 10)).to.not.be.reverted;
+      });
+
+      it('should set tier token policy', async () => {
+
+        const feeTypeArr = [enumFeeType.Flat, enumFeeType.Flat, enumFeeType.Flat];
+        const amountFromArr = [0, 100, 200];
+        const amountToArr = [100, 200, 0];
+        const hasFromArr = [false, true, true];
+        const hasToArr = [true, false, false];
+        const feeValueArr = [3_000, 2_000, 1_000];
+
+        await expect(router.setTiersTokenPolicy(
+          FeePolicyStore.address,
+          testNativeToken3.address,
+          feeTypeArr,
+          amountFromArr,
+          amountToArr,
+          hasFromArr,
+          hasToArr,
+          feeValueArr
+        )).to.not.be.reverted;
+      });
+
+      it('should update token policy', async () => {
+        await expect(router.setFlatFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, 10)).to.not.be.reverted;
+        await expect(router.setPercentageFeeTokenPolicy(FeePolicyStore.address, testNativeToken2.address, 10)).to.not.be.reverted;
+
+        await expect(router.setTiersTokenPolicy(
+          FeePolicyStore.address,
+          testNativeToken3.address,
+          [enumFeeType.Flat, enumFeeType.Flat],
+          [0, 100],
+          [100, 0],
+          [false, true],
+          [true, false],
+          [2_000, 1_000]
+        )).to.not.be.reverted;
+      });
+
+      it('should remove token policy', async () => {
+        await expect(router.removeFeePolicyToken(FeePolicyStore.address, testNativeToken1.address)).to.not.be.reverted;
+      });
+    });
+
+    describe('Fee policy rewards', async () => {
+      let FeePolicyStore;
+      let testNativeToken1;
+      let testNativeToken2;
+      let testNativeToken3;
+      let testAmount = ethers.utils.parseEther('100');
+
+      beforeEach(async () => {
+        const FeePolicyStoreFactory = await ethers.getContractFactory('EntityFeePolicyStore');
+        FeePolicyStore = await FeePolicyStoreFactory.deploy();
+        await FeePolicyStore.deployed();
+
+        await FeePolicyStore.transferOwnership(router.address);
+
+        const testNativeTokenFactory = await ethers.getContractFactory('Token');
+
+        testNativeToken1 = await testNativeTokenFactory.deploy('NativeToken1', 'NT1', 18);
+        await testNativeToken1.deployed();
+
+        testNativeToken2 = await testNativeTokenFactory.deploy('NativeToken2', 'NT2', 18);
+        await testNativeToken2.deployed();
+
+        testNativeToken3 = await testNativeTokenFactory.deploy('NativeToken3', 'NT3', 18);
+        await testNativeToken3.deployed();
+
+        // await router.updateNativeToken(testNativeToken1.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+        // await router.updateNativeToken(testNativeToken2.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+        // await router.updateNativeToken(testNativeToken3.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+      });
+
+      it('should calculate percentage fee', async () => {
+        const _percentage_fee = 1_000;
+        await router.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address]);
+        await router.setPercentageFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, _percentage_fee);
+        await router.updateNativeToken(testNativeToken1.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+
+        const _amount = ethers.utils.parseEther('100');
+
+        const serviceFee = _amount.mul(_percentage_fee).div(FEE_CALCULATOR_PRECISION);
+
+        await testNativeToken1.mint(feePolicyUser_1.address, _amount);
+
+        await testNativeToken1.connect(feePolicyUser_1).approve(router.address, _amount);
+        await router.connect(feePolicyUser_1).lock(1, testNativeToken1.address, _amount, owner.address);
+
+        const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(testNativeToken1.address);
+        expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(serviceFee);
+        expect(beforeMemberUpdateTokenFeeData.accumulator).to.equal(0);
+        expect(beforeMemberUpdateTokenFeeData.previousAccrued).to.equal(0);
+      });
+
+      it('should calculate flat fee', async () => {
+        const _flat_fee = 200;
+        await router.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address]);
+        await router.setFlatFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, _flat_fee);
+        await router.updateNativeToken(testNativeToken1.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+
+        const _amount = ethers.utils.parseEther('100');
+
+        await testNativeToken1.mint(feePolicyUser_1.address, _amount);
+
+        await testNativeToken1.connect(feePolicyUser_1).approve(router.address, _amount);
+        await router.connect(feePolicyUser_1).lock(1, testNativeToken1.address, _amount, owner.address);
+
+        const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(testNativeToken1.address);
+        expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(_flat_fee);
+        expect(beforeMemberUpdateTokenFeeData.accumulator).to.equal(0);
+        expect(beforeMemberUpdateTokenFeeData.previousAccrued).to.equal(0);
+      });
+
+      it('should calculate tiers fee - all percentage', async () => {
+        await router.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address, feePolicyUser_2.address]);
+
+        await router.updateNativeToken(testNativeToken1.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+
+        const _amount_180 = ethers.utils.parseEther('180');
+        const _amount_220 = ethers.utils.parseEther('220');
+
+        const _percentage_180 = 2_000; // 3.6
+        const _percentage_220 = 1_000; // 2.2
+
+        await router.setTiersTokenPolicy(
+          FeePolicyStore.address,
+          testNativeToken1.address,
+          [enumFeeType.Percentage, enumFeeType.Percentage],
+          [0, ethers.utils.parseEther('200')],
+          [ethers.utils.parseEther('200'), 0],
+          [false, true],
+          [true, false],
+          [_percentage_180, _percentage_220]
+        );
+
+        await testNativeToken1.mint(feePolicyUser_1.address, _amount_180);
+        await testNativeToken1.mint(feePolicyUser_2.address, _amount_220);
+
+        await testNativeToken1.connect(feePolicyUser_1).approve(router.address, _amount_180);
+        await router.connect(feePolicyUser_1).lock(1, testNativeToken1.address, _amount_180, owner.address);
+
+        await testNativeToken1.connect(feePolicyUser_2).approve(router.address, _amount_220);
+        await router.connect(feePolicyUser_2).lock(1, testNativeToken1.address, _amount_220, owner.address);
+
+        const serviceFee1 = _amount_180.mul(_percentage_180).div(FEE_CALCULATOR_PRECISION);
+        const serviceFee2 = _amount_220.mul(_percentage_220).div(FEE_CALCULATOR_PRECISION);
+
+        const allServiceFee = serviceFee1.add(serviceFee2); // 5.8
+        const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(testNativeToken1.address);
+
+        expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(allServiceFee);
+        expect(beforeMemberUpdateTokenFeeData.accumulator).to.equal(0);
+        expect(beforeMemberUpdateTokenFeeData.previousAccrued).to.equal(0);
+      });
+    });
+  });
+
   describe('Diamond', async () => {
     beforeEach(async () => {
       await router.updateMember(bob.address, bobAdmin.address, true);
@@ -2634,7 +2949,7 @@ describe('Router', async () => {
       await expect(test.testFunction()).to.not.be.reverted;
     });
 
-    it('should remove all functions', async () => {
+    xit('should remove all functions', async () => {
       const expectedRevertMessage = 'Diamond: Function does not exist';
 
       const diamondCut = [

@@ -10,6 +10,7 @@ import "./IFeeCalculator.sol";
 import "./IGovernance.sol";
 import "./IPausable.sol";
 import "./IRouter.sol";
+import "./IFeePolicyFacet.sol";
 
 interface IRouterDiamond is
     IERC165,
@@ -19,5 +20,6 @@ interface IRouterDiamond is
     IFeeCalculator,
     IERC173,
     IPausable,
-    IRouter
+    IRouter,
+    IFeePolicyFacet
 {}

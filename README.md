@@ -318,6 +318,61 @@ npx hardhat transfer-ownership \
     --new-owner <address of the new owner>
 ```
 
+### Upgrade router to support fee policy logic
+Upgrade router with FeePolicyFacet with methods to handle fee policies
+```bash
+npx hardhat fee-policy-upgrage-router \
+    --network <network name> \
+    --router <address of the Router Diamond contract>
+```
+
+### Deploys fee policy store
+Deploys a store contract to manage and calculate token fee policies 
+```bash
+npx hardhat fee-policy-deploy-store \
+    --network <network name> \
+    --router <address of the Router Diamond contract> \
+    --addresses <addresses of the users, for which the policies will be applied>
+```
+
+### Adds user addresses to existing fee policy store
+```bash
+npx hardhat fee-policy-add-user \
+    --network <network name> \
+    --router <address of the Router Diamond contract> \
+    --store <address of the policy store> \
+    --addresses <addresses of the users, for which the policies will be applied>
+```
+
+### Removes user addresses from existing fee policy store
+```bash
+npx hardhat fee-policy-remove-user \
+    --network <network name> \
+    --router <address of the Router Diamond contract> \
+    --store <address of the policy store> \
+    --addresses <addresses of the users, for which the policies will be removed>
+```
+
+### Sets policies for specific token
+Expected format for the fee policies: `feeType|amountFrom|amountTo|feeValue;feeType|amountFrom|amountTo|feeValue`. Possible values for `feeType` are: `flat`,`percentage`
+```bash
+npx hardhat fee-policy-set-token \
+    --network <network name> \
+    --router <address of the Router Diamond contract> \
+    --store <address of the policy store> \
+    --token <address of the token> \
+    --policies <formatted string of the fee policies>
+```
+
+### Removes policies for specific token
+```bash
+npx hardhat fee-policy-remove-token \
+    --network <network name> \
+    --router <address of the Router Diamond contract> \
+    --store <address of the policy store> \
+    --token <address of the token>
+```
+
 ### Tests
 #### Unit Tests
 ```bash

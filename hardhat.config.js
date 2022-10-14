@@ -264,6 +264,70 @@ task('transfer-ownership', 'Transfers ownership of the given contract')
         await transferOwnership(taskArgs.contract, taskArgs.newOwner);
     });
 
+task('fee-policy-upgrage-router', 'Upgrade router to support fee policy logic')
+    .addParam('router', 'The address of the router contract')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const { upgradeRouter } = require('./scripts/fee-policy-management');
+
+        await upgradeRouter(taskArgs.router);
+    });
+
+task('fee-policy-deploy-store', 'Deploys fee policy store')
+    .addParam('router', 'The address of the router contract')
+    .addOptionalParam('addresses', 'User addresses wich will be subject of the fee policies (not mandatory)')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const { deployPolicyStore } = require('./scripts/fee-policy-management');
+
+        await deployPolicyStore(taskArgs.router, taskArgs.addresses.split(','));
+    });
+
+task('fee-policy-add-user', 'Adds user addresses to existing fee policy store')
+    .addParam('router', 'The address of the router contract')
+    .addParam('store', 'The address of the fee policy store')
+    .addParam('addresses', 'User addresses wich will be subject of the fee policies')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const { addFeePolicyUsers } = require('./scripts/fee-policy-management');
+
+        await addFeePolicyUsers(taskArgs.router, taskArgs.store, taskArgs.addresses.split(','));
+    });
+
+task('fee-policy-remove-user', 'Removes user addresses from existing fee policy store')
+    .addParam('router', 'The address of the router contract')
+    .addParam('store', 'The address of the fee policy store')
+    .addParam('addresses', 'User addresses wich will be subject of the fee policies')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const { removeFeePolicyUsers } = require('./scripts/fee-policy-management');
+
+        await removeFeePolicyUsers(taskArgs.router, taskArgs.store, taskArgs.addresses.split(','));
+    });
+
+task('fee-policy-set-token', 'Sets policies for specific token')
+    .addParam('router', 'The address of the router contract')
+    .addParam('store', 'The address of the fee policy store')
+    .addParam('token', 'Address of the token')
+    .addParam('policies', 'Fee policy for the token. Expected format: `feeType|amountFrom|amountTo|feeValue;feeType|amountFrom|amountTo|feeValue`. Possible values for `feeType` are: `flat`,`percentage`')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const { setTokenFeePolicy } = require('./scripts/fee-policy-management');
+
+        await setTokenFeePolicy(taskArgs.router, taskArgs.store, taskArgs.token, taskArgs.policies);
+    });
+
+task('fee-policy-remove-token', 'Removes policies for specific token')
+    .addParam('router', 'The address of the router contract')
+    .addParam('store', 'The address of the fee policy store')
+    .addParam('token', 'Address of the token')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const { removeTokenFeePolicy } = require('./scripts/fee-policy-management');
+
+        await removeTokenFeePolicy(taskArgs.router, taskArgs.store, taskArgs.token);
+    });
+
 module.exports = {
     solidity: {
         version: '0.8.3',

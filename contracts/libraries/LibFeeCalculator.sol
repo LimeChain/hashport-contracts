@@ -3,6 +3,10 @@ pragma solidity 0.8.3;
 
 import "./LibGovernance.sol";
 
+import "./LibFeePolicy.sol";
+
+import "../interfaces/IEntityFeePolicyStore.sol";
+
 library LibFeeCalculator {
     bytes32 constant STORAGE_POSITION = keccak256("fee.calculator.storage");
 
@@ -82,8 +86,22 @@ library LibFeeCalculator {
     {
         LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
         FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[_token];
-        uint256 serviceFee = (_amount * fc.serviceFeePercentage) /
-            fcs.precision;
+
+        address userFeePolicyAddress = LibFeePolicy.feePolicyStoreAddress(msg.sender);
+
+        uint256 serviceFee = 0;
+        bool policyExists = false;
+
+        // get policy
+        if (userFeePolicyAddress != address(0)) {
+            (serviceFee, policyExists) = IEntityFeePolicyStore(userFeePolicyAddress).feeAmountFor(_token, _amount, fcs.precision);
+        }
+
+        // serviceFee shold be greater than zero
+        if (!policyExists || serviceFee == 0) {
+            serviceFee = (_amount * fc.serviceFeePercentage) / fcs.precision;
+        }
+
         fc.feesAccrued = fc.feesAccrued + serviceFee;
 
         return serviceFee;
