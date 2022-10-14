@@ -128,7 +128,7 @@ contract EntityFeePolicyStore is IEntityFeePolicyStore, Ownable {
         uint256 _amount,
         uint256 _precision
     ) private view returns (uint256 feeAmount, bool exist) {
-        if ((range.hasFrom == false || _amount >= range.amountFrom) && (range.hasTo == false || _amount < range.amountTo)) {
+        if ((!range.hasFrom || _amount >= range.amountFrom) && (!range.hasTo || _amount < range.amountTo)) {
             // policy is found
 
             if (range.feeType == FeeType.Percentage) {
