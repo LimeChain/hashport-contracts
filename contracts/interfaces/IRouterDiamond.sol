@@ -20,6 +20,5 @@ interface IRouterDiamond is
     IFeeCalculator,
     IERC173,
     IPausable,
-    IRouter,
-    IFeePolicyFacet
+    IRouter
 {}

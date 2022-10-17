@@ -2630,7 +2630,23 @@ describe('Router', async () => {
   });
 
   describe('FeePolicyFacet', async () => {
+    let feePolicyPortal;
+    let testNativeToken1;
+    let testNativeToken2;
+    let testNativeToken3;
+
     beforeEach(async () => {
+      const testNativeTokenFactory = await ethers.getContractFactory('Token');
+
+      testNativeToken1 = await testNativeTokenFactory.deploy('NativeToken1', 'NT1', 18);
+      await testNativeToken1.deployed();
+
+      testNativeToken2 = await testNativeTokenFactory.deploy('NativeToken2', 'NT2', 18);
+      await testNativeToken2.deployed();
+
+      testNativeToken3 = await testNativeTokenFactory.deploy('NativeToken3', 'NT2', 18);
+      await testNativeToken3.deployed();
+
       const RouterFacetFactory = await ethers.getContractFactory('RouterFacet');
       routerFacet = await RouterFacetFactory.deploy();
       await routerFacet.deployed();
@@ -2664,6 +2680,8 @@ describe('Router', async () => {
       ];
 
       await router.diamondCut(diamondCut, ethers.constants.AddressZero, "0x");
+
+      feePolicyPortal = await ethers.getContractAt('IFeePolicyFacet', router.address);
     });
 
     it('should diamond cut successfully', async () => {
@@ -2708,16 +2726,176 @@ describe('Router', async () => {
             expect(facet.functionSelectors).to.deep.equal(getSelectors(feePolicyFacet));
             break;
           default:
-            throw 'invalid facet address'
+            throw 'invalid facet address';
         }
       }
     });
 
-    describe('Fee policy Store management', async () => {
+    describe('EntityFeePolicyStore', async () => {
       let FeePolicyStore;
-      let testNativeToken1;
-      let testNativeToken2;
-      let testNativeToken3;
+      const revertMessageOwnable = 'Ownable: caller is not the owner';
+
+      beforeEach(async () => {
+        const FeePolicyStoreFactory = await ethers.getContractFactory('EntityFeePolicyStore');
+        FeePolicyStore = await FeePolicyStoreFactory.deploy();
+        await FeePolicyStore.deployed();
+      });
+
+      it('should deploy fee policy store and transfer ownership', async () => {
+        expect(await FeePolicyStore.owner()).to.equal(owner.address);
+      });
+
+      describe('feePolicyForExists', async () => {
+
+        beforeEach(async () => {
+          FeePolicyStore.setFlatFeeTokenPolicy(testNativeToken1.address, 10)
+          FeePolicyStore.setPercentageFeeTokenPolicy(testNativeToken2.address, 1_000)
+        });
+        it('should be false for non existing token', async () => {
+          expect(await FeePolicyStore.feePolicyForExists(testNativeToken3.address)).to.equal(false);
+        });
+
+        it('should be true for existing token', async () => {
+          expect(await FeePolicyStore.feePolicyForExists(testNativeToken1.address)).to.equal(true);
+          expect(await FeePolicyStore.feePolicyForExists(testNativeToken2.address)).to.equal(true);
+        });
+      });
+
+      describe('removeFeePolicyToken', async () => {
+        beforeEach(async () => {
+          await FeePolicyStore.setPercentageFeeTokenPolicy(testNativeToken1.address, 1_000);
+        });
+
+        it('should revert when executing with not owner', async () => {
+          await expect(FeePolicyStore.connect(nonMember).removeFeePolicyToken(testNativeToken1.address)).to.be.revertedWith(revertMessageOwnable);
+        });
+
+        it('should remove token from router address', async () => {
+          await FeePolicyStore.removeFeePolicyToken(testNativeToken1.address);
+
+          expect(await FeePolicyStore.feePolicyForExists(testNativeToken1.address)).to.equal(false);
+        });
+      });
+
+      describe('setFlatFeeTokenPolicy', async () => {
+        it('should revert when executing with not owner', async () => {
+          await expect(FeePolicyStore.connect(nonMember).setFlatFeeTokenPolicy(testNativeToken1.address, 10)).to.be.revertedWith(revertMessageOwnable);
+        });
+
+        it('should add flat fee policy', async () => {
+          await FeePolicyStore.setFlatFeeTokenPolicy(testNativeToken1.address, 10);
+
+          const policies = await FeePolicyStore.feePoliciesFor(testNativeToken1.address);
+          expect(policies.length).to.equal(1);
+          expect(policies[0].feeType).to.equal(enumFeeType.Flat);
+          expect(policies[0].amountFrom).to.equal(0);
+          expect(policies[0].amountTo).to.equal(0);
+          expect(policies[0].hasFrom).to.equal(false);
+          expect(policies[0].hasTo).to.equal(false);
+          expect(policies[0].feeValue).to.equal(10);
+        });
+
+        it('should add flat fee policy only once', async () => {
+          await FeePolicyStore.setFlatFeeTokenPolicy(testNativeToken1.address, 10);
+          await FeePolicyStore.setFlatFeeTokenPolicy(testNativeToken1.address, 20);
+
+          const policies = await FeePolicyStore.feePoliciesFor(testNativeToken1.address);
+          expect(policies.length).to.equal(1);
+          expect(policies[0].feeType).to.equal(enumFeeType.Flat);
+          expect(policies[0].amountFrom).to.equal(0);
+          expect(policies[0].amountTo).to.equal(0);
+          expect(policies[0].hasFrom).to.equal(false);
+          expect(policies[0].hasTo).to.equal(false);
+          expect(policies[0].feeValue).to.equal(20);
+        });
+      });
+
+      describe('setPercentageFeeTokenPolicy', async () => {
+        it('should revert when executing with not owner', async () => {
+          await expect(FeePolicyStore.connect(nonMember).setPercentageFeeTokenPolicy(testNativeToken1.address, 1_000)).to.be.revertedWith(revertMessageOwnable);
+        });
+
+        it('should add percentage fee policy', async () => {
+          await FeePolicyStore.setPercentageFeeTokenPolicy(testNativeToken1.address, 1_000);
+
+          const policies = await FeePolicyStore.feePoliciesFor(testNativeToken1.address);
+          expect(policies.length).to.equal(1);
+          expect(policies[0].feeType).to.equal(enumFeeType.Percentage);
+          expect(policies[0].amountFrom).to.equal(0);
+          expect(policies[0].amountTo).to.equal(0);
+          expect(policies[0].hasFrom).to.equal(false);
+          expect(policies[0].hasTo).to.equal(false);
+          expect(policies[0].feeValue).to.equal(1_000);
+        });
+
+        it('should add percentage fee policy only once', async () => {
+          await FeePolicyStore.setPercentageFeeTokenPolicy(testNativeToken1.address, 1_000);
+          await FeePolicyStore.setPercentageFeeTokenPolicy(testNativeToken1.address, 2_000);
+
+          const policies = await FeePolicyStore.feePoliciesFor(testNativeToken1.address);
+          expect(policies.length).to.equal(1);
+          expect(policies[0].feeType).to.equal(enumFeeType.Percentage);
+          expect(policies[0].amountFrom).to.equal(0);
+          expect(policies[0].amountTo).to.equal(0);
+          expect(policies[0].hasFrom).to.equal(false);
+          expect(policies[0].hasTo).to.equal(false);
+          expect(policies[0].feeValue).to.equal(2_000);
+        });
+      });
+
+      describe('addTierTokenPolicy', async () => {
+        it('should revert when executing with not owner', async () => {
+          await expect(FeePolicyStore.connect(nonMember).addTierTokenPolicy(testNativeToken1.address, enumFeeType.Percentage, 10, 100, true, true, 1_000)).to.be.revertedWith(revertMessageOwnable);
+        });
+
+        it('should add tier fee policies', async () => {
+          const feeTypeArr = [enumFeeType.Flat, enumFeeType.Flat, enumFeeType.Flat];
+          const amountFromArr = [0, 100, 200];
+          const amountToArr = [100, 200, 0];
+          const hasFromArr = [false, true, true];
+          const hasToArr = [true, false, false];
+          const feeValueArr = [3_000, 2_000, 1_000];
+
+          FeePolicyStore.addTierTokenPolicy(testNativeToken1.address, feeTypeArr[0], amountFromArr[0], amountToArr[0], hasFromArr[0], hasToArr[0], feeValueArr[0]);
+          FeePolicyStore.addTierTokenPolicy(testNativeToken1.address, feeTypeArr[1], amountFromArr[1], amountToArr[1], hasFromArr[1], hasToArr[1], feeValueArr[1]);
+          FeePolicyStore.addTierTokenPolicy(testNativeToken1.address, feeTypeArr[2], amountFromArr[2], amountToArr[2], hasFromArr[2], hasToArr[2], feeValueArr[2]);
+
+          const policies = await FeePolicyStore.feePoliciesFor(testNativeToken1.address);
+
+          expect(policies.length).to.equal(3);
+
+          // tier 0
+          expect(policies[0].feeType).to.equal(feeTypeArr[0]);
+          expect(policies[0].amountFrom).to.equal(amountFromArr[0]);
+          expect(policies[0].amountTo).to.equal(amountToArr[0]);
+          expect(policies[0].hasFrom).to.equal(hasFromArr[0]);
+          expect(policies[0].hasTo).to.equal(hasToArr[0]);
+          expect(policies[0].feeValue).to.equal(feeValueArr[0]);
+
+          // tier 1
+          expect(policies[1].feeType).to.equal(feeTypeArr[1]);
+          expect(policies[1].amountFrom).to.equal(amountFromArr[1]);
+          expect(policies[1].amountTo).to.equal(amountToArr[1]);
+          expect(policies[1].hasFrom).to.equal(hasFromArr[1]);
+          expect(policies[1].hasTo).to.equal(hasToArr[1]);
+          expect(policies[1].feeValue).to.equal(feeValueArr[1]);
+
+          // tier 2
+          expect(policies[2].feeType).to.equal(feeTypeArr[2]);
+          expect(policies[2].amountFrom).to.equal(amountFromArr[2]);
+          expect(policies[2].amountTo).to.equal(amountToArr[2]);
+          expect(policies[2].hasFrom).to.equal(hasFromArr[2]);
+          expect(policies[2].hasTo).to.equal(hasToArr[2]);
+          expect(policies[2].feeValue).to.equal(feeValueArr[2]);
+        });
+      });
+    });
+
+    describe('Fee Policy Management', async () => {
+      let FeePolicyStore;
+      const revertMessageNotDiamondOwner = 'LibDiamond: Must be contract owner';
+      const revertMessageZeroAddressStore = 'FeeCalculatorFacet: _storeAddress must not be 0x0';
+      const revertMessageZeroAddressToken = 'FeeCalculatorFacet: _tokenAddress must not be 0x0';
 
       beforeEach(async () => {
         const FeePolicyStoreFactory = await ethers.getContractFactory('EntityFeePolicyStore');
@@ -2725,94 +2903,407 @@ describe('Router', async () => {
         await FeePolicyStore.deployed();
 
         await FeePolicyStore.transferOwnership(router.address);
-
-        const testNativeTokenFactory = await ethers.getContractFactory('Token');
-
-        testNativeToken1 = await testNativeTokenFactory.deploy('NativeToken1', 'NT1', 18);
-        await testNativeToken1.deployed();
-
-        testNativeToken2 = await testNativeTokenFactory.deploy('NativeToken2', 'NT2', 18);
-        await testNativeToken2.deployed();
-
-        testNativeToken3 = await testNativeTokenFactory.deploy('NativeToken3', 'NT3', 18);
-        await testNativeToken3.deployed();
       });
 
-      it('should not allow non router execution', async () => {
-        const _store = await ethers.getContractAt('EntityFeePolicyStore', FeePolicyStore.address);
+      describe('addFeePolicyUsers', async () => {
+        beforeEach(async () => {
+          await feePolicyPortal.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address, feePolicyUser_2.address]);
+        });
 
-        await expect(_store.setFlatFeeTokenPolicy(testNativeToken1.address, 1000)).to.be.reverted;
+        it('should revert when executing with not router', async () => {
+          await expect(feePolicyPortal.connect(nonMember).addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_3.address])).to.be.revertedWith(revertMessageNotDiamondOwner);
+        });
+
+        it('should revert when executing with zero address store', async () => {
+          await expect(feePolicyPortal.addFeePolicyUsers('0x0000000000000000000000000000000000000000', [feePolicyUser_3.address])).to.be.revertedWith(revertMessageZeroAddressStore);
+        });
+
+        it('shold add users to fee policy store', async () => {
+          expect(await feePolicyPortal.feePolicyStoreAddress(feePolicyUser_1.address)).to.equal(FeePolicyStore.address);
+          expect(await feePolicyPortal.feePolicyStoreAddress(feePolicyUser_2.address)).to.equal(FeePolicyStore.address);
+          expect(await feePolicyPortal.feePolicyStoreAddress(feePolicyUser_3.address)).to.equal('0x0000000000000000000000000000000000000000');
+        });
       });
 
-      it('should deploy fee policy store and transfer ownership', async () => {
-        expect(await FeePolicyStore.owner()).to.equal(router.address);
+      describe('removeFeePolicyUsers', async () => {
+        beforeEach(async () => {
+          await feePolicyPortal.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address, feePolicyUser_2.address]);
+        });
+
+        it('should revert when executing with not router', async () => {
+          await expect(feePolicyPortal.connect(nonMember).removeFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_3.address])).to.be.revertedWith(revertMessageNotDiamondOwner);
+        });
+
+        it('should revert when executing with zero address store', async () => {
+          await expect(feePolicyPortal.removeFeePolicyUsers('0x0000000000000000000000000000000000000000', [feePolicyUser_3.address])).to.be.revertedWith(revertMessageZeroAddressStore);
+        });
+
+        it('should remove users from fee policy store', async () => {
+          await expect(feePolicyPortal.removeFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_3.address])).to.not.be.reverted;
+          expect(await feePolicyPortal.feePolicyStoreAddress(feePolicyUser_1.address)).to.equal(FeePolicyStore.address);
+          expect(await feePolicyPortal.feePolicyStoreAddress(feePolicyUser_2.address)).to.equal(FeePolicyStore.address);
+          expect(await feePolicyPortal.feePolicyStoreAddress(feePolicyUser_3.address)).to.equal('0x0000000000000000000000000000000000000000');
+        });
       });
 
-      it('shold add users to fee policy store', async () => {
-        await expect(router.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address, feePolicyUser_2.address, feePolicyUser_3.address])).to.not.be.reverted;
+      describe('removeFeePolicyToken', async () => {
+        it('should revert when executing with not router', async () => {
+          await expect(feePolicyPortal.connect(nonMember).removeFeePolicyToken(FeePolicyStore.address, testNativeToken1.address)).to.be.revertedWith(revertMessageNotDiamondOwner);
+        });
 
-        expect(await router.feePolicyStoreAddress(feePolicyUser_1.address)).to.equal(FeePolicyStore.address);
-        expect(await router.feePolicyStoreAddress(feePolicyUser_2.address)).to.equal(FeePolicyStore.address);
-        expect(await router.feePolicyStoreAddress(feePolicyUser_3.address)).to.equal(FeePolicyStore.address);
+        it('should revert when executing with zero address store', async () => {
+          await expect(feePolicyPortal.removeFeePolicyToken('0x0000000000000000000000000000000000000000', testNativeToken1.address)).to.be.revertedWith(revertMessageZeroAddressStore);
+        });
+
+        it('should revert when executing with zero address token', async () => {
+          await expect(feePolicyPortal.removeFeePolicyToken(FeePolicyStore.address, '0x0000000000000000000000000000000000000000')).to.be.revertedWith(revertMessageZeroAddressToken);
+        });
+
+        it('should remove token policy', async () => {
+          await feePolicyPortal.setPercentageFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, 1_000);
+          let policies = await FeePolicyStore.feePoliciesFor(testNativeToken1.address);
+          expect(policies.length).to.equal(1);
+
+          await expect(feePolicyPortal.removeFeePolicyToken(FeePolicyStore.address, testNativeToken1.address)).to.not.be.reverted;
+          expect(await FeePolicyStore.feePolicyForExists(testNativeToken1.address)).to.equal(false);
+        });
       });
 
-      it('shold remove users to fee policy store', async () => {
-        await router.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address, feePolicyUser_2.address, feePolicyUser_3.address]);
+      describe('setFlatFeeTokenPolicy', async () => {
+        it('should revert setFlatFeeTokenPolicy when executing with not router', async () => {
+          await expect(feePolicyPortal.connect(nonMember).setFlatFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, 10)).to.be.revertedWith(revertMessageNotDiamondOwner);
+        });
 
-        await expect(router.removeFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_3.address])).to.not.be.reverted;
-        expect(await router.feePolicyStoreAddress(feePolicyUser_1.address)).to.equal(FeePolicyStore.address);
-        expect(await router.feePolicyStoreAddress(feePolicyUser_2.address)).to.equal(FeePolicyStore.address);
-        expect(await router.feePolicyStoreAddress(feePolicyUser_3.address)).to.equal('0x0000000000000000000000000000000000000000');
+        it('should revert when executing with zero address store', async () => {
+          await expect(feePolicyPortal.setFlatFeeTokenPolicy('0x0000000000000000000000000000000000000000', testNativeToken1.address, 10)).to.be.revertedWith(revertMessageZeroAddressStore);
+        });
+
+        it('should revert when executing with zero address token', async () => {
+          await expect(feePolicyPortal.setFlatFeeTokenPolicy(FeePolicyStore.address, '0x0000000000000000000000000000000000000000', 10)).to.be.revertedWith(revertMessageZeroAddressToken);
+        });
+
+        it('should revert setFlatFeeTokenPolicy when executing with wrong value', async () => {
+          const revertMessage = 'FeeCalculatorFacet: flat fee _value is zero';
+          await expect(feePolicyPortal.setFlatFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, 0)).to.be.revertedWith(revertMessage);
+        });
+
+        it('should set flat token policy', async () => {
+          await expect(feePolicyPortal.setFlatFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, 1000)).to.not.be.reverted;
+
+          const policies = await FeePolicyStore.feePoliciesFor(testNativeToken1.address);
+          expect(policies.length).to.equal(1);
+          expect(policies[0].feeType).to.equal(enumFeeType.Flat);
+          expect(policies[0].amountFrom).to.equal(0);
+          expect(policies[0].amountTo).to.equal(0);
+          expect(policies[0].hasFrom).to.equal(false);
+          expect(policies[0].hasTo).to.equal(false);
+          expect(policies[0].feeValue).to.equal(1000);
+        });
+
+        it('should set flat token policy only once', async () => {
+          await feePolicyPortal.setFlatFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, 1_000);
+
+          const policies = await FeePolicyStore.feePoliciesFor(testNativeToken1.address);
+          expect(policies.length).to.equal(1);
+          expect(policies[0].feeType).to.equal(enumFeeType.Flat);
+          expect(policies[0].amountFrom).to.equal(0);
+          expect(policies[0].amountTo).to.equal(0);
+          expect(policies[0].hasFrom).to.equal(false);
+          expect(policies[0].hasTo).to.equal(false);
+          expect(policies[0].feeValue).to.equal(1_000);
+
+          await feePolicyPortal.setFlatFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, 2_000);
+
+          const policiesThen = await FeePolicyStore.feePoliciesFor(testNativeToken1.address);
+          expect(policiesThen.length).to.equal(1);
+          expect(policiesThen[0].feeType).to.equal(enumFeeType.Flat);
+          expect(policiesThen[0].amountFrom).to.equal(0);
+          expect(policiesThen[0].amountTo).to.equal(0);
+          expect(policiesThen[0].hasFrom).to.equal(false);
+          expect(policiesThen[0].hasTo).to.equal(false);
+          expect(policiesThen[0].feeValue).to.equal(2_000);
+        });
       });
 
-      it('should set flat token policy', async () => {
-        await expect(router.setFlatFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, 1000)).to.not.be.reverted;
+      describe('setPercentageFeeTokenPolicy', async () => {
+        it('should revert when executing with not router', async () => {
+          await expect(feePolicyPortal.connect(nonMember).setPercentageFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, 1_000)).to.be.revertedWith(revertMessageNotDiamondOwner);
+        });
+
+        it('should revert when executing with wrong value', async () => {
+          const revertMessage = 'FeeCalculatorFacet: precentage fee _value is zero';
+          await expect(feePolicyPortal.setPercentageFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, 0)).to.be.revertedWith(revertMessage);
+        });
+
+        it('should revert when executing with zero address store', async () => {
+          await expect(feePolicyPortal.setPercentageFeeTokenPolicy('0x0000000000000000000000000000000000000000', testNativeToken1.address, 0)).to.be.revertedWith(revertMessageZeroAddressStore);
+        });
+
+        it('should revert when executing with zero address token', async () => {
+          await expect(feePolicyPortal.setPercentageFeeTokenPolicy(FeePolicyStore.address, '0x0000000000000000000000000000000000000000', 0)).to.be.revertedWith(revertMessageZeroAddressToken);
+        });
+
+        it('should set percentage token policy', async () => {
+          await expect(feePolicyPortal.setPercentageFeeTokenPolicy(FeePolicyStore.address, testNativeToken2.address, 1_000)).to.not.be.reverted;
+
+          const policies = await FeePolicyStore.feePoliciesFor(testNativeToken2.address);
+          expect(policies.length).to.equal(1);
+          expect(policies[0].feeType).to.equal(enumFeeType.Percentage);
+          expect(policies[0].amountFrom).to.equal(0);
+          expect(policies[0].amountTo).to.equal(0);
+          expect(policies[0].hasFrom).to.equal(false);
+          expect(policies[0].hasTo).to.equal(false);
+          expect(policies[0].feeValue).to.equal(1_000);
+        });
+
+        it('should set percentage token policy only once', async () => {
+          await expect(feePolicyPortal.setPercentageFeeTokenPolicy(FeePolicyStore.address, testNativeToken2.address, 1_000)).to.not.be.reverted;
+
+          const policies = await FeePolicyStore.feePoliciesFor(testNativeToken2.address);
+          expect(policies.length).to.equal(1);
+          expect(policies[0].feeType).to.equal(enumFeeType.Percentage);
+          expect(policies[0].amountFrom).to.equal(0);
+          expect(policies[0].amountTo).to.equal(0);
+          expect(policies[0].hasFrom).to.equal(false);
+          expect(policies[0].hasTo).to.equal(false);
+          expect(policies[0].feeValue).to.equal(1_000);
+
+          await expect(feePolicyPortal.setPercentageFeeTokenPolicy(FeePolicyStore.address, testNativeToken2.address, 2_000)).to.not.be.reverted;
+
+          const policiesThen = await FeePolicyStore.feePoliciesFor(testNativeToken2.address);
+          expect(policiesThen.length).to.equal(1);
+          expect(policiesThen[0].feeType).to.equal(enumFeeType.Percentage);
+          expect(policiesThen[0].amountFrom).to.equal(0);
+          expect(policiesThen[0].amountTo).to.equal(0);
+          expect(policiesThen[0].hasFrom).to.equal(false);
+          expect(policiesThen[0].hasTo).to.equal(false);
+          expect(policiesThen[0].feeValue).to.equal(2_000);
+        });
       });
 
-      it('should set percentage token policy', async () => {
-        await expect(router.setPercentageFeeTokenPolicy(FeePolicyStore.address, testNativeToken2.address, 10)).to.not.be.reverted;
+      describe('setTiersTokenPolicy', async () => {
+        it('should revert when executing with not router', async () => {
+          await expect(feePolicyPortal.connect(nonMember).setTiersTokenPolicy(FeePolicyStore.address, testNativeToken1.address, [enumFeeType.Percentage], [10], [100], [true], [true], [1_000])).to.be.revertedWith(revertMessageNotDiamondOwner);
+        });
+
+        it('should revert when executing with wrong value', async () => {
+          const revertMessage = 'FeeCalculatorFacet: Fee value is not correct';
+          await expect(feePolicyPortal.setTiersTokenPolicy(FeePolicyStore.address, testNativeToken1.address, [enumFeeType.Percentage], [10], [100], [true], [true], [0])).to.be.revertedWith(revertMessage);
+          await expect(feePolicyPortal.setTiersTokenPolicy(FeePolicyStore.address, testNativeToken1.address, [enumFeeType.Percentage], [1_000], [100], [true], [true], [0])).to.be.revertedWith(revertMessage);
+        });
+
+        it('should revert when executing with zero address store', async () => {
+          await expect(feePolicyPortal.setTiersTokenPolicy('0x0000000000000000000000000000000000000000', testNativeToken1.address, [enumFeeType.Percentage], [1_000], [100], [true], [true], [0])).to.be.revertedWith(revertMessageZeroAddressStore);
+        });
+
+        it('should revert when executing with zero address token', async () => {
+          await expect(feePolicyPortal.setTiersTokenPolicy(FeePolicyStore.address, '0x0000000000000000000000000000000000000000', [enumFeeType.Percentage], [1_000], [100], [true], [true], [0])).to.be.revertedWith(revertMessageZeroAddressToken);
+        });
+
+        it('should revert when executng with wrong array number', async () => {
+          const revertMessage = 'FeeCalculatorFacet: Invalid input primitive arrays length';
+          await expect(feePolicyPortal.setTiersTokenPolicy(FeePolicyStore.address, testNativeToken1.address, [enumFeeType.Percentage, enumFeeType.Percentage], [10], [100], [true], [true], [1_000])).to.be.revertedWith(revertMessage);
+          await expect(feePolicyPortal.setTiersTokenPolicy(FeePolicyStore.address, testNativeToken1.address, [enumFeeType.Percentage], [10, 10], [100], [true], [true], [1_000])).to.be.revertedWith(revertMessage);
+          await expect(feePolicyPortal.setTiersTokenPolicy(FeePolicyStore.address, testNativeToken1.address, [enumFeeType.Percentage], [10], [100, 100], [true], [true], [1_000])).to.be.revertedWith(revertMessage);
+          await expect(feePolicyPortal.setTiersTokenPolicy(FeePolicyStore.address, testNativeToken1.address, [enumFeeType.Percentage], [10], [100], [true, true], [true], [1_000])).to.be.revertedWith(revertMessage);
+          await expect(feePolicyPortal.setTiersTokenPolicy(FeePolicyStore.address, testNativeToken1.address, [enumFeeType.Percentage], [10], [100], [true], [true, true], [1_000])).to.be.revertedWith(revertMessage);
+          await expect(feePolicyPortal.setTiersTokenPolicy(FeePolicyStore.address, testNativeToken1.address, [enumFeeType.Percentage], [10], [100], [true], [true], [1_000, 2_000])).to.be.revertedWith(revertMessage);
+        });
+
+        it('should set tier token policy', async () => {
+          const feeTypeArr = [enumFeeType.Flat, enumFeeType.Flat, enumFeeType.Flat];
+          const amountFromArr = [0, 100, 200];
+          const amountToArr = [100, 200, 0];
+          const hasFromArr = [false, true, true];
+          const hasToArr = [true, false, false];
+          const feeValueArr = [3_000, 2_000, 1_000];
+
+          await expect(feePolicyPortal.setTiersTokenPolicy(
+            FeePolicyStore.address,
+            testNativeToken3.address,
+            feeTypeArr,
+            amountFromArr,
+            amountToArr,
+            hasFromArr,
+            hasToArr,
+            feeValueArr
+          )).to.not.be.reverted;
+
+          const policies = await FeePolicyStore.feePoliciesFor(testNativeToken3.address);
+          expect(policies.length).to.equal(3);
+
+          // tier 0
+          expect(policies[0].feeType).to.equal(feeTypeArr[0]);
+          expect(policies[0].amountFrom).to.equal(amountFromArr[0]);
+          expect(policies[0].amountTo).to.equal(amountToArr[0]);
+          expect(policies[0].hasFrom).to.equal(hasFromArr[0]);
+          expect(policies[0].hasTo).to.equal(hasToArr[0]);
+          expect(policies[0].feeValue).to.equal(feeValueArr[0]);
+
+          // tier 1
+          expect(policies[1].feeType).to.equal(feeTypeArr[1]);
+          expect(policies[1].amountFrom).to.equal(amountFromArr[1]);
+          expect(policies[1].amountTo).to.equal(amountToArr[1]);
+          expect(policies[1].hasFrom).to.equal(hasFromArr[1]);
+          expect(policies[1].hasTo).to.equal(hasToArr[1]);
+          expect(policies[1].feeValue).to.equal(feeValueArr[1]);
+
+          // tier 2
+          expect(policies[2].feeType).to.equal(feeTypeArr[2]);
+          expect(policies[2].amountFrom).to.equal(amountFromArr[2]);
+          expect(policies[2].amountTo).to.equal(amountToArr[2]);
+          expect(policies[2].hasFrom).to.equal(hasFromArr[2]);
+          expect(policies[2].hasTo).to.equal(hasToArr[2]);
+          expect(policies[2].feeValue).to.equal(feeValueArr[2]);
+        });
+
+        it('should set tier token policy only once', async () => {
+          const feeTypeArr = [enumFeeType.Flat, enumFeeType.Flat, enumFeeType.Flat];
+          const amountFromArr = [0, 100, 200];
+          const amountToArr = [100, 200, 0];
+          const hasFromArr = [false, true, true];
+          const hasToArr = [true, false, false];
+          const feeValueArr = [3_000, 2_000, 1_000];
+
+          await feePolicyPortal.setTiersTokenPolicy(
+            FeePolicyStore.address,
+            testNativeToken3.address,
+            feeTypeArr,
+            amountFromArr,
+            amountToArr,
+            hasFromArr,
+            hasToArr,
+            feeValueArr
+          );
+
+          const policies = await FeePolicyStore.feePoliciesFor(testNativeToken3.address);
+          expect(policies.length).to.equal(3);
+
+          // tier 0
+          expect(policies[0].feeType).to.equal(feeTypeArr[0]);
+          expect(policies[0].amountFrom).to.equal(amountFromArr[0]);
+          expect(policies[0].amountTo).to.equal(amountToArr[0]);
+          expect(policies[0].hasFrom).to.equal(hasFromArr[0]);
+          expect(policies[0].hasTo).to.equal(hasToArr[0]);
+          expect(policies[0].feeValue).to.equal(feeValueArr[0]);
+
+          // tier 1
+          expect(policies[1].feeType).to.equal(feeTypeArr[1]);
+          expect(policies[1].amountFrom).to.equal(amountFromArr[1]);
+          expect(policies[1].amountTo).to.equal(amountToArr[1]);
+          expect(policies[1].hasFrom).to.equal(hasFromArr[1]);
+          expect(policies[1].hasTo).to.equal(hasToArr[1]);
+          expect(policies[1].feeValue).to.equal(feeValueArr[1]);
+
+          // tier 2
+          expect(policies[2].feeType).to.equal(feeTypeArr[2]);
+          expect(policies[2].amountFrom).to.equal(amountFromArr[2]);
+          expect(policies[2].amountTo).to.equal(amountToArr[2]);
+          expect(policies[2].hasFrom).to.equal(hasFromArr[2]);
+          expect(policies[2].hasTo).to.equal(hasToArr[2]);
+          expect(policies[2].feeValue).to.equal(feeValueArr[2]);
+
+          // then
+          const feeTypeArrThen = [enumFeeType.Flat, enumFeeType.Flat];
+          const amountFromArrThen = [0, 200];
+          const amountToArrThen = [200, 0];
+          const hasFromArrThen = [false, true];
+          const hasToArrThen = [false, false];
+          const feeValueArrThen = [3_000, 1_000];
+
+          await feePolicyPortal.setTiersTokenPolicy(
+            FeePolicyStore.address,
+            testNativeToken3.address,
+            feeTypeArrThen,
+            amountFromArrThen,
+            amountToArrThen,
+            hasFromArrThen,
+            hasToArrThen,
+            feeValueArrThen
+          );
+
+          const policiesThen = await FeePolicyStore.feePoliciesFor(testNativeToken3.address);
+          expect(policies.length).to.equal(3);
+
+          // tier 0
+          expect(policiesThen[0].feeType).to.equal(feeTypeArrThen[0]);
+          expect(policiesThen[0].amountFrom).to.equal(amountFromArrThen[0]);
+          expect(policiesThen[0].amountTo).to.equal(amountToArrThen[0]);
+          expect(policiesThen[0].hasFrom).to.equal(hasFromArrThen[0]);
+          expect(policiesThen[0].hasTo).to.equal(hasToArrThen[0]);
+          expect(policiesThen[0].feeValue).to.equal(feeValueArrThen[0]);
+
+          // tier 1
+          expect(policiesThen[1].feeType).to.equal(feeTypeArrThen[1]);
+          expect(policiesThen[1].amountFrom).to.equal(amountFromArrThen[1]);
+          expect(policiesThen[1].amountTo).to.equal(amountToArrThen[1]);
+          expect(policiesThen[1].hasFrom).to.equal(hasFromArrThen[1]);
+          expect(policiesThen[1].hasTo).to.equal(hasToArrThen[1]);
+          expect(policiesThen[1].feeValue).to.equal(feeValueArrThen[1]);
+        });
+
+        it('should update token policy', async () => {
+          await expect(feePolicyPortal.setFlatFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, 10)).to.not.be.reverted;
+          await expect(feePolicyPortal.setPercentageFeeTokenPolicy(FeePolicyStore.address, testNativeToken2.address, 10)).to.not.be.reverted;
+
+          await expect(feePolicyPortal.setTiersTokenPolicy(
+            FeePolicyStore.address,
+            testNativeToken3.address,
+            [enumFeeType.Flat, enumFeeType.Flat],
+            [0, 100],
+            [100, 0],
+            [false, true],
+            [true, false],
+            [2_000, 1_000]
+          )).to.not.be.reverted;
+        });
       });
 
-      it('should set tier token policy', async () => {
+      describe('removeTokenFeePolicy', async () => {
+        beforeEach(async () => {
+          await feePolicyPortal.setPercentageFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, 2_000);
+          await feePolicyPortal.setPercentageFeeTokenPolicy(FeePolicyStore.address, testNativeToken2.address, 3_000);
+        });
 
-        const feeTypeArr = [enumFeeType.Flat, enumFeeType.Flat, enumFeeType.Flat];
-        const amountFromArr = [0, 100, 200];
-        const amountToArr = [100, 200, 0];
-        const hasFromArr = [false, true, true];
-        const hasToArr = [true, false, false];
-        const feeValueArr = [3_000, 2_000, 1_000];
+        it('should revert when executing with not router', async () => {
+          await expect(feePolicyPortal.connect(nonMember).removeTokenFeePolicy(FeePolicyStore.address, testNativeToken1.address)).to.be.revertedWith(revertMessageNotDiamondOwner);
+        });
 
-        await expect(router.setTiersTokenPolicy(
-          FeePolicyStore.address,
-          testNativeToken3.address,
-          feeTypeArr,
-          amountFromArr,
-          amountToArr,
-          hasFromArr,
-          hasToArr,
-          feeValueArr
-        )).to.not.be.reverted;
+        it('should revert when executing with zero address store', async () => {
+          await expect(feePolicyPortal.removeTokenFeePolicy('0x0000000000000000000000000000000000000000', testNativeToken1.address)).to.be.revertedWith(revertMessageZeroAddressStore);
+        });
+
+        it('should revert when executing with zero address token', async () => {
+          await expect(feePolicyPortal.removeTokenFeePolicy(FeePolicyStore.address, '0x0000000000000000000000000000000000000000')).to.be.revertedWith(revertMessageZeroAddressToken);
+        });
+
+        it('should remove token from store', async () => {
+          expect(await FeePolicyStore.feePolicyForExists(testNativeToken1.address)).to.equal(true);
+          await feePolicyPortal.removeTokenFeePolicy(FeePolicyStore.address, testNativeToken1.address);
+
+          expect(await FeePolicyStore.feePolicyForExists(testNativeToken1.address)).to.equal(false);
+        });
+
       });
 
-      it('should update token policy', async () => {
-        await expect(router.setFlatFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, 10)).to.not.be.reverted;
-        await expect(router.setPercentageFeeTokenPolicy(FeePolicyStore.address, testNativeToken2.address, 10)).to.not.be.reverted;
+      describe('feePolicyStoreAddress', async () => {
+        beforeEach(async () => {
+          await feePolicyPortal.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address]);
+        });
 
-        await expect(router.setTiersTokenPolicy(
-          FeePolicyStore.address,
-          testNativeToken3.address,
-          [enumFeeType.Flat, enumFeeType.Flat],
-          [0, 100],
-          [100, 0],
-          [false, true],
-          [true, false],
-          [2_000, 1_000]
-        )).to.not.be.reverted;
+        it('shold return emty store address for not existing user', async () => {
+          expect(await feePolicyPortal.feePolicyStoreAddress(feePolicyUser_2.address)).to.equal('0x0000000000000000000000000000000000000000');
+        });
+
+        it('shold return emty store address for zero address', async () => {
+          expect(await feePolicyPortal.feePolicyStoreAddress('0x0000000000000000000000000000000000000000')).to.equal('0x0000000000000000000000000000000000000000');
+        });
+
+        it('shold return store address for existing user', async () => {
+          expect(await feePolicyPortal.feePolicyStoreAddress(feePolicyUser_1.address)).to.equal(FeePolicyStore.address);
+        });
       });
 
-      it('should remove token policy', async () => {
-        await expect(router.removeFeePolicyToken(FeePolicyStore.address, testNativeToken1.address)).to.not.be.reverted;
-      });
     });
 
     describe('Fee policy rewards', async () => {
@@ -2820,7 +3311,6 @@ describe('Router', async () => {
       let testNativeToken1;
       let testNativeToken2;
       let testNativeToken3;
-      let testAmount = ethers.utils.parseEther('100');
 
       beforeEach(async () => {
         const FeePolicyStoreFactory = await ethers.getContractFactory('EntityFeePolicyStore');
@@ -2840,15 +3330,15 @@ describe('Router', async () => {
         testNativeToken3 = await testNativeTokenFactory.deploy('NativeToken3', 'NT3', 18);
         await testNativeToken3.deployed();
 
-        // await router.updateNativeToken(testNativeToken1.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
-        // await router.updateNativeToken(testNativeToken2.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
-        // await router.updateNativeToken(testNativeToken3.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+        // await feePolicyPortal.updateNativeToken(testNativeToken1.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+        // await feePolicyPortal.updateNativeToken(testNativeToken2.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+        // await feePolicyPortal.updateNativeToken(testNativeToken3.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
       });
 
       it('should calculate percentage fee', async () => {
         const _percentage_fee = 1_000;
-        await router.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address]);
-        await router.setPercentageFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, _percentage_fee);
+        await feePolicyPortal.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address]);
+        await feePolicyPortal.setPercentageFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, _percentage_fee);
         await router.updateNativeToken(testNativeToken1.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
 
         const _amount = ethers.utils.parseEther('100');
@@ -2868,15 +3358,17 @@ describe('Router', async () => {
 
       it('should calculate flat fee', async () => {
         const _flat_fee = 200;
-        await router.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address]);
-        await router.setFlatFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, _flat_fee);
+        // prepare
+        await feePolicyPortal.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address]);
         await router.updateNativeToken(testNativeToken1.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+        await feePolicyPortal.setFlatFeeTokenPolicy(FeePolicyStore.address, testNativeToken1.address, _flat_fee);
 
         const _amount = ethers.utils.parseEther('100');
 
         await testNativeToken1.mint(feePolicyUser_1.address, _amount);
-
         await testNativeToken1.connect(feePolicyUser_1).approve(router.address, _amount);
+
+        // the test
         await router.connect(feePolicyUser_1).lock(1, testNativeToken1.address, _amount, owner.address);
 
         const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(testNativeToken1.address);
@@ -2886,7 +3378,7 @@ describe('Router', async () => {
       });
 
       it('should calculate tiers fee - all percentage', async () => {
-        await router.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address, feePolicyUser_2.address]);
+        await feePolicyPortal.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address, feePolicyUser_2.address]);
 
         await router.updateNativeToken(testNativeToken1.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
 
@@ -2896,7 +3388,7 @@ describe('Router', async () => {
         const _percentage_180 = 2_000; // 3.6
         const _percentage_220 = 1_000; // 2.2
 
-        await router.setTiersTokenPolicy(
+        await feePolicyPortal.setTiersTokenPolicy(
           FeePolicyStore.address,
           testNativeToken1.address,
           [enumFeeType.Percentage, enumFeeType.Percentage],
@@ -2926,6 +3418,91 @@ describe('Router', async () => {
         expect(beforeMemberUpdateTokenFeeData.accumulator).to.equal(0);
         expect(beforeMemberUpdateTokenFeeData.previousAccrued).to.equal(0);
       });
+
+      it('should calculate tiers fee - all flat', async () => {
+        await feePolicyPortal.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address, feePolicyUser_2.address]);
+
+        await router.updateNativeToken(testNativeToken1.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+
+        const _amount_180 = ethers.utils.parseEther('180');
+        const _amount_220 = ethers.utils.parseEther('220');
+
+        const _flat_180 = 20;
+        const _flat_220 = 10;
+
+        await feePolicyPortal.setTiersTokenPolicy(
+          FeePolicyStore.address,
+          testNativeToken1.address,
+          [enumFeeType.Flat, enumFeeType.Flat],
+          [0, ethers.utils.parseEther('200')],
+          [ethers.utils.parseEther('200'), 0],
+          [false, true],
+          [true, false],
+          [_flat_180, _flat_220]
+        );
+
+        await testNativeToken1.mint(feePolicyUser_1.address, _amount_180);
+        await testNativeToken1.mint(feePolicyUser_2.address, _amount_220);
+
+        await testNativeToken1.connect(feePolicyUser_1).approve(router.address, _amount_180);
+        await router.connect(feePolicyUser_1).lock(1, testNativeToken1.address, _amount_180, owner.address);
+
+        await testNativeToken1.connect(feePolicyUser_2).approve(router.address, _amount_220);
+        await router.connect(feePolicyUser_2).lock(1, testNativeToken1.address, _amount_220, owner.address);
+
+        const serviceFee1 = _flat_180;
+        const serviceFee2 = _flat_220;
+
+        const allServiceFee = serviceFee1 + serviceFee2; 
+        const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(testNativeToken1.address);
+
+        expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(allServiceFee);
+        expect(beforeMemberUpdateTokenFeeData.accumulator).to.equal(0);
+        expect(beforeMemberUpdateTokenFeeData.previousAccrued).to.equal(0);
+      });
+
+      it('should calculate tiers fee - combination flat and percentage', async () => {
+        await feePolicyPortal.addFeePolicyUsers(FeePolicyStore.address, [feePolicyUser_1.address, feePolicyUser_2.address]);
+
+        await router.updateNativeToken(testNativeToken1.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+
+        const _amount_180 = ethers.utils.parseEther('180');
+        const _amount_220 = ethers.utils.parseEther('220');
+
+        const _flat_180 = 20; 
+        const _percentage_220 = 1_000; 
+
+        await feePolicyPortal.setTiersTokenPolicy(
+          FeePolicyStore.address,
+          testNativeToken1.address,
+          [enumFeeType.Flat, enumFeeType.Percentage],
+          [0, ethers.utils.parseEther('200')],
+          [ethers.utils.parseEther('200'), 0],
+          [false, true],
+          [true, false],
+          [_flat_180, _percentage_220]
+        );
+
+        await testNativeToken1.mint(feePolicyUser_1.address, _amount_180);
+        await testNativeToken1.mint(feePolicyUser_2.address, _amount_220);
+
+        await testNativeToken1.connect(feePolicyUser_1).approve(router.address, _amount_180);
+        await router.connect(feePolicyUser_1).lock(1, testNativeToken1.address, _amount_180, owner.address);
+
+        await testNativeToken1.connect(feePolicyUser_2).approve(router.address, _amount_220);
+        await router.connect(feePolicyUser_2).lock(1, testNativeToken1.address, _amount_220, owner.address);
+
+        const serviceFee1 = _flat_180;
+        const serviceFee2 = _amount_220.mul(_percentage_220).div(FEE_CALCULATOR_PRECISION);
+
+        const allServiceFee = serviceFee2.add(serviceFee1);
+        const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(testNativeToken1.address);
+
+        expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(allServiceFee);
+        expect(beforeMemberUpdateTokenFeeData.accumulator).to.equal(0);
+        expect(beforeMemberUpdateTokenFeeData.previousAccrued).to.equal(0);
+      });
+
     });
   });
 
@@ -2949,7 +3526,7 @@ describe('Router', async () => {
       await expect(test.testFunction()).to.not.be.reverted;
     });
 
-    xit('should remove all functions', async () => {
+    it('should remove all functions', async () => {
       const expectedRevertMessage = 'Diamond: Function does not exist';
 
       const diamondCut = [

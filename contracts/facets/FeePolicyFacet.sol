@@ -14,6 +14,8 @@ contract FeePolicyFacet is IFeePolicyFacet {
     function addFeePolicyUsers(address _storeAddress, address[] memory _userAddresses) external override {
         LibDiamond.enforceIsContractOwner();
 
+        require(_storeAddress != address(0), "FeeCalculatorFacet: _storeAddress must not be 0x0");
+
         LibFeePolicy.addFeePolicyUsers(_storeAddress, _userAddresses);
     }
 
@@ -23,6 +25,8 @@ contract FeePolicyFacet is IFeePolicyFacet {
     function removeFeePolicyUsers(address _storeAddress, address[] memory _userAddresses) external override {
         LibDiamond.enforceIsContractOwner();
 
+        require(_storeAddress != address(0), "FeeCalculatorFacet: _storeAddress must not be 0x0");
+
         LibFeePolicy.removeFeePolicyUsers(_storeAddress, _userAddresses);
     }
 
@@ -31,6 +35,9 @@ contract FeePolicyFacet is IFeePolicyFacet {
     /// @param _tokenAddress Address of a token to be removed from the policy.
     function removeFeePolicyToken(address _storeAddress, address _tokenAddress) external override {
         LibDiamond.enforceIsContractOwner();
+
+        require(_storeAddress != address(0), "FeeCalculatorFacet: _storeAddress must not be 0x0");
+        require(_tokenAddress != address(0), "FeeCalculatorFacet: _tokenAddress must not be 0x0");
 
         IEntityFeePolicyStore(_storeAddress).removeFeePolicyToken(_tokenAddress);
     }
@@ -45,6 +52,9 @@ contract FeePolicyFacet is IFeePolicyFacet {
         uint256 _value
     ) external override {
         LibDiamond.enforceIsContractOwner();
+
+        require(_storeAddress != address(0), "FeeCalculatorFacet: _storeAddress must not be 0x0");
+        require(_tokenAddress != address(0), "FeeCalculatorFacet: _tokenAddress must not be 0x0");
 
         require(_value > 0, "FeeCalculatorFacet: flat fee _value is zero");
 
@@ -61,6 +71,9 @@ contract FeePolicyFacet is IFeePolicyFacet {
         uint256 _value
     ) external override {
         LibDiamond.enforceIsContractOwner();
+
+        require(_storeAddress != address(0), "FeeCalculatorFacet: _storeAddress must not be 0x0");
+        require(_tokenAddress != address(0), "FeeCalculatorFacet: _tokenAddress must not be 0x0");
 
         require(_value > 0 && _value < LibFeeCalculator.precision(), "FeeCalculatorFacet: precentage fee _value is zero");
 
@@ -89,13 +102,16 @@ contract FeePolicyFacet is IFeePolicyFacet {
     ) external override {
         LibDiamond.enforceIsContractOwner();
 
+        require(_storeAddress != address(0), "FeeCalculatorFacet: _storeAddress must not be 0x0");
+        require(_tokenAddress != address(0), "FeeCalculatorFacet: _tokenAddress must not be 0x0");
+
         require(
             feeTypeArr.length == amountFromArr.length &&
                 amountFromArr.length == amountToArr.length &&
                 amountToArr.length == hasFromArr.length &&
                 hasFromArr.length == hasToArr.length &&
                 hasToArr.length == feeValueArr.length,
-            "Invalid input primitive arrays length"
+            "FeeCalculatorFacet: Invalid input primitive arrays length"
         );
 
         // Validate fee values against precision
@@ -107,7 +123,7 @@ contract FeePolicyFacet is IFeePolicyFacet {
         for (uint256 i = 0; i < feeTypeArr.length; i++) {
             require(
                 (feeTypeArr[i] == 0 && feeValueArr[i] > 0) || (feeValueArr[i] > 0 && feeValueArr[i] < precision),
-                "FeeCalculatorFacet: fee value is not correct"
+                "FeeCalculatorFacet: Fee value is not correct"
             );
 
             IEntityFeePolicyStore(_storeAddress).addTierTokenPolicy(
@@ -127,6 +143,9 @@ contract FeePolicyFacet is IFeePolicyFacet {
     /// @param _tokenAddress Address of the token to be removed.
     function removeTokenFeePolicy(address _storeAddress, address _tokenAddress) external override {
         LibDiamond.enforceIsContractOwner();
+
+        require(_storeAddress != address(0), "FeeCalculatorFacet: _storeAddress must not be 0x0");
+        require(_tokenAddress != address(0), "FeeCalculatorFacet: _tokenAddress must not be 0x0");
 
         IEntityFeePolicyStore(_storeAddress).removeFeePolicyToken(_tokenAddress);
     }

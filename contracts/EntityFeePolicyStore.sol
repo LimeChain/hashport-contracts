@@ -26,12 +26,17 @@ contract EntityFeePolicyStore is IEntityFeePolicyStore, Ownable {
     // tokenAddress => FeePolicyTierItem[]
     mapping(address => FeePolicyTierItem[]) tokenPolicies;
 
-    // tokenAddress => exists
-    // mapping(address => bool) tokenPolicyExists;
-
-    /// @notice Check is fee poliies for token exists
-    function feePolicyForExists(address _tokenAddress) external view override returns (bool) {
+    /// @notice Check if fee poliies for token exists
+    /// @param _tokenAddress Address of a token to be removed from the policy
+    function feePolicyForExists(address _tokenAddress) public view returns (bool) {
         return tokenPolicies[_tokenAddress].length > 0;
+    }
+
+    /// @notice Gets fee policy tier items for token
+    /// @dev If there aren't any policies - the method will return empty array
+    /// @param _tokenAddress Address of a token to be removed from the policy
+    function feePoliciesFor(address _tokenAddress) external view returns (FeePolicyTierItem[] memory) {
+        return tokenPolicies[_tokenAddress];
     }
 
     /// @notice Removes token address from EntityFeePolicyStore
@@ -45,7 +50,7 @@ contract EntityFeePolicyStore is IEntityFeePolicyStore, Ownable {
     /// @param _value Value of the flat fee
     function setFlatFeeTokenPolicy(address _tokenAddress, uint256 _value) external override onlyOwner {
         // assure only one FeePolicyTierItem for token
-        if (tokenPolicies[_tokenAddress].length > 0) {
+        if (feePolicyForExists(_tokenAddress)) {
             delete tokenPolicies[_tokenAddress];
         }
 
@@ -59,7 +64,7 @@ contract EntityFeePolicyStore is IEntityFeePolicyStore, Ownable {
     /// @param _value Value of the percentage fee
     function setPercentageFeeTokenPolicy(address _tokenAddress, uint256 _value) external override onlyOwner {
         // assure only one FeePolicyTierItem for token
-       if (tokenPolicies[_tokenAddress].length > 0) {
+        if (feePolicyForExists(_tokenAddress)) {
             delete tokenPolicies[_tokenAddress];
         }
 

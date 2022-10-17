@@ -2,8 +2,6 @@
 pragma solidity 0.8.3;
 
 interface IEntityFeePolicyStore {
-    function feePolicyForExists(address _tokenAddress) external returns(bool);
-
     function removeFeePolicyToken(address _tokenAddress) external;
 
     function setFlatFeeTokenPolicy(address _tokenAddress, uint256 value) external;
