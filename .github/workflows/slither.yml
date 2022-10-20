@@ -7,6 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: crytic/slither-action@v0.1.1
+      - uses: crytic/slither-action@v0.2.0
         with:
-          slither-args: "--exclude-low --exclude-informational --exclude-optimization --exclude unused-return,uninitialized-local-variables"
+          slither-args: "--no-fail-pedantic --exclude-low --exclude naming-convention,unused-return,uninitialized-local-variables,missing-inheritance,low-level-calls,assembly,solc-version,pragma"
+          fail-on: medium
