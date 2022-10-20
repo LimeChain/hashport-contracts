@@ -65,6 +65,7 @@ contract RouterFacet is IRouter {
             _amount
         );
         uint256 serviceFee = LibFeeCalculator.distributeRewards(
+            msg.sender,
             _nativeToken,
             _amount
         );
@@ -133,10 +134,12 @@ contract RouterFacet is IRouter {
         );
         validateAndStoreTx(ethHash, _signatures);
 
-        uint256 serviceFee = LibFeeCalculator.distributeRewards(
+        uint256 serviceFee = LibFeeCalculator.distributeRewards(         
+            address(0),   
             _nativeToken,
             _amount
         );
+
         uint256 transferAmount = _amount - serviceFee;
 
         IERC20(_nativeToken).safeTransfer(_receiver, transferAmount);

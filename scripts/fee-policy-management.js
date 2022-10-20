@@ -66,219 +66,106 @@ async function upgradeRouter(routerAddress) {
     await hardhat.run('verify:verify', { address: FeePolicyFacet.address, constructorArguments: [] });
 }
 
-async function deployPolicyStore(routerAddress, userAddresses) {
+async function deployFlatFeePolicy(flatFee) {
     await hardhat.run('compile');
 
-    const entityFeePolicyStoreFactory = await ethers.getContractFactory('EntityFeePolicyStore');
-    const entityFeePolicyStore = await entityFeePolicyStoreFactory.deploy();
-    console.log('Deploying EntityFeePolicyStore, please wait...');
-    await entityFeePolicyStore.deployed();
-    console.log('EntityFeePolicyStore address: ', entityFeePolicyStore.address);
+    const FlatFeePolicyFactory = await ethers.getContractFactory('FlatFeePolicy');
 
-    console.log(`Transferring ownership to [${routerAddress}], please wait...`);
-    const tx = await entityFeePolicyStore.transferOwnership(routerAddress);
-    console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
-    //await tx.wait(10);
+    const FlatFeePolicy = await FlatFeePolicyFactory.deploy(flatFee);
+    console.log('Deploying FlatFeePolicy, please wait...');
 
-    const entityFeePolicyStoreOwner = await entityFeePolicyStore.owner();
-    console.log(`Successfully transferred ownership to [${entityFeePolicyStoreOwner}].`);
+    await FlatFeePolicy.deployed();
+    console.log('FlatFeePolicy address: ', FlatFeePolicy.address);
 
     console.log('Verification, please wait...');
 
-    // Verification
     await hardhat.run('verify:verify', {
-        address: entityFeePolicyStore.address,
-        constructorArguments: []
+        address: FlatFeePolicy.address,
+        constructorArguments: [flatFee]
     });
-
-    if (userAddresses.length > 0) {
-        await addFeePolicyUsers(routerAddress, entityFeePolicyStore.address, userAddresses);
-    }
 }
 
-async function addFeePolicyUsers(routerAddress, storeAddress, userAddresses) {
+async function updateFlatFeePolicy(feePolicyAddress, flatFee) {
     await hardhat.run('compile');
 
-    console.log(`Router at [${routerAddress}] is setting addresses to store [${storeAddress}]`);
-    console.log('User addresses', userAddresses);
+    console.log(`Updating FlatFeePolicy at [${feePolicyAddress}] with flatFee of [${flatFee}]`);
 
-    const router = await ethers.getContractAt('FeePolicyFacet', routerAddress);
-
-    const tx = await router.addFeePolicyUsers(storeAddress, userAddresses);
+    const feePolicy = await ethers.getContractAt('FlatFeePolicy', feePolicyAddress);
+    await feePolicy.setFlatFee(flatFee);
     console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
     console.log(`Finished with success`);
 }
 
-async function removeFeePolicyUsers(routerAddress, storeAddress, userAddresses) {
+async function deployPercentageFeePolicy(precision, feePercentage) {
     await hardhat.run('compile');
 
-    console.log(`Router at [${routerAddress}] is setting addresses to store [${storeAddress}]`);
+    const PercentageFeePolicyFactory = await ethers.getContractFactory('PercentageFeePolicy');
 
-    const router = await ethers.getContractAt('FeePolicyFacet', routerAddress);
+    const PercentageFeePolicy = await PercentageFeePolicyFactory.deploy(precision, feePercentage);
+    console.log('Deploying PercentageFeePolicy, please wait...');
 
-    const tx = await router.removeFeePolicyUsers(storeAddress, userAddresses);
-    console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
-    console.log(`Finished with success`);
+    await PercentageFeePolicy.deployed();
+    console.log('PercentageFeePolicy address: ', PercentageFeePolicy.address);
+
+    console.log('Verification, please wait...');
+
+    await hardhat.run('verify:verify', {
+        address: PercentageFeePolicy.address,
+        constructorArguments: [precision, feePercentage]
+    });
 }
 
-async function setTokenFeePolicy(routerAddress, storeAddress, tokenAddress, policiesStr) {
-    // expected policiesStr in format `feeType|amountFrom|amountTo|feeValue;feeType|amountFrom|amountTo|feeValue`
-    // to be converted to
-    // policies: [
-    //     { feeType: 0 /* Flat */, amountFrom: null, amountTo: 1000, feeValue: 30 },
-    //     { feeType: 0 /* Flat */, amountFrom: 1000, amountTo: 2000, feeValue: 20 },
-    //     { feeType: 0 /* Flat */, amountFrom: 2000, amountTo: null, feeValue: 10 }
-    // ]
-
-    const policies = [];
-    const policyLines = policiesStr.split(';');
-
-    for (const line of policyLines) {
-        const pair = line.split('|');
-        let feeType = undefined;
-
-        switch (pair[0]) {
-            case 'flat':
-                feeType = enumFeeType.Flat;
-                break;
-            case 'percentage':
-                feeType = enumFeeType.Percentage;
-                break;
-            default:
-                throw new Error(`Inalid fee type [${pair[0]}]`);
-                break;
-        }
-
-        policies.push({
-            feeType: feeType,
-            amountFrom: parseInt(pair[1]) || null,
-            amountTo: parseInt(pair[2]) || null,
-            feeValue: parseInt(pair[3]) || null
-        });
-    }
-
-    console.log('policies', policies);
-
+async function updatePercentageFeePolicy(feePolicyAddress, precision, feePercentage) {
     await hardhat.run('compile');
 
-    console.log(`Router at [${routerAddress}] is setting fee policies to store [${storeAddress}] for token [${tokenAddress}]`);
+    const feePolicy = await ethers.getContractAt('PercentageFeePolicy', feePolicyAddress);
 
-    const router = await ethers.getContractAt('FeePolicyFacet', routerAddress);
-
-    let tx = null;
-    let policyStr = '';
-
-    if (policies.length == 1) {
-        const policy = policies[0];
-        policyStr = `${policy.feeType} from ${policy.amountFrom} to ${policy.amountTo}: ${policy.feeValue}`;
-
-        switch (policy.feeType) {
-            case enumFeeType.Flat:
-                tx = await router.setFlatFeeTokenPolicy(storeAddress, tokenAddress, policy.feeValue);
-                console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
-                await tx.wait();
-
-                console.log(`${policyStr} : SET`);
-                break;
-            case enumFeeType.Percentage:
-                tx = await router.setPercentageFeeTokenPolicy(storeAddress, tokenAddress, policy.feeValue);
-                console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
-                await tx.wait();
-
-                console.log(`${policyStr} : SET`);
-                break;
-            default:
-                console.error(`${policyStr} : ERROR - invalid feeType`);
-                break;
-        }
-    }
-    else {
-        let valid = true;
-
-        const feeTypeArr = [];
-        const amountFromArr = [];
-        const amountToArr = [];
-        const hasFromArr = [];
-        const hasToArr = [];
-        const feeValueArr = [];
-
-        for (let i = 0; i < policies.length; i++) {
-            const policy = policies[i];
-
-            policyStr += `${policy.feeType} from ${policy.amountFrom} to ${policy.amountTo}: ${policy.feeValue}` + ';';
-
-            valid = valid
-                && (policy.feeType == enumFeeType.Flat || policy.feeType == enumFeeType.Percentage)
-                && (
-                    (policy.amountFrom == null && policy.amountTo > 0)
-                    || (policy.amountFrom >= 0 && policy.amountTo == null)
-                    || (policy.amountFrom >= 0 && policy.amountTo > 0 && policy.amountFrom <= policy.amountTo)
-                )
-                && policy.feeValue > 0;
-
-            switch (policy.feeType) {
-                case enumFeeType.Flat:
-                    tx = await router.setFlatFeeTokenPolicy(storeAddress, tokenAddress, policy.feeValue);
-                    console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
-                    await tx.wait();
-
-                    console.log(`${policyStr} : SET`);
-                    break;
-                case enumFeeType.Percentage:
-                    tx = await router.setPercentageFeeTokenPolicy(storeAddress, tokenAddress, policy.feeValue);
-                    console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
-                    await tx.wait();
-
-                    console.log(`${policyStr} : SET`);
-                    break;
-                default:
-                    console.error(`${policyStr} : ERROR - invalid feeType`);
-                    break;
-            }
-
-            feeTypeArr[i] = policy.feeType;
-            amountFromArr[i] = policy.amountFrom || 0;
-            amountToArr[i] = policy.amountTo || 0;
-            hasFromArr[i] = policy.amountFrom !== null;
-            hasToArr[i] = policy.amountTo !== null;
-            feeValueArr[i] = policy.feeValue;
-        }
-
-        if (!valid) {
-            console.error(`${policyStr} : ERROR - unable to parse policies`);
-            throw new Error("Error while parsing policies");
-        }
-
-        tx = await router.setTiersTokenPolicy(
-            storeAddress,
-            tokenAddress,
-            feeTypeArr,
-            amountFromArr,
-            amountToArr,
-            hasFromArr,
-            hasToArr,
-            feeValueArr
-        );
-
+    if (precision > 0) {
+        console.log(`Updating PercentageFeePolicy at [${feePolicyAddress}] with precision of [${precision}]`);
+        await feePolicy.setPrecision(precision);
         console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
-        await tx.wait();
-
-        console.log(`${policyStr} : SET`);
+        console.log(`Finished with success`);
     }
 
-    console.log(`Finished`);
+    if (feePercentage > 0) {
+        console.log(`Updating PercentageFeePolicy at [${feePolicyAddress}] with feePercentage of [${feePercentage}]`);
+        await feePolicy.setFeePercentage(feePercentage);
+        console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
+        console.log(`Finished with success`);
+    }
 }
 
-async function removeTokenFeePolicy(routerAddress, storeAddress, tokenAddress) {
+async function setUsersFeePolicy(routerAddress, feePolicyAddress, userAddresses) {
     await hardhat.run('compile');
 
-    console.log(`Router at [${routerAddress}] is removing fee policies to store [${storeAddress}] for token [${tokenAddress}]`);
+    console.log(`Router at [${routerAddress}] is setting addresses to IFeePolicy [${feePolicyAddress}]`);
 
     const router = await ethers.getContractAt('FeePolicyFacet', routerAddress);
 
-    const tx = await router.removeTokenFeePolicy(storeAddress, tokenAddress);
+    const tx = await router.setUsersFeePolicy(feePolicyAddress, userAddresses);
     console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
     console.log(`Finished with success`);
 }
 
-module.exports = { upgradeRouter, deployPolicyStore, addFeePolicyUsers, removeFeePolicyUsers, setTokenFeePolicy, removeTokenFeePolicy };
+async function removeUsersFeePolicy(routerAddress, userAddresses) {
+    await hardhat.run('compile');
+
+    console.log(`Router at [${routerAddress}] is removing addresses from fee policies`);
+
+    const router = await ethers.getContractAt('FeePolicyFacet', routerAddress);
+
+    const tx = await router.removeUsersFeePolicy(userAddresses);
+    console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
+    console.log(`Finished with success`);
+}
+
+
+module.exports = {
+    upgradeRouter,
+    deployFlatFeePolicy,
+    updateFlatFeePolicy,
+    deployPercentageFeePolicy,
+    updatePercentageFeePolicy,
+    setUsersFeePolicy,
+    removeUsersFeePolicy
+};

@@ -2,10 +2,8 @@
 pragma solidity 0.8.3;
 
 import "./LibGovernance.sol";
-
 import "./LibFeePolicy.sol";
-
-import "../interfaces/IEntityFeePolicyStore.sol";
+import "../interfaces/IFeePolicy.sol";
 
 library LibFeeCalculator {
     bytes32 constant STORAGE_POSITION = keccak256("fee.calculator.storage");
@@ -77,24 +75,27 @@ library LibFeeCalculator {
     }
 
     /// @notice Distributes service fee for given token
+    /// @param _user The target user
     /// @param _token The target token
     /// @param _amount The amount to which the service fee will be calculated
     /// @return serviceFee The calculated service fee
-    function distributeRewards(address _token, uint256 _amount)
-        internal
-        returns (uint256)
-    {
+    function distributeRewards(
+        address _user,
+        address _token,
+        uint256 _amount
+    ) internal returns (uint256) {
         LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
         FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[_token];
-
-        address userFeePolicyAddress = LibFeePolicy.feePolicyStoreAddress(msg.sender);
 
         uint256 serviceFee = 0;
         bool policyExists = false;
 
-        // get policy
-        if (userFeePolicyAddress != address(0)) {
-            (serviceFee, policyExists) = IEntityFeePolicyStore(userFeePolicyAddress).feeAmountFor(_token, _amount, fcs.precision);
+        if (_user != address(0)) {
+            address userFeePolicyAddress = LibFeePolicy.feePolicyStoreAddress(_user);
+            // get policy
+            if (userFeePolicyAddress != address(0)) {
+                (serviceFee, policyExists) = IFeePolicy(userFeePolicyAddress).feeAmountFor(_user, _token, _amount);
+            }
         }
 
         // serviceFee shold be greater than zero

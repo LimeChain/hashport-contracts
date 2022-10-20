@@ -8,11 +8,8 @@ library LibFeePolicy {
     bytes32 constant STORAGE_POSITION = keccak256("fee.policy.storage");
 
     struct Storage {
-        // storeAddress => userAddress[]
-        mapping(address => EnumerableSet.AddressSet) storeUserAddresses;    
-
         // userAddress => storeAddress
-        mapping(address => address) userStoreAddresses; // TODO : Confirm usage
+        mapping(address => address) userStoreAddresses; 
     }
 
     function feePolicyStorage() internal pure returns (Storage storage ds) {
@@ -22,33 +19,20 @@ library LibFeePolicy {
         }
     }
 
-    /// @notice Adds array of user address to EntityFeePolicyStore
-    /// @param _storeAddress Address of EntityFeePolicyStore
+    /// @notice Adds array of user address to IFeePolicy
+    /// @param _feePolicyAddress Address of IFeePolicy
     /// @param _userAddresses Array of user addresses to be added to the policy
-    function addFeePolicyUsers(address _storeAddress, address[] memory _userAddresses) internal {
+    function setUsersFeePolicy(address _feePolicyAddress, address[] memory _userAddresses) internal {
         LibFeePolicy.Storage storage _localStorage = feePolicyStorage();
 
         for (uint256 i = 0; i < _userAddresses.length; i++) {
-            _localStorage.userStoreAddresses[_userAddresses[i]] = _storeAddress;
-            _localStorage.storeUserAddresses[_storeAddress].add(_userAddresses[i]);
+            _localStorage.userStoreAddresses[_userAddresses[i]] = _feePolicyAddress;
         }
     }
 
-    /// @notice Removes array of users from EntityFeePolicyStore
-    /// @param _storeAddress Address of EntityFeePolicyStore
-    /// @param _userAddresses Array of user addresses to be removed from the policy
-    function removeFeePolicyUsers(address _storeAddress, address[] memory _userAddresses) internal{
-        LibFeePolicy.Storage storage _localStorage = feePolicyStorage();
-
-        for (uint256 i = 0; i < _userAddresses.length; i++) {
-            delete _localStorage.userStoreAddresses[_userAddresses[i]];
-            _localStorage.storeUserAddresses[_storeAddress].remove(_userAddresses[i]);
-        }
-    }
-
-    /// @notice Gets address of EntityFeePolicyStore by user address
+    /// @notice Gets address of IFeePolicy by user address
     /// @param _userAddress Address of the user
-    /// @return Address for the EntityFeePolicyStore
+    /// @return Address for the IFeePolicy
     function feePolicyStoreAddress(address _userAddress) internal view returns (address) {
         LibFeePolicy.Storage storage _localStorage = feePolicyStorage();
 
