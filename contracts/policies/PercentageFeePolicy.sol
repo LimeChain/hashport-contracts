@@ -9,6 +9,9 @@ contract PercentageFeePolicy is IFeePolicy, Ownable {
     uint256 feePercentage;
 
     constructor(uint256 _precision, uint256 _feePercentage) {
+        require(_precision > 0, "Value of _precision is zero");
+        require(_feePercentage > 0, "Value of _feePercentage is zero");
+
         precision = _precision;
         feePercentage = _feePercentage;
     }
@@ -33,6 +36,13 @@ contract PercentageFeePolicy is IFeePolicy, Ownable {
         feePercentage = _feePercentage;
     }
 
+    /// @notice Calculates the fee amount.
+    /// @dev This method is implemenation of IFeePolicy.feeAmountFor
+    /// @param _userAddress This parameter is ignored for the current implementation.
+    /// @param _tokenAddress This parameter is ignored for the current implementation.
+    /// @param _amount The amount to which the service fee will be calculated.
+    /// @return feeAmount Calcualated value of the fee.
+    /// @return exist Flag describing if fee amount is calculated. For the current implementation - it is always true.
     function feeAmountFor(
         address _userAddress,
         address _tokenAddress,
