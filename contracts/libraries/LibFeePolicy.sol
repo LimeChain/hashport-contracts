@@ -21,13 +21,11 @@ library LibFeePolicy {
 
     /// @notice Adds array of user address to IFeePolicy
     /// @param _feePolicyAddress Address of IFeePolicy
-    /// @param _userAddresses Array of user addresses to be added to the policy
-    function setUsersFeePolicy(address _feePolicyAddress, address[] memory _userAddresses) internal {
+    /// @param _userAddress User address to be added to the policy
+    function setUserFeePolicy(address _feePolicyAddress, address _userAddress) internal {
         LibFeePolicy.Storage storage _localStorage = feePolicyStorage();
 
-        for (uint256 i = 0; i < _userAddresses.length; i++) {
-            _localStorage.userStoreAddresses[_userAddresses[i]] = _feePolicyAddress;
-        }
+            _localStorage.userStoreAddresses[_userAddress] = _feePolicyAddress;
     }
 
     /// @notice Gets address of IFeePolicy by user address

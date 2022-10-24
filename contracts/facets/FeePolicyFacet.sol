@@ -15,7 +15,11 @@ contract FeePolicyFacet is IFeePolicyFacet {
 
         require(_feePolicyAddress != address(0), "FeeCalculatorFacet: _feePolicyAddress must not be 0x0");
 
-        LibFeePolicy.setUsersFeePolicy(_feePolicyAddress, _userAddresses);
+        for (uint256 i = 0; i < _userAddresses.length; i++) {
+            require(_userAddresses[i] != address(0), "FeeCalculatorFacet: userAddress must not be 0x0");
+
+            LibFeePolicy.setUserFeePolicy(_feePolicyAddress, _userAddresses[i]);
+        }
     }
 
     /// @notice Removes array of users from IFeePolicy.
@@ -23,7 +27,11 @@ contract FeePolicyFacet is IFeePolicyFacet {
     function removeUsersFeePolicy(address[] memory _userAddresses) external override {
         LibDiamond.enforceIsContractOwner();
 
-        LibFeePolicy.setUsersFeePolicy(address(0), _userAddresses);
+        for (uint256 i = 0; i < _userAddresses.length; i++) {
+            require(_userAddresses[i] != address(0), "FeeCalculatorFacet: userAddress must not be 0x0");
+
+            LibFeePolicy.setUserFeePolicy(address(0), _userAddresses[i]);
+        }
     }
 
     /// @notice Gets address of IFeePolicy by user address

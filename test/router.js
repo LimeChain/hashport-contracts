@@ -891,7 +891,7 @@ describe('Router', async () => {
       });
     });
 
-    describe('unlock(uint256,bytes,address,uint256,address,bytes[])', async () => {
+    describe('unlock', async () => {
       let receiver;
       let hashData;
 
@@ -924,7 +924,7 @@ describe('Router', async () => {
       it('should execute unlock', async () => {
         await router
           .connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,bytes[])'](1, transactionId, nativeToken.address, amount, receiver, [aliceSignature, bobSignature, carolSignature]);
+          .unlock(1, transactionId, nativeToken.address, amount, receiver, [aliceSignature, bobSignature, carolSignature]);
 
         const balanceOfReceiver = await nativeToken.balanceOf(receiver);
         expect(balanceOfReceiver).to.equal(amount.sub(expectedFee));
@@ -941,7 +941,7 @@ describe('Router', async () => {
 
         await expect(await router
           .connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,bytes[])'](sourceChainId, transactionId, nativeToken.address, amount, receiver, [aliceSignature, bobSignature, carolSignature]))
+          .unlock(sourceChainId, transactionId, nativeToken.address, amount, receiver, [aliceSignature, bobSignature, carolSignature]))
           .to.emit(router, 'Unlock')
           .withArgs(sourceChainId, transactionId, nativeToken.address, transferAmount, receiver, expectedFee);
       });
@@ -950,11 +950,11 @@ describe('Router', async () => {
         const expectedRevertMessage = 'RouterFacet: transaction already submitted';
         await router
           .connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,bytes[])'](1, transactionId, nativeToken.address, amount, receiver, [aliceSignature, bobSignature, carolSignature]);
+          .unlock(1, transactionId, nativeToken.address, amount, receiver, [aliceSignature, bobSignature, carolSignature]);
 
         await expect(router
           .connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,bytes[])'](1, transactionId, nativeToken.address, amount, receiver, [aliceSignature, bobSignature, carolSignature]))
+          .unlock(1, transactionId, nativeToken.address, amount, receiver, [aliceSignature, bobSignature, carolSignature]))
           .to.be.revertedWith(expectedRevertMessage);
 
       });
@@ -963,7 +963,7 @@ describe('Router', async () => {
         const expectedRevertMessage = 'LibGovernance: Invalid number of signatures';
 
         await expect(router.connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,bytes[])'](1, transactionId, nativeToken.address, amount, receiver, [aliceSignature]))
+          .unlock(1, transactionId, nativeToken.address, amount, receiver, [aliceSignature]))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
@@ -972,7 +972,7 @@ describe('Router', async () => {
         const nonMemberSignature = await nonMember.signMessage(hashData);
 
         await expect(router.connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,bytes[])'](1, transactionId, nativeToken.address, amount, receiver, [aliceSignature, nonMemberSignature]))
+          .unlock(1, transactionId, nativeToken.address, amount, receiver, [aliceSignature, nonMemberSignature]))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
@@ -980,14 +980,14 @@ describe('Router', async () => {
         const expectedRevertMessage = 'LibGovernance: duplicate signatures';
 
         await expect(router.connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,bytes[])'](1, transactionId, nativeToken.address, amount, receiver, [aliceSignature, aliceSignature]))
+          .unlock(1, transactionId, nativeToken.address, amount, receiver, [aliceSignature, aliceSignature]))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
       it('should revert when provided data is invalid', async () => {
         const expectedRevertMessage = 'Governance: invalid signer';
         await expect(router.connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,bytes[])'](1, transactionId, nativeToken.address, 1, receiver, [aliceSignature, bobSignature]))
+          .unlock(1, transactionId, nativeToken.address, 1, receiver, [aliceSignature, bobSignature]))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
@@ -998,19 +998,19 @@ describe('Router', async () => {
         await router.connect(admin).pause();
         // then
         await expect(router.connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,bytes[])'](1, transactionId, nativeToken.address, 1, receiver, [aliceSignature, bobSignature]))
+          .unlock(1, transactionId, nativeToken.address, 1, receiver, [aliceSignature, bobSignature]))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
       it('should revert when native token is not found', async () => {
         const expectedRevertMessage = 'RouterFacet: native token not found';
         await expect(router.connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,bytes[])'](1, transactionId, bob.address, 1, receiver, [aliceSignature, bobSignature]))
+          .unlock(1, transactionId, bob.address, 1, receiver, [aliceSignature, bobSignature]))
           .to.be.revertedWith(expectedRevertMessage);
       });
     });
 
-    describe('unlock(uint256,bytes,address,uint256,address,uint256,bytes[])', async () => {
+    describe('unlockWithFee', async () => {
       let receiver;
       let hashData;
 
@@ -1045,7 +1045,7 @@ describe('Router', async () => {
       it('should execute unlock', async () => {
         await router
           .connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,uint256,bytes[])'](1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, bobSignature, carolSignature]);
+          .unlockWithFee(1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, bobSignature, carolSignature]);
 
         const balanceOfReceiver = await nativeToken.balanceOf(receiver);
         expect(balanceOfReceiver).to.equal(amount.sub(calculatedFee));
@@ -1070,7 +1070,7 @@ describe('Router', async () => {
 
         await router
           .connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,uint256,bytes[])'](1, transactionId, nativeToken.address, amount, receiver, tetLargeCalculatedFee, [_aliceSignature, _bobSignature, _carolSignature]);
+          .unlockWithFee(1, transactionId, nativeToken.address, amount, receiver, tetLargeCalculatedFee, [_aliceSignature, _bobSignature, _carolSignature]);
 
         const balanceOfReceiver = await nativeToken.balanceOf(receiver);
         expect(balanceOfReceiver).to.equal(amount.sub(expectedFee));
@@ -1087,7 +1087,7 @@ describe('Router', async () => {
 
         await expect(await router
           .connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,uint256,bytes[])'](sourceChainId, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, bobSignature, carolSignature]))
+          .unlockWithFee(sourceChainId, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, bobSignature, carolSignature]))
           .to.emit(router, 'Unlock')
           .withArgs(sourceChainId, transactionId, nativeToken.address, transferAmount, receiver, calculatedFee);
       });
@@ -1096,11 +1096,11 @@ describe('Router', async () => {
         const expectedRevertMessage = 'RouterFacet: transaction already submitted';
         await router
           .connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,uint256,bytes[])'](1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, bobSignature, carolSignature]);
+          .unlockWithFee(1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, bobSignature, carolSignature]);
 
         await expect(router
           .connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,uint256,bytes[])'](1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, bobSignature, carolSignature]))
+          .unlockWithFee(1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, bobSignature, carolSignature]))
           .to.be.revertedWith(expectedRevertMessage);
 
       });
@@ -1109,7 +1109,7 @@ describe('Router', async () => {
         const expectedRevertMessage = 'LibGovernance: Invalid number of signatures';
 
         await expect(router.connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,uint256,bytes[])'](1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature]))
+          .unlockWithFee(1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature]))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
@@ -1118,7 +1118,7 @@ describe('Router', async () => {
         const nonMemberSignature = await nonMember.signMessage(hashData);
 
         await expect(router.connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,uint256,bytes[])'](1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, nonMemberSignature]))
+          .unlockWithFee(1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, nonMemberSignature]))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
@@ -1126,14 +1126,14 @@ describe('Router', async () => {
         const expectedRevertMessage = 'LibGovernance: duplicate signatures';
 
         await expect(router.connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,uint256,bytes[])'](1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, aliceSignature]))
+          .unlockWithFee(1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, aliceSignature]))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
       it('should revert when provided data is invalid', async () => {
         const expectedRevertMessage = 'Governance: invalid signer';
         await expect(router.connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,uint256,bytes[])'](1, transactionId, nativeToken.address, 1, receiver, calculatedFee, [aliceSignature, bobSignature]))
+          .unlockWithFee(1, transactionId, nativeToken.address, 1, receiver, calculatedFee, [aliceSignature, bobSignature]))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
@@ -1144,14 +1144,14 @@ describe('Router', async () => {
         await router.connect(admin).pause();
         // then
         await expect(router.connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,uint256,bytes[])'](1, transactionId, nativeToken.address, 1, receiver, calculatedFee, [aliceSignature, bobSignature]))
+          .unlockWithFee(1, transactionId, nativeToken.address, 1, receiver, calculatedFee, [aliceSignature, bobSignature]))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
       it('should revert when native token is not found', async () => {
         const expectedRevertMessage = 'RouterFacet: native token not found';
         await expect(router.connect(nonMember)
-        ['unlock(uint256,bytes,address,uint256,address,uint256,bytes[])'](1, transactionId, bob.address, 1, receiver, calculatedFee, [aliceSignature, bobSignature]))
+          .unlockWithFee(1, transactionId, bob.address, 1, receiver, calculatedFee, [aliceSignature, bobSignature]))
           .to.be.revertedWith(expectedRevertMessage);
       });
     });
@@ -2785,8 +2785,8 @@ describe('Router', async () => {
     let testNativeToken3;
     const revertMessageOwnable = 'Ownable: caller is not the owner';
     const revertMessageNotDiamondOwner = 'LibDiamond: Must be contract owner';
-    const revertMessageZeroAddressStore = 'FeeCalculatorFacet: _feePolicyAddress must not be 0x0';
-    const revertMessageZeroAddressToken = 'FeeCalculatorFacet: _tokenAddress must not be 0x0';
+    const revertMessageZeroFeePolicyAddress = 'FeeCalculatorFacet: _feePolicyAddress must not be 0x0';
+    const revertMessageZeroUserAddress = 'FeeCalculatorFacet: userAddress must not be 0x0';
 
     beforeEach(async () => {
       const testNativeTokenFactory = await ethers.getContractFactory('Token');
@@ -3071,11 +3071,16 @@ describe('Router', async () => {
         await expect(feePolicyPortal.connect(nonMember).setUsersFeePolicy(instanceFlatFeePolicy.address, [feePolicyUser_2.address])).to.be.revertedWith(revertMessageNotDiamondOwner);
       });
 
-      it('should revert when executing with zero address store', async () => {
-        await expect(feePolicyPortal.setUsersFeePolicy('0x0000000000000000000000000000000000000000', [feePolicyUser_2.address])).to.be.revertedWith(revertMessageZeroAddressStore);
+      it('should revert when executing with zero fee policy address', async () => {
+        await expect(feePolicyPortal.setUsersFeePolicy('0x0000000000000000000000000000000000000000', [feePolicyUser_2.address])).to.be.revertedWith(revertMessageZeroFeePolicyAddress);
       });
 
-      it('shold add users to fee policy store', async () => {
+      it('should revert when executing with zero user address', async () => {
+        await expect(feePolicyPortal.setUsersFeePolicy(instanceFlatFeePolicy.address, ['0x0000000000000000000000000000000000000000'])).to.be.revertedWith(revertMessageZeroUserAddress);
+        await expect(feePolicyPortal.setUsersFeePolicy(instanceFlatFeePolicy.address, ['0x0000000000000000000000000000000000000000', feePolicyUser_2.address])).to.be.revertedWith(revertMessageZeroUserAddress);
+      });
+
+      it('shold add users to fee policy', async () => {
         expect(await feePolicyPortal.getUsersFeePolicyAddress(feePolicyUser_1.address)).to.equal(instanceFlatFeePolicy.address);
         expect(await feePolicyPortal.getUsersFeePolicyAddress(feePolicyUser_2.address)).to.equal(instanceFlatFeePolicy.address);
         expect(await feePolicyPortal.getUsersFeePolicyAddress(feePolicyUser_3.address)).to.equal('0x0000000000000000000000000000000000000000');
@@ -3098,7 +3103,12 @@ describe('Router', async () => {
         await expect(feePolicyPortal.connect(nonMember).removeUsersFeePolicy([feePolicyUser_2.address])).to.be.revertedWith(revertMessageNotDiamondOwner);
       });
 
-      it('should remove users from fee policy store', async () => {
+      it('should revert when executing with zero user address', async () => {
+        await expect(feePolicyPortal.removeUsersFeePolicy(['0x0000000000000000000000000000000000000000'])).to.be.revertedWith(revertMessageZeroUserAddress);
+        await expect(feePolicyPortal.removeUsersFeePolicy(['0x0000000000000000000000000000000000000000', feePolicyUser_2.address])).to.be.revertedWith(revertMessageZeroUserAddress);
+      });
+
+      it('should remove users from fee policy', async () => {
         await feePolicyPortal.removeUsersFeePolicy([feePolicyUser_3.address]);
 
         expect(await feePolicyPortal.getUsersFeePolicyAddress(feePolicyUser_1.address)).to.equal(instanceFlatFeePolicy.address);

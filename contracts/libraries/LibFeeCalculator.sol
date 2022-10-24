@@ -74,7 +74,8 @@ library LibFeeCalculator {
         return claimableAmount;
     }
 
-    /// @notice Distributes service fee for given token
+    /// @notice Distributes service fee for given token using. The method is using additional parameter for user address for checking of Fee Policy
+    /// @dev Usual execution of the method is lock operation from the validators.
     /// @param _user The target user
     /// @param _token The target token
     /// @param _amount The amount to which the service fee will be calculated
@@ -87,25 +88,18 @@ library LibFeeCalculator {
         LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
         FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[_token];
 
-        uint256 serviceFee = 0;
+        uint256 calculatedFee = 0;
         bool policyExists = false;
 
         if (_user != address(0)) {
             address userFeePolicyAddress = LibFeePolicy.feePolicyStoreAddress(_user);
             // get policy
             if (userFeePolicyAddress != address(0)) {
-                (serviceFee, policyExists) = IFeePolicy(userFeePolicyAddress).feeAmountFor(_user, _token, _amount);
+                (calculatedFee, policyExists) = IFeePolicy(userFeePolicyAddress).feeAmountFor(_user, _token, _amount);
             }
         }
 
-        // serviceFee shold be greater than zero
-        if (!policyExists || serviceFee == 0) {
-            serviceFee = (_amount * fc.serviceFeePercentage) / fcs.precision;
-        }
-
-        fc.feesAccrued = fc.feesAccrued + serviceFee;
-
-        return serviceFee;
+        return distributeRewardsWithFee(_token, _amount, calculatedFee);
     }
 
     /// @notice Distributes service fee for given token. The method is using additional parameter for already calculated fee.
@@ -114,7 +108,7 @@ library LibFeeCalculator {
     /// @param _amount The amount to which the service fee will be calculated
     /// @param _calculatedFee The calculated fee
     /// @return serviceFee The calculated service fee
-    function distributeRewards(
+    function distributeRewardsWithFee(
         address _token,
         uint256 _amount,
         uint256 _calculatedFee

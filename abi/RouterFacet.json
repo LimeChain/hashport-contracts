@@ -561,7 +561,7 @@
         "type": "bytes[]"
       }
     ],
-    "name": "unlock",
+    "name": "unlockWithFee",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

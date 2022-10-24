@@ -162,9 +162,9 @@ contract RouterFacet is IRouter {
     /// @param _nativeToken The address of the native token
     /// @param _amount The amount to transfer
     /// @param _receiver The address reveiving the tokens
-    /// @param _calculatedFee Calculated fee in case of unlock operation from whitelisted account
+    /// @param _calculatedFee Calculated fee by the validator
     /// @param _signatures The array of signatures from the members, authorising the operation
-    function unlock(
+    function unlockWithFee(
         uint256 _sourceChain,
         bytes memory _transactionId,
         address _nativeToken,
@@ -175,7 +175,7 @@ contract RouterFacet is IRouter {
     ) external override whenNotPaused onlyNativeToken(_nativeToken) {
         LibGovernance.validateSignaturesLength(_signatures.length);
 
-        bytes32 ethHash = computeMessage(
+        bytes32 ethHash = computeMessageWithFee(
             _sourceChain,
             block.chainid,
             _transactionId,
@@ -194,7 +194,7 @@ contract RouterFacet is IRouter {
 
         validateAndStoreTx(ethHash, _signatures);
 
-        uint256 serviceFee = LibFeeCalculator.distributeRewards(
+        uint256 serviceFee = LibFeeCalculator.distributeRewardsWithFee(
             _nativeToken,
             _amount,
             _calculatedFee
@@ -403,7 +403,7 @@ contract RouterFacet is IRouter {
     /// @param _receiver The receiving address on the current chain
     /// @param _amount The amount of `_token` that is being bridged
     /// @param _calculatedFee Calculated fee in case of unlock operation from whitelisted account
-    function computeMessage(
+    function computeMessageWithFee(
         uint256 _sourceChain,
         uint256 _targetChain,
         bytes memory _transactionId,
