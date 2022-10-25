@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.3;
 
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-
 library LibFeePolicy {
-    using EnumerableSet for EnumerableSet.AddressSet;
     bytes32 constant STORAGE_POSITION = keccak256("fee.policy.storage");
 
     struct Storage {

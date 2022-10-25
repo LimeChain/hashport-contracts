@@ -86,16 +86,6 @@ interface IRouter {
         bytes[] calldata _signatures
     ) external;
 
-    function unlockWithFee(
-        uint256 _sourceChain,
-        bytes memory _transactionId,
-        address _nativeToken,
-        uint256 _amount,
-        address _receiver,
-        uint256 _calculatedFee,
-        bytes[] calldata _signatures
-    ) external;
-
     function burn(
         uint256 _targetChain,
         address _wrappedToken,

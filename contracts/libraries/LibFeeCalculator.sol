@@ -74,9 +74,9 @@ library LibFeeCalculator {
         return claimableAmount;
     }
 
-    /// @notice Distributes service fee for given token using. The method is using additional parameter for user address for checking of Fee Policy
-    /// @dev Usual execution of the method is lock operation from the validators.
-    /// @param _user The target user
+   /// @notice Distributes service fee for a given transfer based on sender, token and amount transferred
+    /// @dev Usual execution of the method is the lock operation.
+    /// @param _user Transfer sender
     /// @param _token The target token
     /// @param _amount The amount to which the service fee will be calculated
     /// @return serviceFee The calculated service fee
@@ -85,8 +85,6 @@ library LibFeeCalculator {
         address _token,
         uint256 _amount
     ) internal returns (uint256) {
-        LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
-        FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[_token];
 
         uint256 calculatedFee = 0;
         bool policyExists = false;

@@ -264,7 +264,7 @@ task('transfer-ownership', 'Transfers ownership of the given contract')
         await transferOwnership(taskArgs.contract, taskArgs.newOwner);
     });
 
-task('fee-policy-upgrage-router', 'Upgrade router to support fee policy logic')
+task('fee-policy-upgrade-router', 'Updates router to support fee policy logic')
     .addParam('router', 'The address of the router contract')
     .setAction(async (taskArgs) => {
         console.log(taskArgs);
@@ -282,14 +282,14 @@ task('fee-policy-deploy-flat-fee', 'Deploys flat fee policy contract')
         await deployFlatFeePolicy(taskArgs.flatFee);
     });
 
-task('fee-policy-update-flat-fee', 'Deploys flat fee policy contract')
+task('fee-policy-update-flat-fee', 'Updates flat fee policy contract')
     .addParam('feePolicy', 'Address of the FlatFeePolicy contract')
     .addParam('flatFee', 'Flat fee value')
     .setAction(async (taskArgs) => {
         console.log(taskArgs);
-        const { updateFlatFeePolicy } = require('./scripts/fee-policy-management');
+        const { setFlatFeePolicy } = require('./scripts/fee-policy-management');
 
-        await updateFlatFeePolicy(taskArgs.feePolicy, taskArgs.flatFee);
+        await setFlatFeePolicy(taskArgs.feePolicy, taskArgs.flatFee);
     });
 
 task('fee-policy-deploy-percentage-fee', 'Deploys percentage fee policy contract')
@@ -302,21 +302,48 @@ task('fee-policy-deploy-percentage-fee', 'Deploys percentage fee policy contract
         await deployPercentageFeePolicy(taskArgs.precision, taskArgs.feePercentage);
     });
 
-task('fee-policy-update-percentage-fee', 'Deploys percentage fee policy contract')
+task('fee-policy-update-percentage-fee', 'Updates percentage fee policy contract')
     .addParam('feePolicy', 'Address of the PercentageFeePolicy contract')
     .addParam('precision', 'Value of the precision to be used in the fee amount calculation')
     .addParam('feePercentage', 'Fee percentage value')
     .setAction(async (taskArgs) => {
         console.log(taskArgs);
-        const { updatePercentageFeePolicy } = require('./scripts/fee-policy-management');
+        const { setPercentageFeePolicy } = require('./scripts/fee-policy-management');
 
-        await updatePercentageFeePolicy(taskArgs.feePolicy, taskArgs.precision, taskArgs.feePercentage);
+        await setPercentageFeePolicy(taskArgs.feePolicy, taskArgs.precision, taskArgs.feePercentage);
     });
 
-task('fee-policy-set-user-to-policy')
+task('fee-policy-deploy-flat-fee-per-token', 'Deploys flat fee per token policy')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const { deployFlatFeePerTokenPolicy } = require('./scripts/fee-policy-management');
+
+        await deployFlatFeePerTokenPolicy();
+    });
+
+task('fee-policy-update-flat-fee-per-token', 'Updates flat fee of token')
+    .addParam('token', 'Address of the token')
+    .addParam('flatFee', 'Flat fee value')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const { setFlatFeePerTokenPolicy } = require('./scripts/fee-policy-management');
+
+        await setFlatFeePerTokenPolicy(taskArgs.token, taskArgs.flatFee);
+    });
+
+task('fee-policy-remove-flat-fee-per-token', 'Removes token from policy')
+    .addParam('token', 'Address of the token')
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const { removeFlatFeePerTokenPolicy } = require('./scripts/fee-policy-management');
+
+        await removeFlatFeePerTokenPolicy(taskArgs.token);
+    });
+
+task('fee-policy-set-users-to-policy', 'Sets fee policy address to user')
     .addParam('router', 'The address of the router contract')
     .addParam('feePolicy', 'Address of the PercentageFeePolicy contract')
-    .addParam('addresses', 'User addresses wich will be subject of the fee policies separated by comma (",")')
+    .addParam('addresses', 'User addresses which will be subject of the fee policies separated by comma (",")')
     .setAction(async (taskArgs) => {
         console.log(taskArgs);
         const { setUsersFeePolicy } = require('./scripts/fee-policy-management');
@@ -324,9 +351,9 @@ task('fee-policy-set-user-to-policy')
         await setUsersFeePolicy(taskArgs.router, taskArgs.feePolicy, taskArgs.addresses.split(','));
     });
 
-    task('fee-policy-remove-user-policies')
+task('fee-policy-remove-users-from-policy', 'Removes users from policy')
     .addParam('router', 'The address of the router contract')
-    .addParam('addresses', 'User addresses wich will be subject of the fee policies separated by comma (",")')
+    .addParam('addresses', 'User addresses which will be subject of the fee policies separated by comma (",")')
     .setAction(async (taskArgs) => {
         console.log(taskArgs);
         const { removeUsersFeePolicy } = require('./scripts/fee-policy-management');

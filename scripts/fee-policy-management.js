@@ -3,11 +3,6 @@ const ethers = hardhat.ethers;
 
 const { getSelectors } = require('../util');
 
-const enumFeeType = {
-    Flat: 0,
-    Percentage: 1
-}
-
 const enumFacetCutAction = {
     Add: 0,
     Replace: 1,
@@ -29,27 +24,18 @@ async function upgradeRouter(routerAddress) {
     console.log(`Router at [${routerAddress}] is being upgraded with FeePolicyFacet`);
 
     const RouterFacet = await deployedFacet('RouterFacet'); // Replace
-    const FeeCalculatorFacet = await deployedFacet('FeeCalculatorFacet'); // Replace    
-    const GovernanceFacet = await deployedFacet('GovernanceFacet'); // Replace
-    const GovernanceV2Facet = await deployedFacet('GovernanceV2Facet'); // Replace
-    const ERC721PortalFacet = await deployedFacet('ERC721PortalFacet'); // Replace
+    const RouterFacetV2 = await deployedFacet('RouterFacetV2'); // Add
     const FeePolicyFacet = await deployedFacet('FeePolicyFacet'); // Add
 
     console.log('RouterFacet address: ', RouterFacet.address);
-    console.log('FeeCalculatorFacet address: ', FeeCalculatorFacet.address);
-    console.log('GovernanceFacet address: ', GovernanceFacet.address);
-    console.log('GovernanceV2Facet address: ', GovernanceV2Facet.address);
-    console.log('ERC721PortalFacet address: ', ERC721PortalFacet.address);
+    console.log('RouterFacetV2 address: ', RouterFacetV2.address);
     console.log('FeePolicyFacet address: ', FeePolicyFacet.address);
 
     console.log('Updating DiamondCut, please wait...');
     const router = await ethers.getContractAt('IRouterDiamond', routerAddress);
     const diamondCut = [
         { facetAddress: RouterFacet.address, action: enumFacetCutAction.Replace, functionSelectors: getSelectors(RouterFacet) },
-        { facetAddress: FeeCalculatorFacet.address, action: enumFacetCutAction.Replace, functionSelectors: getSelectors(FeeCalculatorFacet) },
-        { facetAddress: GovernanceFacet.address, action: enumFacetCutAction.Replace, functionSelectors: getSelectors(GovernanceFacet) },
-        { facetAddress: GovernanceV2Facet.address, action: enumFacetCutAction.Replace, functionSelectors: getSelectors(GovernanceV2Facet) },
-        { facetAddress: ERC721PortalFacet.address, action: enumFacetCutAction.Replace, functionSelectors: getSelectors(ERC721PortalFacet) },
+        { facetAddress: RouterFacetV2.address, action: enumFacetCutAction.Add, functionSelectors: getSelectors(RouterFacetV2) },
         { facetAddress: FeePolicyFacet.address, action: enumFacetCutAction.Add, functionSelectors: getSelectors(FeePolicyFacet) }
     ];
 
@@ -59,10 +45,7 @@ async function upgradeRouter(routerAddress) {
 
     console.log('Verification, please wait...');
     await hardhat.run('verify:verify', { address: RouterFacet.address, constructorArguments: [] });
-    await hardhat.run('verify:verify', { address: FeeCalculatorFacet.address, constructorArguments: [] });
-    await hardhat.run('verify:verify', { address: GovernanceFacet.address, constructorArguments: [] });
-    await hardhat.run('verify:verify', { address: GovernanceV2Facet.address, constructorArguments: [] });
-    await hardhat.run('verify:verify', { address: ERC721PortalFacet.address, constructorArguments: [] });
+    await hardhat.run('verify:verify', { address: RouterFacetV2.address, constructorArguments: [] });
     await hardhat.run('verify:verify', { address: FeePolicyFacet.address, constructorArguments: [] });
 }
 
@@ -85,7 +68,7 @@ async function deployFlatFeePolicy(flatFee) {
     });
 }
 
-async function updateFlatFeePolicy(feePolicyAddress, flatFee) {
+async function setFlatFeePolicy(feePolicyAddress, flatFee) {
     await hardhat.run('compile');
 
     console.log(`Updating FlatFeePolicy at [${feePolicyAddress}] with flatFee of [${flatFee}]`);
@@ -115,7 +98,7 @@ async function deployPercentageFeePolicy(precision, feePercentage) {
     });
 }
 
-async function updatePercentageFeePolicy(feePolicyAddress, precision, feePercentage) {
+async function setPercentageFeePolicy(feePolicyAddress, precision, feePercentage) {
     await hardhat.run('compile');
 
     const feePolicy = await ethers.getContractAt('PercentageFeePolicy', feePolicyAddress);
@@ -133,6 +116,47 @@ async function updatePercentageFeePolicy(feePolicyAddress, precision, feePercent
         console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
         console.log(`Finished with success`);
     }
+}
+
+async function deployFlatFeePerTokenPolicy() {
+    await hardhat.run('compile');
+
+    const FlatFeePerTokenPolicyFactory = await ethers.getContractFactory('FlatFeePerTokenPolicy');
+
+    const FlatFeePerTokenPolicy = await FlatFeePerTokenPolicyFactory.deploy();
+    console.log('Deploying FlatFeePerTokenPolicy, please wait...');
+
+    await FlatFeePerTokenPolicy.deployed();
+    console.log('FlatFeePerTokenPolicy address: ', FlatFeePerTokenPolicy.address);
+
+    console.log('Verification, please wait...');
+
+    await hardhat.run('verify:verify', {
+        address: FlatFeePerTokenPolicy.address,
+        constructorArguments: [flatFee]
+    });
+}
+
+async function setFlatFeePerTokenPolicy(tokenAddress, flatFee) {
+    await hardhat.run('compile');
+
+    console.log(`Updating FlatFeePerTokenPolicy at [${feePolicyAddress}] with flatFee of [${flatFee}]`);
+
+    const feePolicy = await ethers.getContractAt('FlatFeePerTokenPolicy', feePolicyAddress);
+    await feePolicy.setFlatFee(tokenAddress, flatFee);
+    console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
+    console.log(`Finished with success`);
+}
+
+async function removeFlatFeePerTokenPolicy(tokenAddress) {
+    await hardhat.run('compile');
+
+    console.log(`Updating FlatFeePerTokenPolicy at [${feePolicyAddress}] with flatFee of [${flatFee}]`);
+
+    const feePolicy = await ethers.getContractAt('FlatFeePerTokenPolicy', feePolicyAddress);
+    await feePolicy.setFlatFee(tokenAddress, 0);
+    console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
+    console.log(`Finished with success`);
 }
 
 async function setUsersFeePolicy(routerAddress, feePolicyAddress, userAddresses) {
@@ -159,13 +183,15 @@ async function removeUsersFeePolicy(routerAddress, userAddresses) {
     console.log(`Finished with success`);
 }
 
-
 module.exports = {
     upgradeRouter,
     deployFlatFeePolicy,
-    updateFlatFeePolicy,
+    setFlatFeePolicy,
     deployPercentageFeePolicy,
-    updatePercentageFeePolicy,
+    setPercentageFeePolicy,
+    deployFlatFeePerTokenPolicy,
+    setFlatFeePerTokenPolicy,
+    removeFlatFeePerTokenPolicy,
     setUsersFeePolicy,
     removeUsersFeePolicy
 };
