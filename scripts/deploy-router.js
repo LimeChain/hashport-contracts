@@ -43,6 +43,11 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
   console.log('Deploying PausableFacet, please wait...');
   await pausableFacet.deployed();
 
+  const feePolicyFacetFactory = await ethers.getContractFactory('FeePolicyFacet');
+  feePolicyFacet = await feePolicyFacetFactory.deploy();
+  console.log('Deploying FeePolicyFacet, please wait...');
+  await feePolicyFacet.deployed();
+
   const diamondCut = [
     // 0 stands for FacetCutAction.Add
     [cutFacet.address, 0, getSelectors(cutFacet)],
@@ -52,6 +57,7 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
     [ownershipFacet.address, 0, getSelectors(ownershipFacet)],
     [routerFacet.address, 0, getSelectors(routerFacet)],
     [pausableFacet.address, 0, getSelectors(pausableFacet)],
+    [feePolicyFacet.address, 0, getSelectors(feePolicyFacet)],
   ];
 
   const args = [
@@ -88,6 +94,7 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
   console.log('DiamondCutFacet address: ', cutFacet.address);
   console.log('DiamondLoupeFacet address: ', loupeFacet.address);
   console.log('PausableFacet address: ', pausableFacet.address);
+  console.log('FeePolicyFacet address: ', feePolicyFacet.address);
 
   console.log('Upgrade router');
   const upgradeContratItems = await performUpgradeErc721Support(diamond.address);
@@ -126,6 +133,11 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
 
   await hardhat.run('verify:verify', {
     address: pausableFacet.address,
+    constructorArguments: []
+  });
+
+  await hardhat.run('verify:verify', {
+    address: feePolicyFacet.address,
     constructorArguments: []
   });
 
