@@ -74,30 +74,56 @@ library LibFeeCalculator {
         return claimableAmount;
     }
 
-   /// @notice Distributes service fee for a given transfer based on sender, token and amount transferred
+    /// @notice Distributes service fee for given token
+    /// @param _token The target token
+    /// @param _amount The amount to which the service fee will be calculated
+    /// @return serviceFee The calculated service fee
+    function distributeRewards(address _token, uint256 _amount)
+        internal
+        returns (uint256)
+    {
+        LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
+        FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[_token];
+        uint256 serviceFee = calcServiceFee(_amount, fc.serviceFeePercentage, fcs.precision);
+        fc.feesAccrued = fc.feesAccrued + serviceFee;
+
+        return serviceFee;
+    }
+
+    /// @notice Distributes service fee for a given transfer based on sender, token and amount transferred
     /// @dev Usual execution of the method is the lock operation.
+    /// @param _targetChain This parameter is ignored for the current implementation.
     /// @param _user Transfer sender
     /// @param _token The target token
     /// @param _amount The amount to which the service fee will be calculated
     /// @return serviceFee The calculated service fee
-    function distributeRewards(
+    function  distributeRewardsWithPolicy(
+        uint256 _targetChain,
         address _user,
         address _token,
         uint256 _amount
-    ) internal returns (uint256) {
+    ) internal returns (uint256){
+        LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
+        FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[_token];
 
-        uint256 calculatedFee = 0;
+        uint256 serviceFee = 0;
         bool policyExists = false;
 
         if (_user != address(0)) {
             address userFeePolicyAddress = LibFeePolicy.feePolicyStoreAddress(_user);
             // get policy
             if (userFeePolicyAddress != address(0)) {
-                (calculatedFee, policyExists) = IFeePolicy(userFeePolicyAddress).feeAmountFor(_user, _token, _amount);
+                (serviceFee, policyExists) = IFeePolicy(userFeePolicyAddress).feeAmountFor(_targetChain,_user, _token, _amount);
             }
         }
 
-        return distributeRewardsWithFee(_token, _amount, calculatedFee);
+        if(!policyExists) {
+            serviceFee = calcServiceFee(_amount, fc.serviceFeePercentage, fcs.precision);
+        }
+
+        fc.feesAccrued = fc.feesAccrued + serviceFee;
+
+        return serviceFee;
     }
 
     /// @notice Distributes service fee for given token. The method is using additional parameter for already calculated fee.
@@ -114,15 +140,24 @@ library LibFeeCalculator {
         LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
         FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[_token];
 
-        uint256 serviceFee = (_amount * fc.serviceFeePercentage) / fcs.precision;
+        uint256 serviceFee = calcServiceFee(_amount, fc.serviceFeePercentage, fcs.precision);
 
-        if (_calculatedFee > 0 && _calculatedFee < serviceFee) {
+        if (_calculatedFee < serviceFee) {
             serviceFee = _calculatedFee;
         }
 
         fc.feesAccrued = fc.feesAccrued + serviceFee;
 
         return serviceFee;
+    }
+
+    /// @notice Calculates a service fee value based on input parameters
+    /// @param _amount The amount to which the service fee will be calculated
+    /// @param _serviceFeePercentage The service fee percentage to be used in the calculation
+    /// @param _precision The precision for service fee calculations
+    /// @return serviceFee The calculated service fee
+    function calcServiceFee(uint256 _amount, uint256 _serviceFeePercentage, uint256 _precision) internal pure returns(uint256) {
+        return (_amount * _serviceFeePercentage) / _precision;
     }
 
     /// @notice Sets service fee for a token

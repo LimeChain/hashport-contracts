@@ -38,12 +38,14 @@ contract PercentageFeePolicy is IFeePolicy, Ownable {
 
     /// @notice Calculates the fee amount.
     /// @dev This method is implemenation of IFeePolicy.feeAmountFor
+    /// @param _targetChain This parameter is ignored for the current implementation.
     /// @param _userAddress This parameter is ignored for the current implementation.
     /// @param _tokenAddress This parameter is ignored for the current implementation.
     /// @param _amount The amount to which the service fee will be calculated.
     /// @return feeAmount Calcualated value of the fee.
     /// @return exist Flag describing if fee amount is calculated. For the current implementation - it is always true.
     function feeAmountFor(
+        uint256 _targetChain,
         address _userAddress,
         address _tokenAddress,
         uint256 _amount

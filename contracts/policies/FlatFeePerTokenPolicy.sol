@@ -8,6 +8,9 @@ contract FlatFeePerTokenPolicy is IFeePolicy, Ownable {
     // tokenAddress => flatFee
     mapping(address => uint256) pairs;
 
+    // tokenAddress => bool
+    mapping(address => bool) exists;
+
     /// @notice Gets current flat fee value for token.
     /// @param _tokenAddress Token address subject of the fee.
     function getFlatFee(address _tokenAddress) external view returns (uint256) {
@@ -16,27 +19,37 @@ contract FlatFeePerTokenPolicy is IFeePolicy, Ownable {
 
     /// @notice Sets current flat fee value for token.
     /// @param _tokenAddress Token address subject of the fee.
-    function setFlatFee(address _tokenAddress, uint256 _flatFee) external onlyOwner {
+    function setFlatFee(address _tokenAddress, uint256 _flatFee)
+        external
+        onlyOwner
+    {
         require(_tokenAddress != address(0), "Token address must not be 0x0");
 
+        exists[_tokenAddress] = true;
         pairs[_tokenAddress] = _flatFee;
     }
 
-    /// @notice Returns the current flat fee
-    /// @dev This method is implemenation of IFeePolicy.feeAmountFor
+    function removeFlatFee(address _tokenAddress) external onlyOwner {
+        require(_tokenAddress != address(0), "Token address must not be 0x0");
+
+        delete exists[_tokenAddress];
+    }
+
+    /// @notice Returns the current flat fee.
+    /// @dev This method is implemenation of IFeePolicy.feeAmountFor.
+    /// @param _targetChain This parameter is ignored for the current implementation.
     /// @param _userAddress This parameter is ignored for the current implementation.
     /// @param _tokenAddress Token address subject of the fee.
     /// @param _amount This parameter is ignored for the current implementation.
     /// @return feeAmount Value of the fee. For the current implementation - the value is flatFee.
-    /// @return exist Flag describing if fee amount is calculated. For the current implementation - it is always true.
+    /// @return exist Flag describing if fee amount is calculated.
     function feeAmountFor(
+        uint256 _targetChain,
         address _userAddress,
         address _tokenAddress,
         uint256 _amount
     ) external view override returns (uint256 feeAmount, bool exist) {
-
-        if(pairs[_tokenAddress] > 0)
-        {
+        if (exists[_tokenAddress]) {
             return (pairs[_tokenAddress], true);
         }
 

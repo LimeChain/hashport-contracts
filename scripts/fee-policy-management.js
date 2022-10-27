@@ -24,18 +24,18 @@ async function upgradeRouter(routerAddress) {
     console.log(`Router at [${routerAddress}] is being upgraded with FeePolicyFacet`);
 
     const RouterFacet = await deployedFacet('RouterFacet'); // Replace
-    const RouterFacetV2 = await deployedFacet('RouterFacetV2'); // Add
     const FeePolicyFacet = await deployedFacet('FeePolicyFacet'); // Add
 
     console.log('RouterFacet address: ', RouterFacet.address);
-    console.log('RouterFacetV2 address: ', RouterFacetV2.address);
     console.log('FeePolicyFacet address: ', FeePolicyFacet.address);
 
     console.log('Updating DiamondCut, please wait...');
     const router = await ethers.getContractAt('IRouterDiamond', routerAddress);
+    
     const diamondCut = [
-        { facetAddress: RouterFacet.address, action: enumFacetCutAction.Replace, functionSelectors: getSelectors(RouterFacet) },
-        { facetAddress: RouterFacetV2.address, action: enumFacetCutAction.Add, functionSelectors: getSelectors(RouterFacetV2) },
+        { facetAddress: RouterFacet.address, action: enumFacetCutAction.Replace, functionSelectors: [RouterFacet.interface.getSighash('lock(uint256,address,uint256,bytes)')] },
+        { facetAddress: RouterFacet.address, action: enumFacetCutAction.Replace, functionSelectors: [RouterFacet.interface.getSighash('unlock(uint256,bytes,address,uint256,address,bytes[])')] },
+        { facetAddress: RouterFacet.address, action: enumFacetCutAction.Add, functionSelectors: [RouterFacet.interface.getSighash('unlockWithFee(uint256,bytes,address,uint256,address,uint256,bytes[])')] },
         { facetAddress: FeePolicyFacet.address, action: enumFacetCutAction.Add, functionSelectors: getSelectors(FeePolicyFacet) }
     ];
 
@@ -45,7 +45,6 @@ async function upgradeRouter(routerAddress) {
 
     console.log('Verification, please wait...');
     await hardhat.run('verify:verify', { address: RouterFacet.address, constructorArguments: [] });
-    await hardhat.run('verify:verify', { address: RouterFacetV2.address, constructorArguments: [] });
     await hardhat.run('verify:verify', { address: FeePolicyFacet.address, constructorArguments: [] });
 }
 
@@ -154,7 +153,7 @@ async function removeFlatFeePerTokenPolicy(tokenAddress) {
     console.log(`Updating FlatFeePerTokenPolicy at [${feePolicyAddress}] with flatFee of [${flatFee}]`);
 
     const feePolicy = await ethers.getContractAt('FlatFeePerTokenPolicy', feePolicyAddress);
-    await feePolicy.setFlatFee(tokenAddress, 0);
+    await feePolicy.setFlatFee(tokenAddress);
     console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
     console.log(`Finished with success`);
 }
