@@ -92,7 +92,7 @@ interface IRouter {
         address _nativeToken,
         uint256 _amount,
         address _receiver,
-        uint256 _calculatedFee,
+        uint256 _serviceFee,
         bytes[] calldata _signatures
     ) external;
 

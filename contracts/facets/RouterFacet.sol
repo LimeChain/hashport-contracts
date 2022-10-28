@@ -162,7 +162,7 @@ contract RouterFacet is IRouter {
     /// @param _nativeToken The address of the native token
     /// @param _amount The amount to transfer
     /// @param _receiver The address reveiving the tokens
-    /// @param _calculatedFee Calculated fee by the validator
+    /// @param _serviceFee The protocol service fee
     /// @param _signatures The array of signatures from the members, authorising the operation
     function unlockWithFee(
         uint256 _sourceChain,
@@ -170,7 +170,7 @@ contract RouterFacet is IRouter {
         address _nativeToken,
         uint256 _amount,
         address _receiver,
-        uint256 _calculatedFee,
+        uint256 _serviceFee,
         bytes[] calldata _signatures
     ) external override whenNotPaused onlyNativeToken(_nativeToken) {
         LibGovernance.validateSignaturesLength(_signatures.length);
@@ -182,7 +182,7 @@ contract RouterFacet is IRouter {
             _nativeToken,
             _receiver,
             _amount,
-            _calculatedFee
+            _serviceFee
         );
 
         LibRouter.Storage storage rs = LibRouter.routerStorage();
@@ -197,7 +197,7 @@ contract RouterFacet is IRouter {
         uint256 serviceFee = LibFeeCalculator.distributeRewardsWithFee(
             _nativeToken,
             _amount,
-            _calculatedFee
+            _serviceFee
         );
 
         uint256 transferAmount = _amount - serviceFee;
@@ -402,7 +402,7 @@ contract RouterFacet is IRouter {
     /// @param _token The address of the token on this chain
     /// @param _receiver The receiving address on the current chain
     /// @param _amount The amount of `_token` that is being bridged
-    /// @param _calculatedFee Calculated fee in case of unlock operation from whitelisted account
+    /// @param _serviceFee Calculated service fee in case of unlock operation from whitelisted account
     function computeMessageWithFee(
         uint256 _sourceChain,
         uint256 _targetChain,
@@ -410,7 +410,7 @@ contract RouterFacet is IRouter {
         address _token,
         address _receiver,
         uint256 _amount,
-        uint256 _calculatedFee
+        uint256 _serviceFee
     ) internal pure returns (bytes32) {
         bytes32 hashedData = keccak256(
             abi.encode(
@@ -420,7 +420,7 @@ contract RouterFacet is IRouter {
                 _token,
                 _receiver,
                 _amount,
-                _calculatedFee
+                _serviceFee
             )
         );
         return ECDSA.toEthSignedMessageHash(hashedData);
