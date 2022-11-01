@@ -63,7 +63,8 @@ interface IRouter {
         uint256 _targetChain,
         address _nativeToken,
         uint256 _amount,
-        bytes memory _receiver
+        bytes memory _receiver,
+        uint256 _serviceFee
     ) external;
 
     function lockWithPermit(
@@ -74,7 +75,8 @@ interface IRouter {
         uint256 _deadline,
         uint8 _v,
         bytes32 _r,
-        bytes32 _s
+        bytes32 _s,
+        uint256 _serviceFee
     ) external;
 
     function unlock(
@@ -134,4 +136,11 @@ interface IRouter {
         uint256 _serviceFee,
         bool _status
     ) external;
+
+    function feeAmountFor(
+        uint256 _targetChain,
+        address _userAddress,
+        address _tokenAddress,
+        uint256 _amount
+    ) external view returns (uint256);
 }

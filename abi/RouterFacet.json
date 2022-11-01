@@ -316,6 +316,40 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "_targetChain",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "_userAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_tokenAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "feeAmountFor",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "_ethHash",
         "type": "bytes32"
@@ -360,6 +394,11 @@
         "internalType": "bytes",
         "name": "_receiver",
         "type": "bytes"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_serviceFee",
+        "type": "uint256"
       }
     ],
     "name": "lock",
@@ -408,6 +447,11 @@
         "internalType": "bytes32",
         "name": "_s",
         "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_serviceFee",
+        "type": "uint256"
       }
     ],
     "name": "lockWithPermit",

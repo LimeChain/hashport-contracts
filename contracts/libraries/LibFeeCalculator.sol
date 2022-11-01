@@ -74,6 +74,51 @@ library LibFeeCalculator {
         return claimableAmount;
     }
 
+    /// @notice Returns service fee for specific bridge operation by first look for a fee policy.
+    /// @param _targetChain The target chain for the bridging operation.
+    /// @param _userAddress User address subject of the fee.
+    /// @param _tokenAddress Token address subject of the fee.
+    /// @param _amount The amount of tokens to bridge.
+    /// @return Service fee for the bridge operation.
+    function feeAmountFor(
+        uint256 _targetChain,
+        address _userAddress,
+        address _tokenAddress,
+        uint256 _amount
+    ) internal view returns (uint256) {
+        uint256 serviceFee = 0;
+        bool policyExists = false;
+
+        address userFeePolicyAddress = LibFeePolicy.feePolicyStoreAddress(
+            _userAddress
+        );
+ 
+        if (userFeePolicyAddress != address(0)) {
+            (serviceFee, policyExists) = IFeePolicy(userFeePolicyAddress)
+                .feeAmountFor(
+                    _targetChain,
+                    _userAddress,
+                    _tokenAddress,
+                    _amount
+                );
+        }
+
+        if (!policyExists) {
+            LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
+            FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[
+                _tokenAddress
+            ];
+
+            serviceFee = calcServiceFee(
+                _amount,
+                fc.serviceFeePercentage,
+                fcs.precision
+            );
+        }
+
+        return serviceFee;
+    }
+
     /// @notice Distributes service fee for given token
     /// @param _token The target token
     /// @param _amount The amount to which the service fee will be calculated
@@ -89,48 +134,6 @@ library LibFeeCalculator {
             fc.serviceFeePercentage,
             fcs.precision
         );
-        fc.feesAccrued = fc.feesAccrued + serviceFee;
-
-        return serviceFee;
-    }
-
-    /// @notice Distributes service fee for a given transfer based on sender, token and amount transferred.
-    ///         The method checks for an user fee policy. If such policy is found - the actual fee is calculated by that policy.
-    /// @dev Usual execution of the method is the lock operation.
-    /// @param _targetChain This parameter is ignored for the current implementation.
-    /// @param _user Transfer sender
-    /// @param _token The target token
-    /// @param _amount The amount to which the service fee will be calculated
-    /// @return serviceFee The calculated service fee
-    function distributeRewardsWithPolicy(
-        uint256 _targetChain,
-        address _user,
-        address _token,
-        uint256 _amount
-    ) internal returns (uint256) {
-        LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
-        FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[_token];
-
-        uint256 serviceFee = 0;
-        bool policyExists = false;
-
-        address userFeePolicyAddress = LibFeePolicy.feePolicyStoreAddress(
-            _user
-        );
-        // get policy
-        if (userFeePolicyAddress != address(0)) {
-            (serviceFee, policyExists) = IFeePolicy(userFeePolicyAddress)
-                .feeAmountFor(_targetChain, _user, _token, _amount);
-        }
-
-        if (!policyExists) {
-            serviceFee = calcServiceFee(
-                _amount,
-                fc.serviceFeePercentage,
-                fcs.precision
-            );
-        }
-
         fc.feesAccrued = fc.feesAccrued + serviceFee;
 
         return serviceFee;

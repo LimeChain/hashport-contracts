@@ -53,23 +53,35 @@ contract RouterFacet is IRouter {
     /// @param _nativeToken The token to be bridged
     /// @param _amount The amount of tokens to bridge
     /// @param _receiver The address of the receiver on the target chain
+    /// @param _serviceFee Calculated service fee to be charged
     function lock(
         uint256 _targetChain,
         address _nativeToken,
         uint256 _amount,
-        bytes memory _receiver
+        bytes memory _receiver,
+        uint256 _serviceFee
     ) public override whenNotPaused onlyNativeToken(_nativeToken) {
         IERC20(_nativeToken).safeTransferFrom(
             msg.sender,
             address(this),
             _amount
         );
-        uint256 serviceFee = LibFeeCalculator.distributeRewardsWithPolicy(
+
+        uint256 serviceFee = LibFeeCalculator.feeAmountFor(
             _targetChain,
             msg.sender,
             _nativeToken,
             _amount
         );
+
+        require(serviceFee == _serviceFee, "RouterFacet: Service fee mismatch");
+
+        serviceFee = LibFeeCalculator.distributeRewardsWithFee(
+            _nativeToken,
+            _amount,
+            _serviceFee
+        );
+
         emit Lock(_targetChain, _nativeToken, _receiver, _amount, serviceFee);
     }
 
@@ -81,6 +93,7 @@ contract RouterFacet is IRouter {
     /// @param _v The recovery id of the permit's ECDSA signature
     /// @param _r The first output of the permit's ECDSA signature
     /// @param _s The second output of the permit's ECDSA signature
+    /// @param _serviceFee Calculated service fee to be charged
     function lockWithPermit(
         uint256 _targetChain,
         address _nativeToken,
@@ -89,7 +102,8 @@ contract RouterFacet is IRouter {
         uint256 _deadline,
         uint8 _v,
         bytes32 _r,
-        bytes32 _s
+        bytes32 _s,
+        uint256 _serviceFee
     ) external override {
         IERC2612Permit(_nativeToken).permit(
             msg.sender,
@@ -100,7 +114,7 @@ contract RouterFacet is IRouter {
             _r,
             _s
         );
-        lock(_targetChain, _nativeToken, _amount, _receiver);
+        lock(_targetChain, _nativeToken, _amount, _receiver, _serviceFee);
     }
 
     /// @notice Transfers `amount` native tokens to the `receiver` address.
@@ -392,7 +406,7 @@ contract RouterFacet is IRouter {
             )
         );
         return ECDSA.toEthSignedMessageHash(hashedData);
-    }   
+    }
 
     /// @notice Computes the bytes32 ethereum signed message hash for signatures
     /// @param _sourceChain The chain where the bridge transaction was initiated from
@@ -424,6 +438,27 @@ contract RouterFacet is IRouter {
             )
         );
         return ECDSA.toEthSignedMessageHash(hashedData);
+    }
+
+    /// @notice Returns service fee for specific bridge operation by first look for a fee policy.
+    /// @param _targetChain The target chain for the bridging operation.
+    /// @param _userAddress User address subject of the fee.
+    /// @param _tokenAddress Token address subject of the fee.
+    /// @param _amount The amount of tokens to bridge.
+    /// @return Service fee for the bridge operation.
+    function feeAmountFor(
+        uint256 _targetChain,
+        address _userAddress,
+        address _tokenAddress,
+        uint256 _amount
+    ) external override view returns (uint256) {
+        return
+            LibFeeCalculator.feeAmountFor(
+                _targetChain,
+                _userAddress,
+                _tokenAddress,
+                _amount
+            );
     }
 
     modifier onlyNativeToken(address _nativeToken) {
