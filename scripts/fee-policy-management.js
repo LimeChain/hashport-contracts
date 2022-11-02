@@ -31,14 +31,14 @@ async function upgradeRouter(routerAddress) {
 
     console.log('Updating DiamondCut, please wait...');
     const router = await ethers.getContractAt('IRouterDiamond', routerAddress);
-    
+
     const diamondCut = [
         { facetAddress: ethers.constants.AddressZero, action: enumFacetCutAction.Remove, functionSelectors: ['0xb258848a'] }, // lock(uint256,address,uint256,bytes)
         { facetAddress: RouterFacet.address, action: enumFacetCutAction.Replace, functionSelectors: [RouterFacet.interface.getSighash('unlock(uint256,bytes,address,uint256,address,bytes[])')] },
         { facetAddress: RouterFacet.address, action: enumFacetCutAction.Add, functionSelectors: [RouterFacet.interface.getSighash('unlockWithFee(uint256,bytes,address,uint256,address,uint256,bytes[])')] },
         { facetAddress: RouterFacet.address, action: enumFacetCutAction.Add, functionSelectors: [RouterFacet.interface.getSighash('feeAmountFor(uint256,address,address,uint256)')] },
         { facetAddress: RouterFacet.address, action: enumFacetCutAction.Add, functionSelectors: [RouterFacet.interface.getSighash('lock(uint256,address,uint256,bytes,uint256)')] },
-        { facetAddress: RouterFacet.address, action: enumFacetCutAction.Add, functionSelectors: [RouterFacet.interface.getSighash('lockWithPermit(uint256,address,uint256,bytes,uint256,uint8,bytes32,bytes32,uint256)')] },
+        { facetAddress: RouterFacet.address, action: enumFacetCutAction.Add, functionSelectors: [RouterFacet.interface.getSighash('lockWithPermit(uint256,address,uint256,bytes,uint256,uint256,uint8,bytes32,bytes32)')] },
         { facetAddress: FeePolicyFacet.address, action: enumFacetCutAction.Add, functionSelectors: getSelectors(FeePolicyFacet) }
     ];
 

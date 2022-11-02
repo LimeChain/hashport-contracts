@@ -90,20 +90,20 @@ contract RouterFacet is IRouter {
     /// @param _nativeToken The native token to bridge
     /// @param _amount The amount of nativeToken to lock and bridge
     /// @param _deadline The deadline for the provided permit
+    /// @param _serviceFee Calculated service fee to be charged
     /// @param _v The recovery id of the permit's ECDSA signature
     /// @param _r The first output of the permit's ECDSA signature
     /// @param _s The second output of the permit's ECDSA signature
-    /// @param _serviceFee Calculated service fee to be charged
     function lockWithPermit(
         uint256 _targetChain,
         address _nativeToken,
         uint256 _amount,
         bytes memory _receiver,
         uint256 _deadline,
+        uint256 _serviceFee,
         uint8 _v,
         bytes32 _r,
-        bytes32 _s,
-        uint256 _serviceFee
+        bytes32 _s        
     ) external override {
         IERC2612Permit(_nativeToken).permit(
             msg.sender,

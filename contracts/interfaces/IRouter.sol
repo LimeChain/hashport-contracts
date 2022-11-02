@@ -73,10 +73,10 @@ interface IRouter {
         uint256 _amount,
         bytes memory _receiver,
         uint256 _deadline,
+        uint256 _serviceFee,
         uint8 _v,
         bytes32 _r,
-        bytes32 _s,
-        uint256 _serviceFee
+        bytes32 _s
     ) external;
 
     function unlock(

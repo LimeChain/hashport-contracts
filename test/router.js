@@ -845,7 +845,7 @@ describe('Router', async () => {
         const permit = await createPermit(nonMember, router.address, amount, permitDeadline, nativeToken);
         const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
 
-        await router.connect(nonMember).lockWithPermit(1, nativeToken.address, amount, receiver, permitDeadline, permit.v, permit.r, permit.s, serviceFee);
+        await router.connect(nonMember).lockWithPermit(1, nativeToken.address, amount, receiver, permitDeadline, serviceFee, permit.v, permit.r, permit.s);
 
         const tokenFeeData = await router.tokenFeeData(nativeToken.address);
         expect(tokenFeeData.feesAccrued).to.equal(serviceFee);
@@ -866,7 +866,7 @@ describe('Router', async () => {
         // then
         await expect(router
           .connect(nonMember)
-          .lockWithPermit(1, nativeToken.address, amount, receiver, permitDeadline, permit.v, permit.r, permit.s, 1))
+          .lockWithPermit(1, nativeToken.address, amount, receiver, permitDeadline, 1, permit.v, permit.r, permit.s))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
@@ -877,7 +877,7 @@ describe('Router', async () => {
         await expect(
           router
             .connect(nonMember)
-            .lockWithPermit(1, notAddedNativeToken.address, amount, receiver, permitDeadline, permit.v, permit.r, permit.s, 1))
+            .lockWithPermit(1, notAddedNativeToken.address, amount, receiver, permitDeadline, 1, permit.v, permit.r, permit.s))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
@@ -3297,7 +3297,7 @@ describe('Router', async () => {
         await feePolicyPortal.setUsersFeePolicy(instanceFlatFeePerTokenPolicy.address, [feePolicyUser_3.address]);
       });
 
-      it('should return zero for non existing token', async() => {
+      it('should return zero for non existing token', async () => {
         const feeAmountFor = await router.feeAmountFor(1, feePolicyUser_4.address, testNativeToken2.address, amount);
         expect(feeAmountFor).to.equal(0);
       });
