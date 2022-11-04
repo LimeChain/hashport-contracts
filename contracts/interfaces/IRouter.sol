@@ -135,12 +135,5 @@ interface IRouter {
         address _nativeToken,
         uint256 _serviceFee,
         bool _status
-    ) external;
-
-    function feeAmountFor(
-        uint256 _targetChain,
-        address _userAddress,
-        address _tokenAddress,
-        uint256 _amount
-    ) external view returns (uint256);
+    ) external;    
 }

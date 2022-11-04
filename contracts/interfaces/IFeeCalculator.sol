@@ -52,4 +52,11 @@ interface IFeeCalculator {
     /// @notice Sends out the reward accumulated by the member for the specified token
     /// to the member admin
     function claim(address _token, address _member) external;
+
+    function feeAmountFor(
+        uint256 _targetChain,
+        address _userAddress,
+        address _tokenAddress,
+        uint256 _amount
+    ) external view returns (uint256);
 }

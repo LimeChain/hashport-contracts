@@ -2819,10 +2819,10 @@ describe('Router', async () => {
     let testNativeToken3;
     const revertMessageOwnable = 'Ownable: caller is not the owner';
     const revertMessageNotDiamondOwner = 'LibDiamond: Must be contract owner';
-    const revertMessageZeroFeePolicyAddress = 'FeeCalculatorFacet: _feePolicyAddress must not be 0x0';
     const revertMessageZeroUserAddress = 'FeeCalculatorFacet: userAddress must not be 0x0';
 
-    beforeEach(async () => {
+    before(async () => {
+      // deploy test tokens
       const testNativeTokenFactory = await ethers.getContractFactory('Token');
 
       testNativeToken1 = await testNativeTokenFactory.deploy('NativeToken1', 'NT1', 18);
@@ -2834,11 +2834,28 @@ describe('Router', async () => {
       testNativeToken3 = await testNativeTokenFactory.deploy('NativeToken3', 'NT2', 18);
       await testNativeToken3.deployed();
 
+      // get current function selectors for RouterFacet and FeeCalculatorFacet
+      const routerFacetSelectors = await router.facetFunctionSelectors(routerFacet.address);
+      const feeCalculatorFacetSelectors = await router.facetFunctionSelectors(feeCalculatorFacet.address);
+
+      // deploy facets
+      const RouterFacetFactory = await ethers.getContractFactory('RouterFacet');
+      routerFacet = await RouterFacetFactory.deploy();
+      await routerFacet.deployed();
+
+      const FeeCalculatorFacetFactory = await ethers.getContractFactory('FeeCalculatorFacet');
+      feeCalculatorFacet = await FeeCalculatorFacetFactory.deploy();
+      await feeCalculatorFacet.deployed();
+
       const FeePolicyFacetFactory = await ethers.getContractFactory('FeePolicyFacet');
       feePolicyFacet = await FeePolicyFacetFactory.deploy();
       await feePolicyFacet.deployed();
 
       const diamondCut = [
+        { facetAddress: ethers.constants.AddressZero, action: enumFacetCutAction.Remove, functionSelectors: routerFacetSelectors },
+        { facetAddress: ethers.constants.AddressZero, action: enumFacetCutAction.Remove, functionSelectors: feeCalculatorFacetSelectors },
+        { facetAddress: routerFacet.address, action: enumFacetCutAction.Add, functionSelectors: getSelectors(routerFacet) },
+        { facetAddress: feeCalculatorFacet.address, action: enumFacetCutAction.Add, functionSelectors: getSelectors(feeCalculatorFacet) },
         { facetAddress: feePolicyFacet.address, action: enumFacetCutAction.Add, functionSelectors: getSelectors(feePolicyFacet) }
       ];
 
@@ -2847,47 +2864,54 @@ describe('Router', async () => {
       feePolicyPortal = await ethers.getContractAt('IFeePolicyFacet', router.address);
     });
 
-    it('should diamond cut successfully', async () => {
-      expect(await router.facetAddresses())
-        .to.include(routerFacet.address)
-        .to.include(pausableFacet.address)
-        .to.include(ownershipFacet.address)
-        .to.include(feeCalculatorFacet.address)
-        .to.include(cutFacet.address)
-        .to.include(loupeFacet.address)
-        .to.include(feePolicyFacet.address);
+    describe('Upgrade router', async () => {
 
-      const facets = await router.facets();
-      for (const facet of facets) {
-        switch (facet.facetAddress) {
-          case cutFacet.address:
-            expect(facet.functionSelectors).to.deep.equal(getSelectors(cutFacet));
-            break;
-          case loupeFacet.address:
-            expect(facet.functionSelectors).to.deep.equal(getSelectors(loupeFacet));
-            break;
-          case feeCalculatorFacet.address:
-            expect(facet.functionSelectors).to.deep.equal(getSelectors(feeCalculatorFacet));
-            break;
-          case governanceFacet.address:
-            expect(facet.functionSelectors).to.deep.equal(getSelectors(governanceFacet));
-            break;
-          case ownershipFacet.address:
-            expect(facet.functionSelectors).to.deep.equal(getSelectors(ownershipFacet));
-            break;
-          case pausableFacet.address:
-            expect(facet.functionSelectors).to.deep.equal(getSelectors(pausableFacet));
-            break;
-          case routerFacet.address:
-            expect(facet.functionSelectors).to.deep.equal(getSelectors(routerFacet));
-            break;
-          case feePolicyFacet.address:
-            expect(facet.functionSelectors).to.deep.equal(getSelectors(feePolicyFacet));
-            break;
-          default:
-            throw 'invalid facet address';
+      it('should successfully upgrade Router contract', async () => {
+        expect(await router.serviceFeePrecision()).to.equal(FEE_CALCULATOR_PRECISION);
+      });
+
+      it('should diamond cut successfully', async () => {
+        expect(await router.facetAddresses())
+          .to.include(routerFacet.address)
+          .to.include(pausableFacet.address)
+          .to.include(ownershipFacet.address)
+          .to.include(feeCalculatorFacet.address)
+          .to.include(cutFacet.address)
+          .to.include(loupeFacet.address)
+          .to.include(feePolicyFacet.address);
+
+        const facets = await router.facets();
+        for (const facet of facets) {
+          switch (facet.facetAddress) {
+            case cutFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(cutFacet));
+              break;
+            case loupeFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(loupeFacet));
+              break;
+            case feeCalculatorFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(feeCalculatorFacet));
+              break;
+            case governanceFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(governanceFacet));
+              break;
+            case ownershipFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(ownershipFacet));
+              break;
+            case pausableFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(pausableFacet));
+              break;
+            case routerFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(routerFacet));
+              break;
+            case feePolicyFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(feePolicyFacet));
+              break;
+            default:
+              throw 'invalid facet address';
+          }
         }
-      }
+      });
     });
 
     describe('FlatFeePolicy', async () => {
@@ -2909,12 +2933,12 @@ describe('Router', async () => {
       });
 
       describe('getFlatFee', async () => {
-        it('shoult get flat fee', async () => {
+        it('should get flat fee', async () => {
           const flatFee = await instanceFlatFeePolicy.getFlatFee();
           expect(flatFee).to.equal(initFlatFee);
         });
 
-        it('shoult get flat fee after update', async () => {
+        it('should get flat fee after update', async () => {
           await instanceFlatFeePolicy.setFlatFee(20);
           const flatFee = await instanceFlatFeePolicy.getFlatFee();
           expect(flatFee).to.equal(20);
@@ -2979,12 +3003,12 @@ describe('Router', async () => {
       });
 
       describe('getPrecision', async () => {
-        it('shoult get precision', async () => {
+        it('should get precision', async () => {
           const precision = await instancePercentageFeePolicy.getPrecision();
           expect(precision).to.equal(initPrecision);
         });
 
-        it('shoult get precision after update', async () => {
+        it('should get precision after update', async () => {
           await instancePercentageFeePolicy.setPrecision(1_000_000);
           const precision = await instancePercentageFeePolicy.getPrecision();
           expect(precision).to.equal(1_000_000);
@@ -3009,12 +3033,12 @@ describe('Router', async () => {
       });
 
       describe('getFeePercentage', async () => {
-        it('shoult get fee percentage', async () => {
+        it('should get fee percentage', async () => {
           const feePercentage = await instancePercentageFeePolicy.getFeePercentage();
           expect(feePercentage).to.equal(initFeePercentage);
         });
 
-        it('shoult get fee percentage after update', async () => {
+        it('should get fee percentage after update', async () => {
           await instancePercentageFeePolicy.setFeePercentage(20);
           const feePercentage = await instancePercentageFeePolicy.getFeePercentage();
           expect(feePercentage).to.equal(20);
@@ -3079,18 +3103,18 @@ describe('Router', async () => {
           await instanceFlatFeePerTokenPolicy.setFlatFee(testNativeToken1.address, initFlatFee);
         });
 
-        it('shoult get flat fee', async () => {
+        it('should get flat fee', async () => {
           const flatFee = await instanceFlatFeePerTokenPolicy.getFlatFee(testNativeToken1.address);
           expect(flatFee).to.equal(initFlatFee);
         });
 
-        it('shoult get flat fee after update', async () => {
+        it('should get flat fee after update', async () => {
           await instanceFlatFeePerTokenPolicy.setFlatFee(testNativeToken1.address, 20);
           const flatFee = await instanceFlatFeePerTokenPolicy.getFlatFee(testNativeToken1.address);
           expect(flatFee).to.equal(20);
         });
 
-        it('shoult get flat fee zero for non existing token', async () => {
+        it('should get flat fee zero for non existing token', async () => {
           const flatFee = await instanceFlatFeePerTokenPolicy.getFlatFee(testNativeToken2.address);
           expect(flatFee).to.equal(0);
         });
@@ -3185,10 +3209,6 @@ describe('Router', async () => {
         await expect(feePolicyPortal.connect(nonMember).setUsersFeePolicy(instanceFlatFeePolicy.address, [feePolicyUser_2.address])).to.be.revertedWith(revertMessageNotDiamondOwner);
       });
 
-      it('should revert when executing with zero fee policy address', async () => {
-        await expect(feePolicyPortal.setUsersFeePolicy('0x0000000000000000000000000000000000000000', [feePolicyUser_2.address])).to.be.revertedWith(revertMessageZeroFeePolicyAddress);
-      });
-
       it('should revert when executing with zero user address', async () => {
         await expect(feePolicyPortal.setUsersFeePolicy(instanceFlatFeePolicy.address, ['0x0000000000000000000000000000000000000000'])).to.be.revertedWith(revertMessageZeroUserAddress);
         await expect(feePolicyPortal.setUsersFeePolicy(instanceFlatFeePolicy.address, ['0x0000000000000000000000000000000000000000', feePolicyUser_2.address])).to.be.revertedWith(revertMessageZeroUserAddress);
@@ -3199,31 +3219,9 @@ describe('Router', async () => {
         expect(await feePolicyPortal.getUsersFeePolicyAddress(feePolicyUser_2.address)).to.equal(instanceFlatFeePolicy.address);
         expect(await feePolicyPortal.getUsersFeePolicyAddress(feePolicyUser_3.address)).to.equal('0x0000000000000000000000000000000000000000');
       });
-    });
-
-    describe('removeUsersFeePolicy', async () => {
-      let instanceFlatFeePolicy;
-
-      beforeEach(async () => {
-        const testFlatFeePolicyFactory = await ethers.getContractFactory('FlatFeePolicy');
-
-        instanceFlatFeePolicy = await testFlatFeePolicyFactory.deploy(100);
-        await instanceFlatFeePolicy.deployed();
-
-        await feePolicyPortal.setUsersFeePolicy(instanceFlatFeePolicy.address, [feePolicyUser_1.address, feePolicyUser_2.address]);
-      });
-
-      it('should revert when executing with not router', async () => {
-        await expect(feePolicyPortal.connect(nonMember).removeUsersFeePolicy([feePolicyUser_2.address])).to.be.revertedWith(revertMessageNotDiamondOwner);
-      });
-
-      it('should revert when executing with zero user address', async () => {
-        await expect(feePolicyPortal.removeUsersFeePolicy(['0x0000000000000000000000000000000000000000'])).to.be.revertedWith(revertMessageZeroUserAddress);
-        await expect(feePolicyPortal.removeUsersFeePolicy(['0x0000000000000000000000000000000000000000', feePolicyUser_2.address])).to.be.revertedWith(revertMessageZeroUserAddress);
-      });
 
       it('should remove users from fee policy', async () => {
-        await feePolicyPortal.removeUsersFeePolicy([feePolicyUser_3.address]);
+        await feePolicyPortal.setUsersFeePolicy(ethers.constants.AddressZero, [feePolicyUser_3.address]);
 
         expect(await feePolicyPortal.getUsersFeePolicyAddress(feePolicyUser_1.address)).to.equal(instanceFlatFeePolicy.address);
         expect(await feePolicyPortal.getUsersFeePolicyAddress(feePolicyUser_2.address)).to.equal(instanceFlatFeePolicy.address);
@@ -3310,7 +3308,7 @@ describe('Router', async () => {
         expect(feeAmountFor).to.equal(serviceFee);
       });
 
-      it('shoult return flat fee policy', async () => {
+      it('should return flat fee policy', async () => {
         await testNativeToken1.mint(feePolicyUser_1.address, amount);
         await testNativeToken1.connect(feePolicyUser_1).approve(router.address, amount);
 

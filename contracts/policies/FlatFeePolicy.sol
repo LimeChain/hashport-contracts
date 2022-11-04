@@ -27,17 +27,13 @@ contract FlatFeePolicy is IFeePolicy, Ownable {
 
     /// @notice Returns the current flat fee.
     /// @dev This method is implemenation of IFeePolicy.feeAmountFor.
-    /// @param _targetChain This parameter is ignored for the current implementation.
-    /// @param _userAddress This parameter is ignored for the current implementation.
-    /// @param _tokenAddress This parameter is ignored for the current implementation.
-    /// @param _amount This parameter is ignored for the current implementation.
     /// @return feeAmount Value of the fee. For the current implementation - the value is flatFee.
     /// @return exist Flag describing if fee amount is calculated. For the current implementation - it is always true.
     function feeAmountFor(
-        uint256 _targetChain,
-        address _userAddress,
-        address _tokenAddress,
-        uint256 _amount
+        uint256,
+        address,
+        address,
+        uint256
     ) external view override returns (uint256 feeAmount, bool exist) {
         return (flatFee, true);
     }

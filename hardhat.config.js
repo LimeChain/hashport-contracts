@@ -266,11 +266,13 @@ task('transfer-ownership', 'Transfers ownership of the given contract')
 
 task('fee-policy-upgrade-router', 'Updates router to support fee policy logic')
     .addParam('router', 'The address of the router contract')
+    .addParam('routerFacet', 'The address of the RouterFacet contract')
+    .addParam('feeCalculatorFacet', 'The address of the FeeCalculatorFacet contract')
     .setAction(async (taskArgs) => {
         console.log(taskArgs);
         const { upgradeRouter } = require('./scripts/fee-policy-management');
 
-        await upgradeRouter(taskArgs.router);
+        await upgradeRouter(taskArgs.router, taskArgs.routerFacet, taskArgs.feeCalculatorFacet);
     });
 
 task('fee-policy-deploy-flat-fee', 'Deploys flat fee policy contract')

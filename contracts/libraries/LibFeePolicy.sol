@@ -16,7 +16,7 @@ library LibFeePolicy {
         }
     }
 
-    /// @notice Adds array of user address to IFeePolicy
+    /// @notice Sets fee policy for a given address
     /// @param _feePolicyAddress Address of IFeePolicy
     /// @param _userAddress User address to be added to the policy
     function setUserFeePolicy(address _feePolicyAddress, address _userAddress)

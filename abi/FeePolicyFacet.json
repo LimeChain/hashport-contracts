@@ -21,19 +21,6 @@
   {
     "inputs": [
       {
-        "internalType": "address[]",
-        "name": "_userAddresses",
-        "type": "address[]"
-      }
-    ],
-    "name": "removeUsersFeePolicy",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "address",
         "name": "_feePolicyAddress",
         "type": "address"

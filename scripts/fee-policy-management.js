@@ -9,37 +9,39 @@ const enumFacetCutAction = {
     Remove: 2
 }
 
-async function deployedFacet(facetName) {
-    const facetFactory = await ethers.getContractFactory(facetName);
-    facet = await facetFactory.deploy();
-    console.log(`Deploying ${facetName}, please wait...`);
-    await facet.deployed();
-
-    return facet;
-}
-
-async function upgradeRouter(routerAddress) {
+async function upgradeRouter(routerAddress, routerFacetAddress, feeCalculatorFacetAddress) {
     await hardhat.run('compile');
 
-    console.log(`Router at [${routerAddress}] is being upgraded with FeePolicyFacet`);
+    console.log(`Router at [${routerAddress}] is being upgraded with FeePolicyFacet(new), RouterFacet(replace), FeeCalculatorFacet(replace)`);
 
-    const RouterFacet = await deployedFacet('RouterFacet'); // Replace
-    const FeePolicyFacet = await deployedFacet('FeePolicyFacet'); // Add
-
-    console.log('RouterFacet address: ', RouterFacet.address);
-    console.log('FeePolicyFacet address: ', FeePolicyFacet.address);
-
-    console.log('Updating DiamondCut, please wait...');
     const router = await ethers.getContractAt('IRouterDiamond', routerAddress);
 
+    const routerFacetSelectors = await router.facetFunctionSelectors(routerFacetAddress);
+    const feeCalculatorFacetSelectors = await router.facetFunctionSelectors(feeCalculatorFacetAddress);
+
+    // deploy facets
+    const RouterFacetFactory = await ethers.getContractFactory('RouterFacet');
+    const routerFacet = await RouterFacetFactory.deploy();
+    await routerFacet.deployed();
+
+    const FeeCalculatorFacetFactory = await ethers.getContractFactory('FeeCalculatorFacet');
+    const feeCalculatorFacet = await FeeCalculatorFacetFactory.deploy();
+    await feeCalculatorFacet.deployed();
+
+    const FeePolicyFacetFactory = await ethers.getContractFactory('FeePolicyFacet');
+    const feePolicyFacet = await FeePolicyFacetFactory.deploy();
+    await feePolicyFacet.deployed();
+
+    console.log('RouterFacet address: ', routerFacet.address);
+    console.log('FeeCalculatorFacet address: ', feeCalculatorFacet.address);
+    console.log('FeePolicyFacet address: ', feePolicyFacet.address);
+
     const diamondCut = [
-        { facetAddress: ethers.constants.AddressZero, action: enumFacetCutAction.Remove, functionSelectors: ['0xb258848a'] }, // lock(uint256,address,uint256,bytes)
-        { facetAddress: RouterFacet.address, action: enumFacetCutAction.Replace, functionSelectors: [RouterFacet.interface.getSighash('unlock(uint256,bytes,address,uint256,address,bytes[])')] },
-        { facetAddress: RouterFacet.address, action: enumFacetCutAction.Add, functionSelectors: [RouterFacet.interface.getSighash('unlockWithFee(uint256,bytes,address,uint256,address,uint256,bytes[])')] },
-        { facetAddress: RouterFacet.address, action: enumFacetCutAction.Add, functionSelectors: [RouterFacet.interface.getSighash('feeAmountFor(uint256,address,address,uint256)')] },
-        { facetAddress: RouterFacet.address, action: enumFacetCutAction.Add, functionSelectors: [RouterFacet.interface.getSighash('lock(uint256,address,uint256,bytes,uint256)')] },
-        { facetAddress: RouterFacet.address, action: enumFacetCutAction.Add, functionSelectors: [RouterFacet.interface.getSighash('lockWithPermit(uint256,address,uint256,bytes,uint256,uint256,uint8,bytes32,bytes32)')] },
-        { facetAddress: FeePolicyFacet.address, action: enumFacetCutAction.Add, functionSelectors: getSelectors(FeePolicyFacet) }
+        { facetAddress: ethers.constants.AddressZero, action: enumFacetCutAction.Remove, functionSelectors: routerFacetSelectors },
+        { facetAddress: ethers.constants.AddressZero, action: enumFacetCutAction.Remove, functionSelectors: feeCalculatorFacetSelectors },
+        { facetAddress: routerFacet.address, action: enumFacetCutAction.Add, functionSelectors: getSelectors(routerFacet) },
+        { facetAddress: feeCalculatorFacet.address, action: enumFacetCutAction.Add, functionSelectors: getSelectors(feeCalculatorFacet) },
+        { facetAddress: feePolicyFacet.address, action: enumFacetCutAction.Add, functionSelectors: getSelectors(feePolicyFacet) }
     ];
 
     const diamondCutTx = await router.diamondCut(diamondCut, ethers.constants.AddressZero, "0x");
@@ -47,8 +49,9 @@ async function upgradeRouter(routerAddress) {
     await diamondCutTx.wait();
 
     console.log('Verification, please wait...');
-    await hardhat.run('verify:verify', { address: RouterFacet.address, constructorArguments: [] });
-    await hardhat.run('verify:verify', { address: FeePolicyFacet.address, constructorArguments: [] });
+    await hardhat.run('verify:verify', { address: routerFacet.address, constructorArguments: [] });
+    await hardhat.run('verify:verify', { address: feeCalculatorFacet.address, constructorArguments: [] });
+    await hardhat.run('verify:verify', { address: feePolicyFacet.address, constructorArguments: [] });
 }
 
 async function deployFlatFeePolicy(flatFee) {
@@ -180,7 +183,7 @@ async function removeUsersFeePolicy(routerAddress, userAddresses) {
 
     const router = await ethers.getContractAt('FeePolicyFacet', routerAddress);
 
-    const tx = await router.removeUsersFeePolicy(userAddresses);
+    const tx = await router.setUsersFeePolicy(ethers.constants.AddressZero, userAddresses);
     console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
     console.log(`Finished with success`);
 }

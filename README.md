@@ -319,11 +319,16 @@ npx hardhat transfer-ownership \
 ```
 
 ### Upgrade router to support fee policy logic
-Upgrade router with FeePolicyFacet with methods to handle fee policies
+* Upgrade router to support fee policies. 
+* Adds new facet `FeePolicyFacet`
+* Replace existing facet `RouterFacet`
+* Replace existing facet `FeeCalculatorFacet`
 ```bash
 npx hardhat fee-policy-upgrade-router \
     --network <network name> \
-    --router <address of the Router Diamond contract>
+    --router <address of the Router Diamond contract> \
+    --router-facet <address of the RouterFacet contract> \
+    --fee-calculator-facet <address of the FeeCalculatorFacet contract>
 ```
 
 ### Deploy FlatFeePolicy instance
