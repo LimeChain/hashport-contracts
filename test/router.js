@@ -1058,10 +1058,9 @@ describe('Router', async () => {
       });
 
       it('should execute unlock with service fee', async () => {
-        const tetLargeCalculatedFee = ethers.utils.parseEther('50');
-        const expectedFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+        const calculatedFee = ethers.utils.parseEther('50');
 
-        const encodeData = ethers.utils.defaultAbiCoder.encode(['uint256', 'uint256', 'bytes', 'address', 'address', 'uint256', 'uint256'], [1, chainId, transactionId, nativeToken.address, receiver, amount, tetLargeCalculatedFee]);
+        const encodeData = ethers.utils.defaultAbiCoder.encode(['uint256', 'uint256', 'bytes', 'address', 'address', 'uint256', 'uint256'], [1, chainId, transactionId, nativeToken.address, receiver, amount, calculatedFee]);
         const hashMsg = ethers.utils.keccak256(encodeData);
         const _hashData = ethers.utils.arrayify(hashMsg);
 
@@ -1071,15 +1070,15 @@ describe('Router', async () => {
 
         await router
           .connect(nonMember)
-          .unlockWithFee(1, transactionId, nativeToken.address, amount, receiver, tetLargeCalculatedFee, [_aliceSignature, _bobSignature, _carolSignature]);
+          .unlockWithFee(1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [_aliceSignature, _bobSignature, _carolSignature]);
 
         const balanceOfReceiver = await nativeToken.balanceOf(receiver);
-        expect(balanceOfReceiver).to.equal(amount.sub(expectedFee));
+        expect(balanceOfReceiver).to.equal(amount.sub(calculatedFee));
 
         expect(await router.hashesUsed(ethers.utils.hashMessage(_hashData))).to.be.true;
 
         const tokenFeeData = await router.tokenFeeData(nativeToken.address);
-        expect(tokenFeeData.feesAccrued).to.equal(expectedFee);
+        expect(tokenFeeData.feesAccrued).to.equal(calculatedFee);
       });
 
       it('should execute unlock with service fee if calculated fee is zero', async () => {

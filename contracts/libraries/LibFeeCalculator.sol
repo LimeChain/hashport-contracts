@@ -142,12 +142,10 @@ library LibFeeCalculator {
     /// @notice Distributes service fee for given token with already calculated fee.
     /// @dev Usual execution of the method is unlock operation from the validators.
     /// @param _token The target token
-    /// @param _amount The amount to which the service fee will be calculated
     /// @param _serviceFee The calculated fee
     /// @return serviceFee The calculated service fee
     function distributeRewardsWithFee(
         address _token,
-        uint256 _amount,
         uint256 _serviceFee
     ) internal returns (uint256) {
         LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();

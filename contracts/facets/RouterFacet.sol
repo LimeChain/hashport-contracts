@@ -78,7 +78,6 @@ contract RouterFacet is IRouter {
 
         serviceFee = LibFeeCalculator.distributeRewardsWithFee(
             _nativeToken,
-            _amount,
             _serviceFee
         );
 
@@ -210,7 +209,6 @@ contract RouterFacet is IRouter {
 
         uint256 serviceFee = LibFeeCalculator.distributeRewardsWithFee(
             _nativeToken,
-            _amount,
             _serviceFee
         );
 
