@@ -140,33 +140,22 @@ library LibFeeCalculator {
     }
 
     /// @notice Distributes service fee for given token with already calculated fee.
-    ///         In order to be applied - the calculated fee should be less than the standart service fee.
     /// @dev Usual execution of the method is unlock operation from the validators.
     /// @param _token The target token
     /// @param _amount The amount to which the service fee will be calculated
-    /// @param _calculatedFee The calculated fee
+    /// @param _serviceFee The calculated fee
     /// @return serviceFee The calculated service fee
     function distributeRewardsWithFee(
         address _token,
         uint256 _amount,
-        uint256 _calculatedFee
+        uint256 _serviceFee
     ) internal returns (uint256) {
         LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
         FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[_token];
 
-        uint256 serviceFee = calcServiceFee(
-            _amount,
-            fc.serviceFeePercentage,
-            fcs.precision
-        );
+        fc.feesAccrued = fc.feesAccrued + _serviceFee;
 
-        if (_calculatedFee < serviceFee) {
-            serviceFee = _calculatedFee;
-        }
-
-        fc.feesAccrued = fc.feesAccrued + serviceFee;
-
-        return serviceFee;
+        return _serviceFee;
     }
 
     /// @notice Calculates a service fee value based on input parameters

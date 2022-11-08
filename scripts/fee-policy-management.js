@@ -45,8 +45,8 @@ async function upgradeRouter(routerAddress, routerFacetAddress, feeCalculatorFac
     ];
 
     const diamondCutTx = await router.diamondCut(diamondCut, ethers.constants.AddressZero, "0x");
-    console.log(`Diamond Cut Replace with GovernanceV2Facet [${diamondCutTx.hash}] submitted, waiting to be mined...`);
-    await diamondCutTx.wait();
+    console.log(`Diamond Cut Upgrade [${diamondCutTx.hash}] submitted, waiting to be mined...`);
+    await diamondCutTx.wait(10); // Wait 10 blocks before verification in case Etherscan nodes do not have the contract bytecode yet.
 
     console.log('Verification, please wait...');
     await hardhat.run('verify:verify', { address: routerFacet.address, constructorArguments: [] });
