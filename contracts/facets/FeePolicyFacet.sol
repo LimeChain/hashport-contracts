@@ -20,7 +20,7 @@ contract FeePolicyFacet is IFeePolicyFacet {
         for (uint256 i = 0; i < _userAddresses.length; i++) {
             require(
                 _userAddresses[i] != address(0),
-                "FeeCalculatorFacet: userAddress must not be 0x0"
+                "FeePolicyFacet: userAddress must not be 0x0"
             );
 
             LibFeePolicy.setUserFeePolicy(_feePolicyAddress, _userAddresses[i]);
@@ -31,13 +31,12 @@ contract FeePolicyFacet is IFeePolicyFacet {
     /// @dev Used for test purposes
     /// @param _userAddress Address of the user
     /// @return Address for the IFeePolicy
-    function getUsersFeePolicyAddress(address _userAddress)
+    function userFeePolicyAddress(address _userAddress)
         external
         view
         override
         returns (address)
     {
-        LibDiamond.enforceIsContractOwner();
         LibFeePolicy.Storage storage _feePolicyStorage = LibFeePolicy
             .feePolicyStorage();
 

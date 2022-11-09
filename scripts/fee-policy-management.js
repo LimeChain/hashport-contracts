@@ -62,8 +62,11 @@ async function deployFlatFeePolicy(flatFee) {
     const FlatFeePolicy = await FlatFeePolicyFactory.deploy(flatFee);
     console.log('Deploying FlatFeePolicy, please wait...');
 
-    await FlatFeePolicy.deployed();
+    const tx = await FlatFeePolicy.deployed();    
     console.log('FlatFeePolicy address: ', FlatFeePolicy.address);
+    
+    console.log(`FlatFeePolicy deployment transaction [${tx.deployTransaction.hash}] submitted, waiting to be mined...`);
+    await tx.deployTransaction.wait(10);
 
     console.log('Verification, please wait...');
 
@@ -92,8 +95,11 @@ async function deployPercentageFeePolicy(precision, feePercentage) {
     const PercentageFeePolicy = await PercentageFeePolicyFactory.deploy(precision, feePercentage);
     console.log('Deploying PercentageFeePolicy, please wait...');
 
-    await PercentageFeePolicy.deployed();
+    const tx = await PercentageFeePolicy.deployed();
     console.log('PercentageFeePolicy address: ', PercentageFeePolicy.address);
+    
+    console.log(`PercentageFeePolicy deployment transaction [${tx.deployTransaction.hash}] submitted, waiting to be mined...`);
+    await tx.deployTransaction.wait(10);
 
     console.log('Verification, please wait...');
 
@@ -131,14 +137,17 @@ async function deployFlatFeePerTokenPolicy() {
     const FlatFeePerTokenPolicy = await FlatFeePerTokenPolicyFactory.deploy();
     console.log('Deploying FlatFeePerTokenPolicy, please wait...');
 
-    await FlatFeePerTokenPolicy.deployed();
+    const tx = await FlatFeePerTokenPolicy.deployed();
     console.log('FlatFeePerTokenPolicy address: ', FlatFeePerTokenPolicy.address);
+    
+    console.log(`FlatFeePerTokenPolicy deployment transaction [${tx.deployTransaction.hash}] submitted, waiting to be mined...`);
+    await tx.deployTransaction.wait(10);
 
     console.log('Verification, please wait...');
 
     await hardhat.run('verify:verify', {
         address: FlatFeePerTokenPolicy.address,
-        constructorArguments: [flatFee]
+        constructorArguments: []
     });
 }
 
