@@ -21,6 +21,6 @@
         "ethers": "^5.4.4",
         "hardhat": "^2.1.6",
         "hardhat-gas-reporter": "^1.0.4",
-        "solidity-coverage": "^0.7.16"
+        "solidity-coverage": "^0.7.18"
     }
 }
