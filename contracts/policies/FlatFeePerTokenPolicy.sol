@@ -4,18 +4,15 @@ pragma solidity 0.8.3;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interfaces/IFeePolicy.sol";
 
+/// @notice Fee policy with specific flat fee per tokens.
 contract FlatFeePerTokenPolicy is IFeePolicy, Ownable {
-    // tokenAddress => flatFee
-    mapping(address => uint256) pairs;
+    /// @notice Describes link beetween token to flat fee value.
+    /// @dev tokenAddress => flatFee
+    mapping(address => uint256) public tokenFees;
 
-    // tokenAddress => bool
-    mapping(address => bool) exists;
-
-    /// @notice Gets current flat fee value for token.
-    /// @param _tokenAddress Token address subject of the fee.
-    function getFlatFee(address _tokenAddress) external view returns (uint256) {
-        return pairs[_tokenAddress];
-    }
+    /// @notice Describes if a flat fee is set for specific token.
+    /// @dev tokenAddress => bool
+    mapping(address => bool) public exists;
 
     /// @notice Sets current flat fee value for token.
     /// @param _tokenAddress Token address subject of the fee.
@@ -26,9 +23,11 @@ contract FlatFeePerTokenPolicy is IFeePolicy, Ownable {
         require(_tokenAddress != address(0), "Token address must not be 0x0");
 
         exists[_tokenAddress] = true;
-        pairs[_tokenAddress] = _flatFee;
+        tokenFees[_tokenAddress] = _flatFee;
     }
 
+    /// @notice Removes token from this policy.
+    /// @param _tokenAddress Token address to be removed.
     function removeFlatFee(address _tokenAddress) external onlyOwner {
         require(_tokenAddress != address(0), "Token address must not be 0x0");
 
@@ -36,7 +35,7 @@ contract FlatFeePerTokenPolicy is IFeePolicy, Ownable {
     }
 
     /// @notice Returns the current flat fee.
-    /// @dev This method is implemenation of IFeePolicy.feeAmountFor.
+    /// @dev This method is implemenation of IFeePolicy.feeAmountFor(uint256,address,address,uint256).
     /// @param _tokenAddress Token address subject of the fee.
     /// @return feeAmount Value of the fee. For the current implementation - the value is flatFee.
     /// @return exist Flag describing if fee amount is calculated.
@@ -47,7 +46,7 @@ contract FlatFeePerTokenPolicy is IFeePolicy, Ownable {
         uint256
     ) external view override returns (uint256 feeAmount, bool exist) {
         if (exists[_tokenAddress]) {
-            return (pairs[_tokenAddress], true);
+            return (tokenFees[_tokenAddress], true);
         }
 
         return (0, false);

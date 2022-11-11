@@ -74,7 +74,7 @@ library LibFeeCalculator {
         return claimableAmount;
     }
 
-    /// @notice Returns service fee for specific bridge operation by first look for a fee policy.
+    /// @notice Returns service fee for specific bridge operation by first looking for a fee policy.
     /// @param _targetChain The target chain for the bridging operation.
     /// @param _userAddress User address subject of the fee.
     /// @param _tokenAddress Token address subject of the fee.
@@ -89,10 +89,8 @@ library LibFeeCalculator {
         uint256 serviceFee = 0;
         bool policyExists = false;
 
-        address userFeePolicyAddress = LibFeePolicy.feePolicyStoreAddress(
-            _userAddress
-        );
- 
+        address userFeePolicyAddress = LibFeePolicy.userFeePolicy(_userAddress);
+
         if (userFeePolicyAddress != address(0)) {
             (serviceFee, policyExists) = IFeePolicy(userFeePolicyAddress)
                 .feeAmountFor(
@@ -144,10 +142,10 @@ library LibFeeCalculator {
     /// @param _token The target token
     /// @param _serviceFee The calculated fee
     /// @return serviceFee The calculated service fee
-    function distributeRewardsWithFee(
-        address _token,
-        uint256 _serviceFee
-    ) internal returns (uint256) {
+    function distributeRewardsWithFee(address _token, uint256 _serviceFee)
+        internal
+        returns (uint256)
+    {
         LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
         FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[_token];
 

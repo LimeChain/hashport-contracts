@@ -6,7 +6,7 @@ library LibFeePolicy {
 
     struct Storage {
         // userAddress => storeAddress
-        mapping(address => address) userStoreAddresses;
+        mapping(address => address) userFeePolicies;
     }
 
     function feePolicyStorage() internal pure returns (Storage storage ds) {
@@ -24,19 +24,19 @@ library LibFeePolicy {
     {
         LibFeePolicy.Storage storage fps = feePolicyStorage();
 
-        fps.userStoreAddresses[_userAddress] = _feePolicyAddress;
+        fps.userFeePolicies[_userAddress] = _feePolicyAddress;
     }
 
     /// @notice Gets address of IFeePolicy by user address
     /// @param _userAddress Address of the user
     /// @return Address for the IFeePolicy
-    function feePolicyStoreAddress(address _userAddress)
+    function userFeePolicy(address _userAddress)
         internal
         view
         returns (address)
     {
         LibFeePolicy.Storage storage fps = feePolicyStorage();
 
-        return fps.userStoreAddresses[_userAddress];
+        return fps.userFeePolicies[_userAddress];
     }
 }

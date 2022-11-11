@@ -6,9 +6,10 @@ import "../libraries/LibDiamond.sol";
 import "../libraries/LibFeeCalculator.sol";
 import "../libraries/LibFeePolicy.sol";
 
+/// @notice Management of fee policies per user.
 contract FeePolicyFacet is IFeePolicyFacet {
     /// @notice Sets or remove IFeePolicy link with user addresses.
-    /// @dev To remove IFeePolicy from user users - pass _feePolicyAddress as zero addres.
+    /// @dev To remove IFeePolicy from user - pass _feePolicyAddress as zero address.
     /// @param _feePolicyAddress Address of IFeePolicy.
     /// @param _userAddresses Array of user addresses to be added to the policy.
     function setUsersFeePolicy(
@@ -31,15 +32,12 @@ contract FeePolicyFacet is IFeePolicyFacet {
     /// @dev Used for test purposes
     /// @param _userAddress Address of the user
     /// @return Address for the IFeePolicy
-    function userFeePolicyAddress(address _userAddress)
+    function userFeePolicy(address _userAddress)
         external
         view
         override
         returns (address)
     {
-        LibFeePolicy.Storage storage _feePolicyStorage = LibFeePolicy
-            .feePolicyStorage();
-
-        return _feePolicyStorage.userStoreAddresses[_userAddress];
+        return LibFeePolicy.userFeePolicy(_userAddress);
     }
 }

@@ -102,7 +102,7 @@ contract RouterFacet is IRouter {
         uint256 _serviceFee,
         uint8 _v,
         bytes32 _r,
-        bytes32 _s        
+        bytes32 _s
     ) external override {
         IERC2612Permit(_nativeToken).permit(
             msg.sender,
@@ -436,7 +436,7 @@ contract RouterFacet is IRouter {
             )
         );
         return ECDSA.toEthSignedMessageHash(hashedData);
-    }    
+    }
 
     modifier onlyNativeToken(address _nativeToken) {
         require(

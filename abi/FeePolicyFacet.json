@@ -25,7 +25,7 @@
         "type": "address"
       }
     ],
-    "name": "userFeePolicyAddress",
+    "name": "userFeePolicy",
     "outputs": [
       {
         "internalType": "address",

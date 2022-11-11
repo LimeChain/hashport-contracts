@@ -135,5 +135,5 @@ interface IRouter {
         address _nativeToken,
         uint256 _serviceFee,
         bool _status
-    ) external;    
+    ) external;
 }

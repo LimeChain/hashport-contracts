@@ -102,7 +102,7 @@ contract FeeCalculatorFacet is IFeeCalculator {
         emit Claim(_member, memberAdmin, _token, claimableAmount);
     }
 
-    /// @notice Returns service fee for specific bridge operation by first look for a fee policy.
+    /// @notice Returns service fee for specific bridge operation by first looking for a fee policy.
     /// @param _targetChain The target chain for the bridging operation.
     /// @param _userAddress User address subject of the fee.
     /// @param _tokenAddress Token address subject of the fee.
