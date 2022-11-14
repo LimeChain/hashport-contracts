@@ -4,8 +4,8 @@ pragma solidity 0.8.3;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interfaces/IFeePolicy.sol";
 
-/// @notice Fee policy with specific percentage fee without other restricctions.
-/// @dev In order to perform correct perentage calculataions - this contract needs percentage precision.
+/// @notice Fee policy with specific percentage fee without other restrictions.
+/// @dev In order to perform correct percentage calculations - this contract needs percentage precision.
 contract PercentageFeePolicy is IFeePolicy, Ownable {
     /// @notice Precision needed for correct math calculations.
     uint256 public precision;
@@ -40,9 +40,9 @@ contract PercentageFeePolicy is IFeePolicy, Ownable {
     }
 
     /// @notice Calculates the fee amount.
-    /// @dev This method is implemenation of IFeePolicy.feeAmountFor(uint256,address,address,uint256).
+    /// @dev This method is implementation of IFeePolicy.feeAmountFor(uint256,address,address,uint256).
     /// @param _amount The amount to which the service fee will be calculated.
-    /// @return feeAmount Calcualated value of the fee.
+    /// @return feeAmount Calculated value of the fee.
     /// @return exist Flag describing if fee amount is calculated. For the current implementation - it is always true.
     function feeAmountFor(
         uint256,

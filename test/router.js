@@ -3698,16 +3698,14 @@ describe('Router', async () => {
         { facetAddress: replaceFacet.address, action: 1, functionSelectors: getSelectors(replaceFacet) }
       ];
 
-      await router.diamondCut(diamondCut, ethers.constants.AddressZero, '0x');
-
+      await expect(router.diamondCut(diamondCut, ethers.constants.AddressZero, '0x')).to.not.be.reverted;
       const replace = await diamondAsFacet(diamond, 'ReplaceFacet');
-      await expect(await replaceFacet.owner()).to.emit(replaceFacet, expectedEvent);
+      await expect(replace.owner()).to.emit(replace, expectedEvent);
 
       const result = await (await owner.sendTransaction(await router.populateTransaction.owner())).wait();
       expect(result.logs[0].topics[0]).to.equal(expectedEventSig);
 
-      // const ownerAddress = await replace.owner();
-      // expect(ownerAddress).to.equal(router.address);
+      expect(await router.owner()).to.equal(router.address);
     });
 
     it('should not execute diamond cut when caller is not owner', async () => {

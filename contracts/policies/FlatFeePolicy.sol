@@ -4,7 +4,7 @@ pragma solidity 0.8.3;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interfaces/IFeePolicy.sol";
 
-/// @notice Fee policy with specific flat fee without other restricctions.
+/// @notice Fee policy with specific flat fee without other restrictions.
 contract FlatFeePolicy is IFeePolicy, Ownable {
     /// @notice The flat fee of the policy
     uint256 public flatFee;
@@ -25,7 +25,7 @@ contract FlatFeePolicy is IFeePolicy, Ownable {
     }
 
     /// @notice Returns the current flat fee.
-    /// @dev This method is implemenation of IFeePolicy.feeAmountFor(uint256,address,address,uint256).
+    /// @dev This method is implementation of IFeePolicy.feeAmountFor(uint256,address,address,uint256).
     /// @return feeAmount Value of the fee. For the current implementation - the value is flatFee.
     /// @return exist Flag describing if fee amount is calculated. For the current implementation - it is always true.
     function feeAmountFor(

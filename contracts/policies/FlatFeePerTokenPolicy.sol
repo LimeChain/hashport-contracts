@@ -6,7 +6,7 @@ import "../interfaces/IFeePolicy.sol";
 
 /// @notice Fee policy with specific flat fee per tokens.
 contract FlatFeePerTokenPolicy is IFeePolicy, Ownable {
-    /// @notice Describes link beetween token to flat fee value.
+    /// @notice Describes link between token to flat fee value.
     /// @dev tokenAddress => flatFee
     mapping(address => uint256) public tokenFees;
 
@@ -35,7 +35,7 @@ contract FlatFeePerTokenPolicy is IFeePolicy, Ownable {
     }
 
     /// @notice Returns the current flat fee.
-    /// @dev This method is implemenation of IFeePolicy.feeAmountFor(uint256,address,address,uint256).
+    /// @dev This method is implementation of IFeePolicy.feeAmountFor(uint256,address,address,uint256).
     /// @param _tokenAddress Token address subject of the fee.
     /// @return feeAmount Value of the fee. For the current implementation - the value is flatFee.
     /// @return exist Flag describing if fee amount is calculated.
