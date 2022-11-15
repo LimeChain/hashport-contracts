@@ -318,6 +318,89 @@ npx hardhat transfer-ownership \
     --new-owner <address of the new owner>
 ```
 
+### Upgrade router to support fee policy logic
+* Upgrade router to support fee policies. 
+* Adds new facet `FeePolicyFacet`
+* Replace existing facet `RouterFacet`
+* Replace existing facet `FeeCalculatorFacet`
+```bash
+npx hardhat fee-policy-upgrade-router \
+    --network <network name> \
+    --router <address of the Router Diamond contract> \
+    --router-facet <address of the RouterFacet contract> \
+    --fee-calculator-facet <address of the FeeCalculatorFacet contract>
+```
+
+### Deploy FlatFeePolicy instance
+Deploys a new instance of FlatFeePolicy contract
+```bash
+npx hardhat fee-policy-deploy-flat-fee
+    --flatFee <flat fee value>
+```
+
+### Update flat fee value of FlatFeePolicy instance
+Updates the value of flat fee of FlatFeePolicy contract
+```bash
+npx hardhat fee-policy-update-flat-fee
+    --feePolicy <fee policy address>
+    --flatFee <flat fee value>
+```
+
+### Deploy PercentageFeePolicy instance
+Deploys a new instance of PercentageFeePolicy contract
+```bash
+npx hardhat fee-policy-deploy-percentage-fee
+    --precision <precision value used in percentage calculations>
+    --feePercentage <fee percentage value>
+```
+
+### Update precision and percentage fee value of PercentageFeePolicy instance
+Updates the value of flat fee of PercentageFeePolicy contract
+```bash
+npx hardhat fee-policy-update-percentage-fee
+    --feePolicy <fee policy address>
+    --precision <precision value used in percentage calculations>
+    --feePercentage <fee percentage value>
+```
+
+### Deploy FlatFeePerTokenPolicy instance
+Deploys a new instance of FlatFeePerTokenPolicy contract
+```bash
+npx hardhat fee-policy-deploy-flat-fee-per-token
+```
+
+### Update token flat fee of FlatFeePerTokenPolicy instance
+Updates the value of flat fee for specific token in FlatFeePerTokenPolicy contract
+```bash
+fee-policy-update-flat-fee-per-token
+    --token <token address>
+    --flatFee <flat fee value>
+```
+
+### Remove token flat fee from FlatFeePerTokenPolicy instance
+Removes specific token from FlatFeePerTokenPolicy contract
+```bash
+fee-policy-remove-flat-fee-per-token
+    --token <token address>
+```
+
+### Set user address to fee policy
+Sets user addresses to use specific policy
+```bash
+npx hardhat fee-policy-set-users-to-policy
+    --router <address of the Router Diamond contract>
+    --feePolicy <fee policy address>
+    --addresses <user addresses separated by comma (",")>
+```
+
+### Remove user addresses from fee policy
+Removes user addresses from policy
+```bash
+npx hardhat fee-policy-remove-users-from-policy
+    --router <address of the Router Diamond contract>
+    --addresses <user addresses separated by comma (",")>
+```
+
 ### Tests
 #### Unit Tests
 ```bash

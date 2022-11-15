@@ -52,4 +52,17 @@ interface IFeeCalculator {
     /// @notice Sends out the reward accumulated by the member for the specified token
     /// to the member admin
     function claim(address _token, address _member) external;
+
+    /// @notice Returns service fee for specific bridge operation by first looking for a fee policy.
+    /// @param _targetChain The target chain for the bridging operation.
+    /// @param _userAddress User address subject of the fee.
+    /// @param _tokenAddress Token address subject of the fee.
+    /// @param _amount The amount of tokens to bridge.
+    /// @return Service fee for the bridge operation.
+    function feeAmountFor(
+        uint256 _targetChain,
+        address _userAddress,
+        address _tokenAddress,
+        uint256 _amount
+    ) external view returns (uint256);
 }

@@ -63,7 +63,8 @@ interface IRouter {
         uint256 _targetChain,
         address _nativeToken,
         uint256 _amount,
-        bytes memory _receiver
+        bytes memory _receiver,
+        uint256 _serviceFee
     ) external;
 
     function lockWithPermit(
@@ -72,6 +73,7 @@ interface IRouter {
         uint256 _amount,
         bytes memory _receiver,
         uint256 _deadline,
+        uint256 _serviceFee,
         uint8 _v,
         bytes32 _r,
         bytes32 _s
@@ -83,6 +85,16 @@ interface IRouter {
         address _nativeToken,
         uint256 _amount,
         address _receiver,
+        bytes[] calldata _signatures
+    ) external;
+
+    function unlockWithFee(
+        uint256 _sourceChain,
+        bytes memory _transactionId,
+        address _nativeToken,
+        uint256 _amount,
+        address _receiver,
+        uint256 _serviceFee,
         bytes[] calldata _signatures
     ) external;
 

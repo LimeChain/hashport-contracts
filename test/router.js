@@ -5,6 +5,17 @@ const expect = chai.expect;
 
 const { createPermit, diamondAsFacet, getInterfaceId, getSelectors } = require('../util');
 
+const enumFeeType = {
+  Flat: 0,
+  Percentage: 1
+}
+
+const enumFacetCutAction = {
+  Add: 0,
+  Replace: 1,
+  Remove: 2
+}
+
 describe('Router', async () => {
   let nativeToken;
   let nativeTokenFactory;
@@ -18,12 +29,17 @@ describe('Router', async () => {
   let feeCalculatorFacet;
   let cutFacet;
   let loupeFacet;
+  let feePolicyFacet;
   let owner;
   let alice;
   let bob;
   let carol;
   let admin;
   let nonMember;
+  let feePolicyUser_1;
+  let feePolicyUser_2;
+  let feePolicyUser_3;
+  let feePolicyUser_4;
 
   const chainId = network.config.chainId;
   const GOVERNANCE_PRECISION = 100;
@@ -40,7 +56,7 @@ describe('Router', async () => {
   const wrappedTokenDecimals = 18;
 
   before(async () => {
-    [owner, alice, aliceAdmin, bob, bobAdmin, carol, carolAdmin, admin, nonMember] = await ethers.getSigners();
+    [owner, alice, aliceAdmin, bob, bobAdmin, carol, carolAdmin, admin, nonMember, feePolicyUser_1, feePolicyUser_2, feePolicyUser_3, feePolicyUser_4] = await ethers.getSigners();
 
     nativeTokenFactory = await ethers.getContractFactory('Token');
     nativeToken = await nativeTokenFactory.deploy('NativeToken', 'NT', 18);
@@ -395,7 +411,7 @@ describe('Router', async () => {
         await nativeToken.mint(nonMember.address, amount);
 
         await nativeToken.connect(nonMember).approve(router.address, amount);
-        await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
+        await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address, serviceFee);
 
         const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(nativeToken.address);
         expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(serviceFee);
@@ -425,7 +441,7 @@ describe('Router', async () => {
         await nativeToken.mint(nonMember.address, amount);
 
         await nativeToken.connect(nonMember).approve(router.address, amount);
-        await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
+        await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address, serviceFee);
 
         const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(nativeToken.address);
         expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(serviceFee);
@@ -783,10 +799,12 @@ describe('Router', async () => {
       it('should execute lock', async () => {
         await nativeToken.connect(nonMember).approve(router.address, amount);
 
-        await router.connect(nonMember).lock(1, nativeToken.address, amount, receiver);
+        const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+
+        await router.connect(nonMember).lock(1, nativeToken.address, amount, receiver, serviceFee);
 
         const tokenFeeData = await router.tokenFeeData(nativeToken.address);
-        expect(tokenFeeData.feesAccrued).to.equal(amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION));
+        expect(tokenFeeData.feesAccrued).to.equal(serviceFee);
 
         const routerBalance = await nativeToken.balanceOf(router.address);
         expect(routerBalance).to.equal(amount);
@@ -798,7 +816,7 @@ describe('Router', async () => {
 
         await expect(await router
           .connect(nonMember)
-          .lock(1, nativeToken.address, amount, receiver))
+          .lock(1, nativeToken.address, amount, receiver, serviceFee))
           .to.emit(router, 'Lock')
           .withArgs(1, nativeToken.address, receiver.toLowerCase(), amount, serviceFee);
       });
@@ -806,7 +824,18 @@ describe('Router', async () => {
       it('should revert if not enough tokens are approved', async () => {
         const expectedRevertMessage = 'ERC20: transfer amount exceeds allowance';
         await expect(
-          router.connect(nonMember).lock(1, nativeToken.address, amount, receiver))
+          router.connect(nonMember).lock(1, nativeToken.address, amount, receiver, 1))
+          .to.be.revertedWith(expectedRevertMessage);
+      });
+
+      it('should revert if service fee mismatch', async () => {
+        const expectedRevertMessage = 'RouterFacet: Service fee mismatch';
+
+        await nativeToken.connect(nonMember).approve(router.address, amount);
+        const wrongServiceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION).sub(1);
+
+        await expect(
+          router.connect(nonMember).lock(1, nativeToken.address, amount, receiver, wrongServiceFee))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
@@ -819,16 +848,18 @@ describe('Router', async () => {
         // then
         await expect(router
           .connect(nonMember)
-          .lock(1, nativeToken.address, amount, receiver))
+          .lock(1, nativeToken.address, amount, receiver, 1))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
       it('should lock with permit', async () => {
         const permit = await createPermit(nonMember, router.address, amount, permitDeadline, nativeToken);
-        await router.connect(nonMember).lockWithPermit(1, nativeToken.address, amount, receiver, permitDeadline, permit.v, permit.r, permit.s);
+        const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+
+        await router.connect(nonMember).lockWithPermit(1, nativeToken.address, amount, receiver, permitDeadline, serviceFee, permit.v, permit.r, permit.s);
 
         const tokenFeeData = await router.tokenFeeData(nativeToken.address);
-        expect(tokenFeeData.feesAccrued).to.equal(amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION));
+        expect(tokenFeeData.feesAccrued).to.equal(serviceFee);
 
         const routerBalance = await nativeToken.balanceOf(router.address);
         expect(routerBalance).to.equal(amount);
@@ -846,7 +877,7 @@ describe('Router', async () => {
         // then
         await expect(router
           .connect(nonMember)
-          .lockWithPermit(1, nativeToken.address, amount, receiver, permitDeadline, permit.v, permit.r, permit.s))
+          .lockWithPermit(1, nativeToken.address, amount, receiver, permitDeadline, 1, permit.v, permit.r, permit.s))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
@@ -857,7 +888,7 @@ describe('Router', async () => {
         await expect(
           router
             .connect(nonMember)
-            .lockWithPermit(1, notAddedNativeToken.address, amount, receiver, permitDeadline, permit.v, permit.r, permit.s))
+            .lockWithPermit(1, notAddedNativeToken.address, amount, receiver, permitDeadline, 1, permit.v, permit.r, permit.s))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
@@ -867,7 +898,7 @@ describe('Router', async () => {
 
         await expect(await router
           .connect(nonMember)
-          .lock(1, nativeToken.address, amount, receiver))
+          .lock(1, nativeToken.address, amount, receiver, 0))
           .to.emit(router, 'Lock')
           .withArgs(1, nativeToken.address, receiver.toLowerCase(), amount, 0);
 
@@ -947,7 +978,8 @@ describe('Router', async () => {
       it('should revert when provided signatures are not enough', async () => {
         const expectedRevertMessage = 'LibGovernance: Invalid number of signatures';
 
-        await expect(router.connect(nonMember).unlock(1, transactionId, nativeToken.address, amount, receiver, [aliceSignature]))
+        await expect(router.connect(nonMember)
+          .unlock(1, transactionId, nativeToken.address, amount, receiver, [aliceSignature]))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
@@ -955,14 +987,16 @@ describe('Router', async () => {
         const expectedRevertMessage = 'LibGovernance: invalid signer';
         const nonMemberSignature = await nonMember.signMessage(hashData);
 
-        await expect(router.connect(nonMember).unlock(1, transactionId, nativeToken.address, amount, receiver, [aliceSignature, nonMemberSignature]))
+        await expect(router.connect(nonMember)
+          .unlock(1, transactionId, nativeToken.address, amount, receiver, [aliceSignature, nonMemberSignature]))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
       it('should revert when provided signatures are duplicate', async () => {
         const expectedRevertMessage = 'LibGovernance: duplicate signatures';
 
-        await expect(router.connect(nonMember).unlock(1, transactionId, nativeToken.address, amount, receiver, [aliceSignature, aliceSignature]))
+        await expect(router.connect(nonMember)
+          .unlock(1, transactionId, nativeToken.address, amount, receiver, [aliceSignature, aliceSignature]))
           .to.be.revertedWith(expectedRevertMessage);
       });
 
@@ -988,6 +1022,123 @@ describe('Router', async () => {
         const expectedRevertMessage = 'RouterFacet: native token not found';
         await expect(router.connect(nonMember)
           .unlock(1, transactionId, bob.address, 1, receiver, [aliceSignature, bobSignature]))
+          .to.be.revertedWith(expectedRevertMessage);
+      });
+    });
+
+    describe('unlockWithFee', async () => {
+      let receiver;
+      let hashData;
+
+      let aliceSignature;
+      let bobSignature;
+      let carolSignature;
+
+      const calculatedFee = ethers.utils.parseEther('1');
+
+      beforeEach(async () => {
+        await nativeToken.mint(router.address, amount);
+        await router.updateNativeToken(nativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+
+        await router.updateMember(bob.address, bobAdmin.address, true);
+        await router.updateMember(carol.address, carolAdmin.address, true);
+
+        receiver = owner.address;
+
+        const encodeData = ethers.utils.defaultAbiCoder.encode(['uint256', 'uint256', 'bytes', 'address', 'address', 'uint256', 'uint256'], [1, chainId, transactionId, nativeToken.address, receiver, amount, calculatedFee]);
+        const hashMsg = ethers.utils.keccak256(encodeData);
+        hashData = ethers.utils.arrayify(hashMsg);
+
+        aliceSignature = await alice.signMessage(hashData);
+        bobSignature = await bob.signMessage(hashData);
+        carolSignature = await carol.signMessage(hashData);
+      });
+
+      it('should execute unlock', async () => {
+        await router
+          .connect(nonMember)
+          .unlockWithFee(1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, bobSignature, carolSignature]);
+
+        const balanceOfReceiver = await nativeToken.balanceOf(receiver);
+        expect(balanceOfReceiver).to.equal(amount.sub(calculatedFee));
+
+        expect(await router.hashesUsed(ethers.utils.hashMessage(hashData))).to.be.true;
+
+        const tokenFeeData = await router.tokenFeeData(nativeToken.address);
+        expect(tokenFeeData.feesAccrued).to.equal(calculatedFee);
+      });
+
+      it('should emit event with args', async () => {
+        const transferAmount = amount.sub(calculatedFee);
+        const sourceChainId = 1;
+
+        await expect(await router
+          .connect(nonMember)
+          .unlockWithFee(sourceChainId, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, bobSignature, carolSignature]))
+          .to.emit(router, 'Unlock')
+          .withArgs(sourceChainId, transactionId, nativeToken.address, transferAmount, receiver, calculatedFee);
+      });
+
+      it('should revert when trying to execute same unlock transaction twice', async () => {
+        const expectedRevertMessage = 'RouterFacet: transaction already submitted';
+        await router
+          .connect(nonMember)
+          .unlockWithFee(1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, bobSignature, carolSignature]);
+
+        await expect(router
+          .connect(nonMember)
+          .unlockWithFee(1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, bobSignature, carolSignature]))
+          .to.be.revertedWith(expectedRevertMessage);
+
+      });
+
+      it('should revert when provided signatures are not enough', async () => {
+        const expectedRevertMessage = 'LibGovernance: Invalid number of signatures';
+
+        await expect(router.connect(nonMember)
+          .unlockWithFee(1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature]))
+          .to.be.revertedWith(expectedRevertMessage);
+      });
+
+      it('should revert when provided signatures contains signed from non-member', async () => {
+        const expectedRevertMessage = 'LibGovernance: invalid signer';
+        const nonMemberSignature = await nonMember.signMessage(hashData);
+
+        await expect(router.connect(nonMember)
+          .unlockWithFee(1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, nonMemberSignature]))
+          .to.be.revertedWith(expectedRevertMessage);
+      });
+
+      it('should revert when provided signatures are duplicate', async () => {
+        const expectedRevertMessage = 'LibGovernance: duplicate signatures';
+
+        await expect(router.connect(nonMember)
+          .unlockWithFee(1, transactionId, nativeToken.address, amount, receiver, calculatedFee, [aliceSignature, aliceSignature]))
+          .to.be.revertedWith(expectedRevertMessage);
+      });
+
+      it('should revert when provided data is invalid', async () => {
+        const expectedRevertMessage = 'Governance: invalid signer';
+        await expect(router.connect(nonMember)
+          .unlockWithFee(1, transactionId, nativeToken.address, 1, receiver, calculatedFee, [aliceSignature, bobSignature]))
+          .to.be.revertedWith(expectedRevertMessage);
+      });
+
+      it('should revert when contract is paused', async () => {
+        // given
+        const expectedRevertMessage = 'LibGovernance: paused';
+        await router.updateAdmin(admin.address);
+        await router.connect(admin).pause();
+        // then
+        await expect(router.connect(nonMember)
+          .unlockWithFee(1, transactionId, nativeToken.address, 1, receiver, calculatedFee, [aliceSignature, bobSignature]))
+          .to.be.revertedWith(expectedRevertMessage);
+      });
+
+      it('should revert when native token is not found', async () => {
+        const expectedRevertMessage = 'RouterFacet: native token not found';
+        await expect(router.connect(nonMember)
+          .unlockWithFee(1, transactionId, bob.address, 1, receiver, calculatedFee, [aliceSignature, bobSignature]))
           .to.be.revertedWith(expectedRevertMessage);
       });
     });
@@ -1282,10 +1433,11 @@ describe('Router', async () => {
       await router.updateMember(bob.address, bobAdmin.address, true);
       await router.updateMember(carol.address, carolAdmin.address, true);
 
-      await nativeToken.connect(nonMember).approve(router.address, amount);
-      await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
-
       serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+
+      await nativeToken.connect(nonMember).approve(router.address, amount);
+      await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address, serviceFee);
+
       expectedMemberFeeRewardAfterClaim = serviceFee.div(3);
       expectedPrevAccruedAfterClaim = expectedMemberFeeRewardAfterClaim.mul(3);
     });
@@ -1332,7 +1484,7 @@ describe('Router', async () => {
       // given
       await nativeToken.mint(nonMember.address, amount);
       await nativeToken.connect(nonMember).approve(router.address, amount);
-      await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
+      await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address, serviceFee);
 
       serviceFee = serviceFee.mul(2);
       expectedMemberFeeRewardAfterClaim = serviceFee.div(3);
@@ -1380,12 +1532,15 @@ describe('Router', async () => {
     it('should have the same fees accrued and previously, having no remainder', async () => {
       // beforeEach -> 100 tokens amount -> 10 tokens fee -> 10 / 3 tokens per member -> 1 token remainder left
 
-      const secondAmount = 20;
+      const secondAmount = ethers.utils.parseEther('20');
       // lock one more time, this time with an amount which will make the fees accrued equally, with no remainder
       // add another lock -> 20 tokens -> 2 tokens fee -> (1 from previous + 2) tokens per member -> 0 left
+
+      const secondServiceFee = secondAmount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+
       await nativeToken.mint(nonMember.address, secondAmount);
       await nativeToken.connect(nonMember).approve(router.address, secondAmount);
-      await router.connect(nonMember).lock(1, nativeToken.address, secondAmount, owner.address);
+      await router.connect(nonMember).lock(1, nativeToken.address, secondAmount, owner.address, secondServiceFee);
 
       const totalLockedAmount = amount.add(secondAmount);
       serviceFee = totalLockedAmount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
@@ -1763,7 +1918,7 @@ describe('Router', async () => {
           await nativeToken.mint(nonMember.address, amount);
 
           await nativeToken.connect(nonMember).approve(router.address, amount);
-          await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
+          await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address, serviceFee);
 
           const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(nativeToken.address);
           expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(serviceFee);
@@ -1793,7 +1948,7 @@ describe('Router', async () => {
           await nativeToken.mint(nonMember.address, amount);
 
           await nativeToken.connect(nonMember).approve(router.address, amount);
-          await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
+          await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address, serviceFee);
 
           const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(nativeToken.address);
           expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(serviceFee);
@@ -1849,12 +2004,14 @@ describe('Router', async () => {
           });
 
           it('should correctly accrue fees after addition of a new member when token payments exist', async () => {
+            const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+
             // given
             await router.updateNativeToken(nativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
             await nativeToken.mint(nonMember.address, amount);
 
             await nativeToken.connect(nonMember).approve(router.address, amount);
-            await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
+            await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address, serviceFee);
             const receiver = nonMember.address;
 
             const encodeData = ethers.utils.defaultAbiCoder.encode(
@@ -1886,7 +2043,7 @@ describe('Router', async () => {
             // and
             await erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee, receiver);
             // and
-            const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+
             const totalAccrued = serviceFee.add(ERC721BurnFee);
 
             const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(nativeToken.address);
@@ -1919,7 +2076,7 @@ describe('Router', async () => {
             await nativeToken.mint(nonMember.address, amount);
 
             await nativeToken.connect(nonMember).approve(router.address, amount);
-            await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
+            await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address, serviceFee);
             const receiver = nonMember.address;
 
             const encodeData = ethers.utils.defaultAbiCoder.encode(
@@ -1978,11 +2135,13 @@ describe('Router', async () => {
 
           it('should correctly accrue fees after addition of a new member when different native and token payments exist', async () => {
             // given
+            const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+
             await router.updateNativeToken(nativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
             await nativeToken.mint(nonMember.address, amount);
 
             await nativeToken.connect(nonMember).approve(router.address, amount);
-            await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
+            await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address, serviceFee);
             const receiver = nonMember.address;
 
             const encodeData = ethers.utils.defaultAbiCoder.encode(
@@ -2013,7 +2172,7 @@ describe('Router', async () => {
             // and
             await erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, paymentToken.address, ERC721BurnFee, receiver);
             // and
-            const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+
 
             const beforeMemberUpdateNativeTokenFeeData = await router.tokenFeeData(nativeToken.address);
             expect(beforeMemberUpdateNativeTokenFeeData.feesAccrued).to.equal(serviceFee);
@@ -2058,7 +2217,7 @@ describe('Router', async () => {
             await nativeToken.mint(nonMember.address, amount);
 
             await nativeToken.connect(nonMember).approve(router.address, amount);
-            await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
+            await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address, serviceFee);
             const receiver = nonMember.address;
 
             const encodeData = ethers.utils.defaultAbiCoder.encode(
@@ -2614,6 +2773,858 @@ describe('Router', async () => {
     });
   });
 
+  describe('FeePolicyFacet', async () => {
+    let feePolicyPortal;
+    let testNativeToken1;
+    let testNativeToken2;
+    let testNativeToken3;
+    const revertMessageOwnable = 'Ownable: caller is not the owner';
+    const revertMessageNotDiamondOwner = 'LibDiamond: Must be contract owner';
+    const revertMessageZeroUserAddress = 'FeePolicyFacet: userAddress must not be 0x0';
+
+    before(async () => {
+      // deploy test tokens
+      const testNativeTokenFactory = await ethers.getContractFactory('Token');
+
+      testNativeToken1 = await testNativeTokenFactory.deploy('NativeToken1', 'NT1', 18);
+      await testNativeToken1.deployed();
+
+      testNativeToken2 = await testNativeTokenFactory.deploy('NativeToken2', 'NT2', 18);
+      await testNativeToken2.deployed();
+
+      testNativeToken3 = await testNativeTokenFactory.deploy('NativeToken3', 'NT2', 18);
+      await testNativeToken3.deployed();
+
+      // get current function selectors for RouterFacet and FeeCalculatorFacet
+      const routerFacetSelectors = await router.facetFunctionSelectors(routerFacet.address);
+      const feeCalculatorFacetSelectors = await router.facetFunctionSelectors(feeCalculatorFacet.address);
+
+      // deploy facets
+      const RouterFacetFactory = await ethers.getContractFactory('RouterFacet');
+      routerFacet = await RouterFacetFactory.deploy();
+      await routerFacet.deployed();
+
+      const FeeCalculatorFacetFactory = await ethers.getContractFactory('FeeCalculatorFacet');
+      feeCalculatorFacet = await FeeCalculatorFacetFactory.deploy();
+      await feeCalculatorFacet.deployed();
+
+      const FeePolicyFacetFactory = await ethers.getContractFactory('FeePolicyFacet');
+      feePolicyFacet = await FeePolicyFacetFactory.deploy();
+      await feePolicyFacet.deployed();
+
+      const diamondCut = [
+        { facetAddress: ethers.constants.AddressZero, action: enumFacetCutAction.Remove, functionSelectors: routerFacetSelectors },
+        { facetAddress: ethers.constants.AddressZero, action: enumFacetCutAction.Remove, functionSelectors: feeCalculatorFacetSelectors },
+        { facetAddress: routerFacet.address, action: enumFacetCutAction.Add, functionSelectors: getSelectors(routerFacet) },
+        { facetAddress: feeCalculatorFacet.address, action: enumFacetCutAction.Add, functionSelectors: getSelectors(feeCalculatorFacet) },
+        { facetAddress: feePolicyFacet.address, action: enumFacetCutAction.Add, functionSelectors: getSelectors(feePolicyFacet) }
+      ];
+
+      await router.diamondCut(diamondCut, ethers.constants.AddressZero, "0x");
+
+      feePolicyPortal = await ethers.getContractAt('IFeePolicyFacet', router.address);
+    });
+
+    describe('Upgrade router', async () => {
+
+      it('should successfully upgrade Router contract', async () => {
+        expect(await router.serviceFeePrecision()).to.equal(FEE_CALCULATOR_PRECISION);
+      });
+
+      it('should diamond cut successfully', async () => {
+        expect(await router.facetAddresses())
+          .to.include(routerFacet.address)
+          .to.include(pausableFacet.address)
+          .to.include(ownershipFacet.address)
+          .to.include(feeCalculatorFacet.address)
+          .to.include(cutFacet.address)
+          .to.include(loupeFacet.address)
+          .to.include(feePolicyFacet.address);
+
+        const facets = await router.facets();
+        for (const facet of facets) {
+          switch (facet.facetAddress) {
+            case cutFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(cutFacet));
+              break;
+            case loupeFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(loupeFacet));
+              break;
+            case feeCalculatorFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(feeCalculatorFacet));
+              break;
+            case governanceFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(governanceFacet));
+              break;
+            case ownershipFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(ownershipFacet));
+              break;
+            case pausableFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(pausableFacet));
+              break;
+            case routerFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(routerFacet));
+              break;
+            case feePolicyFacet.address:
+              expect(facet.functionSelectors).to.deep.equal(getSelectors(feePolicyFacet));
+              break;
+            default:
+              throw 'invalid facet address';
+          }
+        }
+      });
+    });
+
+    describe('FlatFeePolicy', async () => {
+      let instanceFlatFeePolicy;
+      const initFlatFee = 100;
+
+      beforeEach(async () => {
+        const testFlatFeePolicyFactory = await ethers.getContractFactory('FlatFeePolicy');
+
+        instanceFlatFeePolicy = await testFlatFeePolicyFactory.deploy(initFlatFee);
+        await instanceFlatFeePolicy.deployed();
+      });
+
+      describe('deployment', async () => {
+        it('should set flat fee on deployment', async () => {
+          const flatFee = await instanceFlatFeePolicy.flatFee();
+          expect(flatFee).to.equal(initFlatFee);
+        });
+      });
+
+      describe('getFlatFee', async () => {
+        it('should get flat fee', async () => {
+          const flatFee = await instanceFlatFeePolicy.flatFee();
+          expect(flatFee).to.equal(initFlatFee);
+        });
+
+        it('should get flat fee after update', async () => {
+          await instanceFlatFeePolicy.setFlatFee(20);
+          const flatFee = await instanceFlatFeePolicy.flatFee();
+          expect(flatFee).to.equal(20);
+        });
+      });
+
+      describe('setFlatFee', async () => {
+        it('should revert when executing with not owner', async () => {
+          await expect(instanceFlatFeePolicy.connect(nonMember).setFlatFee(200)).to.be.revertedWith(revertMessageOwnable);
+        });
+
+        it('should revert when executing with wrong flat fee value', async () => {
+          const revertMessage = 'Value of _flatFee is zero';
+          await expect(instanceFlatFeePolicy.setFlatFee(0)).to.be.revertedWith(revertMessage);
+        });
+
+        it('should set flat fee value', async () => {
+          await instanceFlatFeePolicy.setFlatFee(20);
+          const flatFee = await instanceFlatFeePolicy.flatFee();
+          expect(flatFee).to.equal(20);
+        });
+      });
+
+      describe('feeAmountFor', async () => {
+        it('should return flat fee and exists', async () => {
+          const { feeAmount, exist } = await instanceFlatFeePolicy.feeAmountFor(0, ethers.constants.AddressZero, ethers.constants.AddressZero, 0);
+          expect(feeAmount).to.equal(initFlatFee);
+          expect(exist).to.equal(true);
+        });
+
+        it('should return flat fee and exists after update', async () => {
+          await instanceFlatFeePolicy.setFlatFee(200);
+          const { feeAmount, exist } = await instanceFlatFeePolicy.feeAmountFor(0, ethers.constants.AddressZero, ethers.constants.AddressZero, 0);
+          expect(feeAmount).to.equal(200);
+          expect(exist).to.equal(true);
+        });
+      });
+    });
+
+    describe('PercentageFeePolicy', async () => {
+      let instancePercentageFeePolicy;
+      const initPrecision = 100_000;
+      const initFeePercentage = 1_000;
+
+      beforeEach(async () => {
+        const testPercentageFeePolicyFactory = await ethers.getContractFactory('PercentageFeePolicy');
+
+        instancePercentageFeePolicy = await testPercentageFeePolicyFactory.deploy(initPrecision, initFeePercentage);
+        await instancePercentageFeePolicy.deployed();
+      });
+
+      describe('deployment', async () => {
+        it('should set precision on deployment', async () => {
+          const precision = await instancePercentageFeePolicy.precision();
+          expect(precision).to.equal(initPrecision);
+        });
+
+        it('should set fee percentage on deployment', async () => {
+          const feePercentage = await instancePercentageFeePolicy.feePercentage();
+          expect(feePercentage).to.equal(initFeePercentage);
+        });
+      });
+
+      describe('getPrecision', async () => {
+        it('should get precision', async () => {
+          const precision = await instancePercentageFeePolicy.precision();
+          expect(precision).to.equal(initPrecision);
+        });
+
+        it('should get precision after update', async () => {
+          await instancePercentageFeePolicy.setPrecision(1_000_000);
+          const precision = await instancePercentageFeePolicy.precision();
+          expect(precision).to.equal(1_000_000);
+        });
+      });
+
+      describe('setPrecision', async () => {
+        it('should revert when executing with not owner', async () => {
+          await expect(instancePercentageFeePolicy.connect(nonMember).setPrecision(1_000_000)).to.be.revertedWith(revertMessageOwnable);
+        });
+
+        it('should revert when executing with wrong flat fee value', async () => {
+          const revertMessage = 'Value of _precision is zero';
+          await expect(instancePercentageFeePolicy.setPrecision(0)).to.be.revertedWith(revertMessage);
+        });
+
+        it('should set flat fee value', async () => {
+          await instancePercentageFeePolicy.setPrecision(20);
+          const flatFee = await instancePercentageFeePolicy.precision();
+          expect(flatFee).to.equal(20);
+        });
+      });
+
+      describe('getFeePercentage', async () => {
+        it('should get fee percentage', async () => {
+          const feePercentage = await instancePercentageFeePolicy.feePercentage();
+          expect(feePercentage).to.equal(initFeePercentage);
+        });
+
+        it('should get fee percentage after update', async () => {
+          await instancePercentageFeePolicy.setFeePercentage(20);
+          const feePercentage = await instancePercentageFeePolicy.feePercentage();
+          expect(feePercentage).to.equal(20);
+        });
+      });
+
+      describe('setFeePercentage', async () => {
+        it('should revert when executing with not owner', async () => {
+          await expect(instancePercentageFeePolicy.connect(nonMember).setFeePercentage(200)).to.be.revertedWith(revertMessageOwnable);
+        });
+
+        it('should revert when executing with wrong flat fee value', async () => {
+          const revertMessage = 'Value of _feePercentage is zero';
+          await expect(instancePercentageFeePolicy.setFeePercentage(0)).to.be.revertedWith(revertMessage);
+        });
+
+        it('should set fee percentage value', async () => {
+          await instancePercentageFeePolicy.setFeePercentage(20);
+          const flatFeePercentage = await instancePercentageFeePolicy.feePercentage();
+          expect(flatFeePercentage).to.equal(20);
+        });
+      });
+
+      describe('feeAmountFor', async () => {
+        it('should return flat fee and exists', async () => {
+          const _testAmount = ethers.utils.parseEther('100');
+          const valueToCompare = _testAmount.mul(initFeePercentage).div(initPrecision);
+
+          const { feeAmount, exist } = await instancePercentageFeePolicy.feeAmountFor(0, ethers.constants.AddressZero, ethers.constants.AddressZero, _testAmount);
+          expect(feeAmount).to.equal(valueToCompare);
+          expect(exist).to.equal(true);
+        });
+
+        it('should return flat fee and exists after update', async () => {
+          const _testAmount = ethers.utils.parseEther('100');
+          const _testNewFeePercentage = 2_000;
+          const valueToCompare = _testAmount.mul(_testNewFeePercentage).div(initPrecision);
+
+          await instancePercentageFeePolicy.setFeePercentage(_testNewFeePercentage);
+          const { feeAmount, exist } = await instancePercentageFeePolicy.feeAmountFor(0, ethers.constants.AddressZero, ethers.constants.AddressZero, _testAmount);
+          expect(feeAmount).to.equal(valueToCompare);
+          expect(exist).to.equal(true);
+        });
+      });
+    });
+
+    describe('FlatFeePerTokenPolicy', async () => {
+      let instanceFlatFeePerTokenPolicy;
+      const initFlatFee = 10;
+
+      beforeEach(async () => {
+        const testFlatFeePerTokenPolicyFactory = await ethers.getContractFactory('FlatFeePerTokenPolicy');
+
+        instanceFlatFeePerTokenPolicy = await testFlatFeePerTokenPolicyFactory.deploy();
+        await instanceFlatFeePerTokenPolicy.deployed();
+
+        await feePolicyPortal.setUsersFeePolicy(instanceFlatFeePerTokenPolicy.address, [feePolicyUser_1.address, feePolicyUser_2.address]);
+      });
+
+      describe('getFlatFee', async () => {
+        beforeEach(async () => {
+          await instanceFlatFeePerTokenPolicy.setFlatFee(testNativeToken1.address, initFlatFee);
+        });
+
+        it('should get flat fee', async () => {
+          const flatFee = await instanceFlatFeePerTokenPolicy.tokenFees(testNativeToken1.address);
+          expect(flatFee).to.equal(initFlatFee);
+        });
+
+        it('should get flat fee after update', async () => {
+          await instanceFlatFeePerTokenPolicy.setFlatFee(testNativeToken1.address, 20);
+          const flatFee = await instanceFlatFeePerTokenPolicy.tokenFees(testNativeToken1.address);
+          expect(flatFee).to.equal(20);
+        });
+
+        it('should get flat fee zero for non existing token', async () => {
+          const flatFee = await instanceFlatFeePerTokenPolicy.tokenFees(testNativeToken2.address);
+          expect(flatFee).to.equal(0);
+        });
+      });
+
+      describe('setFlatFee', async () => {
+        beforeEach(async () => {
+          await instanceFlatFeePerTokenPolicy.setFlatFee(testNativeToken1.address, initFlatFee);
+        });
+
+        it('should revert when executing with not owner', async () => {
+          await expect(instanceFlatFeePerTokenPolicy.connect(nonMember).setFlatFee(testNativeToken1.address, 20)).to.be.revertedWith(revertMessageOwnable);
+        });
+
+        it('should revert when executing with token address zero', async () => {
+          const revertMessage = 'Token address must not be 0x0';
+          await expect(instanceFlatFeePerTokenPolicy.setFlatFee(ethers.constants.AddressZero, 20)).to.be.revertedWith(revertMessage);
+        });
+
+        it('should not revert when executing with flat fee value zero', async () => {
+          await expect(instanceFlatFeePerTokenPolicy.setFlatFee(testNativeToken1.address, 0)).to.not.be.reverted;
+        });
+
+        it('should set flat fee value', async () => {
+          await instanceFlatFeePerTokenPolicy.setFlatFee(testNativeToken1.address, 20);
+          const flatFee = await instanceFlatFeePerTokenPolicy.tokenFees(testNativeToken1.address);
+          expect(flatFee).to.equal(20);
+        });
+      });
+
+      describe('removeFlatFee', async () => {
+        beforeEach(async () => {
+          await instanceFlatFeePerTokenPolicy.setFlatFee(testNativeToken1.address, initFlatFee);
+        });
+
+        it('should revert when executing with not owner', async () => {
+          await expect(instanceFlatFeePerTokenPolicy.connect(nonMember).removeFlatFee(testNativeToken1.address)).to.be.revertedWith(revertMessageOwnable);
+        });
+
+        it('should revert when executing with token address zero', async () => {
+          const revertMessage = 'Token address must not be 0x0';
+          await expect(instanceFlatFeePerTokenPolicy.removeFlatFee(ethers.constants.AddressZero)).to.be.revertedWith(revertMessage);
+        });
+
+        it('should remove flat fee value', async () => {
+          await instanceFlatFeePerTokenPolicy.removeFlatFee(testNativeToken1.address);
+          const { feeAmount, exist } = await instanceFlatFeePerTokenPolicy.feeAmountFor(0, ethers.constants.AddressZero, testNativeToken1.address, 0);
+          expect(feeAmount).to.equal(0);
+          expect(exist).to.equal(false);
+        });
+      });
+
+      describe('feeAmountFor', async () => {
+        beforeEach(async () => {
+          await instanceFlatFeePerTokenPolicy.setFlatFee(testNativeToken1.address, initFlatFee);
+        });
+
+        it('should return flat fee and exists', async () => {
+          const { feeAmount, exist } = await instanceFlatFeePerTokenPolicy.feeAmountFor(0, ethers.constants.AddressZero, testNativeToken1.address, 0);
+          expect(feeAmount).to.equal(initFlatFee);
+          expect(exist).to.equal(true);
+        });
+
+        it('should return flat fee and exists after update', async () => {
+          await instanceFlatFeePerTokenPolicy.setFlatFee(testNativeToken1.address, 200);
+          const { feeAmount, exist } = await instanceFlatFeePerTokenPolicy.feeAmountFor(0, ethers.constants.AddressZero, testNativeToken1.address, 0);
+          expect(feeAmount).to.equal(200);
+          expect(exist).to.equal(true);
+        });
+
+        it('should return zero flat fee and not exists', async () => {
+          const { feeAmount, exist } = await instanceFlatFeePerTokenPolicy.feeAmountFor(0, ethers.constants.AddressZero, testNativeToken2.address, 0);
+          expect(feeAmount).to.equal(0);
+          expect(exist).to.equal(false);
+        });
+      });
+    });
+
+    describe('setUsersFeePolicy', async () => {
+      let instanceFlatFeePolicy;
+
+      beforeEach(async () => {
+        const testFlatFeePolicyFactory = await ethers.getContractFactory('FlatFeePolicy');
+
+        instanceFlatFeePolicy = await testFlatFeePolicyFactory.deploy(100);
+        await instanceFlatFeePolicy.deployed();
+
+        await feePolicyPortal.setUsersFeePolicy(instanceFlatFeePolicy.address, [feePolicyUser_1.address, feePolicyUser_2.address]);
+      });
+
+      it('should revert when executing with not router', async () => {
+        await expect(feePolicyPortal.connect(nonMember).setUsersFeePolicy(instanceFlatFeePolicy.address, [feePolicyUser_2.address])).to.be.revertedWith(revertMessageNotDiamondOwner);
+      });
+
+      it('should revert when executing with zero user address', async () => {
+        await expect(feePolicyPortal.setUsersFeePolicy(instanceFlatFeePolicy.address, ['0x0000000000000000000000000000000000000000'])).to.be.revertedWith(revertMessageZeroUserAddress);
+        await expect(feePolicyPortal.setUsersFeePolicy(instanceFlatFeePolicy.address, ['0x0000000000000000000000000000000000000000', feePolicyUser_2.address])).to.be.revertedWith(revertMessageZeroUserAddress);
+      });
+
+      it('should add users to fee policy', async () => {
+        expect(await feePolicyPortal.userFeePolicy(feePolicyUser_1.address)).to.equal(instanceFlatFeePolicy.address);
+        expect(await feePolicyPortal.userFeePolicy(feePolicyUser_2.address)).to.equal(instanceFlatFeePolicy.address);
+        expect(await feePolicyPortal.userFeePolicy(feePolicyUser_3.address)).to.equal('0x0000000000000000000000000000000000000000');
+      });
+
+      it('should remove users from fee policy', async () => {
+        await feePolicyPortal.setUsersFeePolicy(ethers.constants.AddressZero, [feePolicyUser_3.address]);
+
+        expect(await feePolicyPortal.userFeePolicy(feePolicyUser_1.address)).to.equal(instanceFlatFeePolicy.address);
+        expect(await feePolicyPortal.userFeePolicy(feePolicyUser_2.address)).to.equal(instanceFlatFeePolicy.address);
+        expect(await feePolicyPortal.userFeePolicy(feePolicyUser_3.address)).to.equal('0x0000000000000000000000000000000000000000');
+      });
+    });
+
+    describe('userFeePolicy', async () => {
+      let instanceFlatFeePolicy;
+
+      beforeEach(async () => {
+        const testFlatFeePolicyFactory = await ethers.getContractFactory('FlatFeePolicy');
+
+        instanceFlatFeePolicy = await testFlatFeePolicyFactory.deploy(100);
+        await instanceFlatFeePolicy.deployed();
+
+        await feePolicyPortal.setUsersFeePolicy(instanceFlatFeePolicy.address, [feePolicyUser_1.address, feePolicyUser_2.address]);
+      });
+
+      it('should return existing address for added user', async () => {
+        expect(await feePolicyPortal.userFeePolicy(feePolicyUser_1.address)).to.equal(instanceFlatFeePolicy.address);
+      });
+
+      it('should return zero address for missing user', async () => {
+        expect(await feePolicyPortal.userFeePolicy(feePolicyUser_3.address)).to.equal('0x0000000000000000000000000000000000000000');
+      });
+    });
+
+    describe('feeAmountFor', async () => {
+      let instanceFlatFeePolicy;
+      const initFlatFee = 2;
+
+      let instancePercentageFeePolicy;
+      const initPrecision = 100_000;
+      const initFeePercentage = 1_000;
+
+      let instanceFlatFeePerTokenPolicy;
+      const initFlatFeePerToken = 3;
+
+      let serviceFee;
+
+      beforeEach(async () => {
+        const testNativeTokenFactory = await ethers.getContractFactory('Token');
+
+        testNativeToken1 = await testNativeTokenFactory.deploy('NativeToken1', 'NT1', 18);
+        await testNativeToken1.deployed();
+
+        testNativeToken2 = await testNativeTokenFactory.deploy('NativeToken2', 'NT2', 18);
+        await testNativeToken2.deployed();
+
+        serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+        await router.updateNativeToken(testNativeToken1.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+
+        // FlatFeePolicy
+        const testFlatFeePolicyFactory = await ethers.getContractFactory('FlatFeePolicy');
+        instanceFlatFeePolicy = await testFlatFeePolicyFactory.deploy(initFlatFee);
+        await instanceFlatFeePolicy.deployed();
+        await feePolicyPortal.setUsersFeePolicy(instanceFlatFeePolicy.address, [feePolicyUser_1.address]);
+
+        // PercentageFeePolicy
+        const testPercentageFeePolicyFactory = await ethers.getContractFactory('PercentageFeePolicy');
+        instancePercentageFeePolicy = await testPercentageFeePolicyFactory.deploy(initPrecision, initFeePercentage);
+        await instancePercentageFeePolicy.deployed();
+        await feePolicyPortal.setUsersFeePolicy(instancePercentageFeePolicy.address, [feePolicyUser_2.address]);
+
+        // FlatFeePerTokenPolicy
+        const testFlatFeePerTokenPolicyFactory = await ethers.getContractFactory('FlatFeePerTokenPolicy');
+        instanceFlatFeePerTokenPolicy = await testFlatFeePerTokenPolicyFactory.deploy();
+        await instanceFlatFeePerTokenPolicy.deployed();
+        await instanceFlatFeePerTokenPolicy.setFlatFee(testNativeToken1.address, initFlatFeePerToken);
+        await feePolicyPortal.setUsersFeePolicy(instanceFlatFeePerTokenPolicy.address, [feePolicyUser_3.address]);
+      });
+
+      it('should return zero for non existing token', async () => {
+        const feeAmountFor = await router.feeAmountFor(1, feePolicyUser_4.address, testNativeToken2.address, amount);
+        expect(feeAmountFor).to.equal(0);
+      });
+
+      it('should return standard fee', async () => {
+        await testNativeToken1.mint(feePolicyUser_4.address, amount);
+        await testNativeToken1.connect(feePolicyUser_4).approve(router.address, amount);
+
+        const feeAmountFor = await router.feeAmountFor(1, feePolicyUser_4.address, testNativeToken1.address, amount);
+        expect(feeAmountFor).to.equal(serviceFee);
+      });
+
+      it('should return flat fee policy', async () => {
+        await testNativeToken1.mint(feePolicyUser_1.address, amount);
+        await testNativeToken1.connect(feePolicyUser_1).approve(router.address, amount);
+
+        const feeAmountFor = await router.feeAmountFor(1, feePolicyUser_1.address, testNativeToken1.address, amount);
+        expect(feeAmountFor).to.equal(initFlatFee);
+      });
+
+      it('should return percentage fee policy', async () => {
+        await testNativeToken1.mint(feePolicyUser_2.address, amount);
+        await testNativeToken1.connect(feePolicyUser_2).approve(router.address, amount);
+
+        const testFee = amount.mul(initFeePercentage).div(initPrecision);
+        const feeAmountFor = await router.feeAmountFor(1, feePolicyUser_2.address, testNativeToken1.address, amount);
+        expect(feeAmountFor).to.equal(testFee);
+      });
+
+      it('should return fee per token policy', async () => {
+        await testNativeToken1.mint(feePolicyUser_3.address, amount);
+        await testNativeToken1.connect(feePolicyUser_3).approve(router.address, amount);
+
+        const feeAmountFor = await router.feeAmountFor(1, feePolicyUser_3.address, testNativeToken1.address, amount);
+        expect(feeAmountFor).to.equal(initFlatFeePerToken);
+      })
+    });
+
+    describe('Fee policy rewards', async () => {
+      let testNativeToken1;
+      let testNativeToken2;
+      let testNativeToken3;
+
+      beforeEach(async () => {
+        const testNativeTokenFactory = await ethers.getContractFactory('Token');
+
+        testNativeToken1 = await testNativeTokenFactory.deploy('NativeToken1', 'NT1', 18);
+        await testNativeToken1.deployed();
+
+        testNativeToken2 = await testNativeTokenFactory.deploy('NativeToken2', 'NT2', 18);
+        await testNativeToken2.deployed();
+
+        testNativeToken3 = await testNativeTokenFactory.deploy('NativeToken3', 'NT2', 18);
+        await testNativeToken3.deployed();
+
+        await router.updateNativeToken(testNativeToken1.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+      });
+
+      describe('Rewards with FlatFeePolicy', async () => {
+        let instanceFlatFeePolicy;
+        const initFlatFee = 2;
+
+        beforeEach(async () => {
+          const testFlatFeePolicyFactory = await ethers.getContractFactory('FlatFeePolicy');
+
+          instanceFlatFeePolicy = await testFlatFeePolicyFactory.deploy(initFlatFee);
+          await instanceFlatFeePolicy.deployed();
+
+          await feePolicyPortal.setUsersFeePolicy(instanceFlatFeePolicy.address, [feePolicyUser_1.address]);
+        });
+
+        it('should calculate reward with fee policy', async () => {
+          const _amount = ethers.utils.parseEther('100');
+
+          await testNativeToken1.mint(feePolicyUser_1.address, _amount);
+          await testNativeToken1.connect(feePolicyUser_1).approve(router.address, _amount);
+
+          const feeAmountFor = await router.feeAmountFor(1, feePolicyUser_1.address, testNativeToken1.address, _amount);
+
+          await router.connect(feePolicyUser_1).lock(1, testNativeToken1.address, _amount, owner.address, feeAmountFor);
+
+          const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(testNativeToken1.address);
+          expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(initFlatFee);
+          expect(beforeMemberUpdateTokenFeeData.accumulator).to.equal(0);
+          expect(beforeMemberUpdateTokenFeeData.previousAccrued).to.equal(0);
+
+          const routerBalance = await testNativeToken1.balanceOf(router.address);
+          expect(routerBalance).to.equal(_amount);
+        });
+
+        it('should calculate reward with service fee', async () => {
+          const _amount = ethers.utils.parseEther('100');
+
+          const serviceFee = _amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+
+          await testNativeToken1.mint(feePolicyUser_2.address, _amount);
+
+          await testNativeToken1.connect(feePolicyUser_2).approve(router.address, _amount);
+          await router.connect(feePolicyUser_2).lock(1, testNativeToken1.address, _amount, owner.address, serviceFee);
+
+          const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(testNativeToken1.address);
+          expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(serviceFee);
+          expect(beforeMemberUpdateTokenFeeData.accumulator).to.equal(0);
+          expect(beforeMemberUpdateTokenFeeData.previousAccrued).to.equal(0);
+
+          const routerBalance = await testNativeToken1.balanceOf(router.address);
+          expect(routerBalance).to.equal(_amount);
+        });
+      });
+
+      describe('Rewards with PercentageFeePolicy', async () => {
+        let instancePercentageFeePolicy;
+        const initPrecision = 100_000;
+        const initFeePercentage = 1_000;
+
+        beforeEach(async () => {
+          const testPercentageFeePolicyFactory = await ethers.getContractFactory('PercentageFeePolicy');
+
+          instancePercentageFeePolicy = await testPercentageFeePolicyFactory.deploy(initPrecision, initFeePercentage);
+          await instancePercentageFeePolicy.deployed();
+
+          await feePolicyPortal.setUsersFeePolicy(instancePercentageFeePolicy.address, [feePolicyUser_1.address]);
+        });
+
+        it('should calculate reward with fee policy', async () => {
+          const _amount = ethers.utils.parseEther('100');
+
+          const serviceFee = _amount.mul(initFeePercentage).div(initPrecision);
+
+          await testNativeToken1.mint(feePolicyUser_1.address, _amount);
+          await testNativeToken1.connect(feePolicyUser_1).approve(router.address, _amount);
+
+          const feeAmountFor = await router.feeAmountFor(1, feePolicyUser_1.address, testNativeToken1.address, _amount);
+
+          await router.connect(feePolicyUser_1).lock(1, testNativeToken1.address, _amount, owner.address, feeAmountFor);
+
+          const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(testNativeToken1.address);
+          expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(serviceFee);
+          expect(beforeMemberUpdateTokenFeeData.accumulator).to.equal(0);
+          expect(beforeMemberUpdateTokenFeeData.previousAccrued).to.equal(0);
+
+          const routerBalance = await testNativeToken1.balanceOf(router.address);
+          expect(routerBalance).to.equal(_amount);
+        });
+
+        it('should calculate reward with service fee', async () => {
+          const _amount = ethers.utils.parseEther('100');
+
+          const serviceFee = _amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+
+          await testNativeToken1.mint(feePolicyUser_2.address, _amount);
+
+          await testNativeToken1.connect(feePolicyUser_2).approve(router.address, _amount);
+          await router.connect(feePolicyUser_2).lock(1, testNativeToken1.address, _amount, owner.address, serviceFee);
+
+          const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(testNativeToken1.address);
+          expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(serviceFee);
+          expect(beforeMemberUpdateTokenFeeData.accumulator).to.equal(0);
+          expect(beforeMemberUpdateTokenFeeData.previousAccrued).to.equal(0);
+
+          const routerBalance = await testNativeToken1.balanceOf(router.address);
+          expect(routerBalance).to.equal(_amount);
+        });
+      });
+
+      describe('Rewards with FlatFeePerTokenPolicy', async () => {
+        let instanceFlatFeePerTokenPolicy;
+        const initFlatFee = 2;
+
+        beforeEach(async () => {
+          const testFlatFeePerTokenPolicyFactory = await ethers.getContractFactory('FlatFeePerTokenPolicy');
+
+          instanceFlatFeePerTokenPolicy = await testFlatFeePerTokenPolicyFactory.deploy();
+          await instanceFlatFeePerTokenPolicy.deployed();
+
+          await instanceFlatFeePerTokenPolicy.setFlatFee(testNativeToken1.address, initFlatFee);
+
+          await feePolicyPortal.setUsersFeePolicy(instanceFlatFeePerTokenPolicy.address, [feePolicyUser_1.address]);
+        });
+
+        it('should calculate reward with fee policy', async () => {
+          const _amount = ethers.utils.parseEther('100');
+
+          await testNativeToken1.mint(feePolicyUser_1.address, _amount);
+          await testNativeToken1.connect(feePolicyUser_1).approve(router.address, _amount);
+
+          const feeAmountFor = await router.feeAmountFor(1, feePolicyUser_1.address, testNativeToken1.address, _amount);
+
+          await router.connect(feePolicyUser_1).lock(1, testNativeToken1.address, _amount, owner.address, feeAmountFor);
+
+          const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(testNativeToken1.address);
+          expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(initFlatFee);
+          expect(beforeMemberUpdateTokenFeeData.accumulator).to.equal(0);
+          expect(beforeMemberUpdateTokenFeeData.previousAccrued).to.equal(0);
+
+          const routerBalance = await testNativeToken1.balanceOf(router.address);
+          expect(routerBalance).to.equal(_amount);
+        });
+
+        it('should calculate reward with service fee', async () => {
+          const _amount = ethers.utils.parseEther('100');
+
+          const serviceFee = _amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+
+          await testNativeToken1.mint(feePolicyUser_2.address, _amount);
+
+          await testNativeToken1.connect(feePolicyUser_2).approve(router.address, _amount);
+          await router.connect(feePolicyUser_2).lock(1, testNativeToken1.address, _amount, owner.address, serviceFee);
+
+          const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(testNativeToken1.address);
+          expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(serviceFee);
+          expect(beforeMemberUpdateTokenFeeData.accumulator).to.equal(0);
+          expect(beforeMemberUpdateTokenFeeData.previousAccrued).to.equal(0);
+
+          const routerBalance = await testNativeToken1.balanceOf(router.address);
+          expect(routerBalance).to.equal(_amount);
+        });
+      });
+
+      describe('Rewards with FlatFeePolicy & PercentageFeePolicy', async () => {
+        let instanceFlatFeePolicy;
+        const initFlatFee = 2;
+
+        let instancePercentageFeePolicy;
+        const initPrecision = 100_000;
+        const initFeePercentage = 1_000;
+
+        beforeEach(async () => {
+          // FlatFeePolicy
+          const testFlatFeePolicyFactory = await ethers.getContractFactory('FlatFeePolicy');
+
+          instanceFlatFeePolicy = await testFlatFeePolicyFactory.deploy(initFlatFee);
+          await instanceFlatFeePolicy.deployed();
+
+          await feePolicyPortal.setUsersFeePolicy(instanceFlatFeePolicy.address, [feePolicyUser_1.address]);
+
+          // PercentageFeePolicy
+          const testPercentageFeePolicyFactory = await ethers.getContractFactory('PercentageFeePolicy');
+
+          instancePercentageFeePolicy = await testPercentageFeePolicyFactory.deploy(initPrecision, initFeePercentage);
+          await instancePercentageFeePolicy.deployed();
+
+          // Set two users with different policies
+          await feePolicyPortal.setUsersFeePolicy(instanceFlatFeePolicy.address, [feePolicyUser_1.address]);
+          await feePolicyPortal.setUsersFeePolicy(instancePercentageFeePolicy.address, [feePolicyUser_2.address]);
+        });
+
+        it('should calculate accumulated fees via FlatFeePolicy plus PercentageFeePolicy plus ServiceFee', async () => {
+          const _amount = ethers.utils.parseEther('100');
+
+          // via feePolicyUser_1 with FlatFeePolicy
+          await testNativeToken1.mint(feePolicyUser_1.address, _amount);
+          await testNativeToken1.connect(feePolicyUser_1).approve(router.address, _amount);
+          const feeAmountFor1 = await router.feeAmountFor(1, feePolicyUser_1.address, testNativeToken1.address, _amount);
+          await router.connect(feePolicyUser_1).lock(1, testNativeToken1.address, _amount, owner.address, feeAmountFor1);
+
+          // via feePolicyUser_2 with PercentageFeePolicy
+          await testNativeToken1.mint(feePolicyUser_2.address, _amount);
+          await testNativeToken1.connect(feePolicyUser_2).approve(router.address, _amount);
+          const feeAmountFor2 = await router.feeAmountFor(1, feePolicyUser_2.address, testNativeToken1.address, _amount);
+          await router.connect(feePolicyUser_2).lock(1, testNativeToken1.address, _amount, owner.address, feeAmountFor2);
+
+          // via feePolicyUser_3 with FEE_CALCULATOR_TOKEN_SERVICE_FEE
+          await testNativeToken1.mint(feePolicyUser_3.address, _amount);
+          await testNativeToken1.connect(feePolicyUser_3).approve(router.address, _amount);
+          const feeAmountFor3 = await router.feeAmountFor(1, feePolicyUser_3.address, testNativeToken1.address, _amount);
+          await router.connect(feePolicyUser_3).lock(1, testNativeToken1.address, _amount, owner.address, feeAmountFor3);
+
+          // service fee
+          const serviceFee1 = initFlatFee;
+          const serviceFe2 = _amount.mul(initFeePercentage).div(initPrecision);
+          const serviceFe3 = _amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+
+          const allServiceFee = serviceFe3.add(serviceFe2).add(serviceFee1);
+
+          const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(testNativeToken1.address);
+
+          expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(allServiceFee);
+          expect(beforeMemberUpdateTokenFeeData.accumulator).to.equal(0);
+          expect(beforeMemberUpdateTokenFeeData.previousAccrued).to.equal(0);
+
+          const allAmounts = _amount.mul(3);
+          const routerBalance = await testNativeToken1.balanceOf(router.address);
+          expect(routerBalance).to.equal(allAmounts);
+        });
+      });
+
+      describe('Rewards with FlatFeePolicy & PercentageFeePolicy & FlatFeePerTokenPolicy', async () => {
+        let instanceFlatFeePolicy;
+        const initFlatFee = 2;
+
+        let instancePercentageFeePolicy;
+        const initPrecision = 100_000;
+        const initFeePercentage = 1_000;
+
+        let instanceFlatFeePerTokenPolicy;
+        const initFlatFeePerToken = 3;
+
+        beforeEach(async () => {
+          // FlatFeePolicy
+          const testFlatFeePolicyFactory = await ethers.getContractFactory('FlatFeePolicy');
+          instanceFlatFeePolicy = await testFlatFeePolicyFactory.deploy(initFlatFee);
+          await instanceFlatFeePolicy.deployed();
+          await feePolicyPortal.setUsersFeePolicy(instanceFlatFeePolicy.address, [feePolicyUser_1.address]);
+
+          // PercentageFeePolicy
+          const testPercentageFeePolicyFactory = await ethers.getContractFactory('PercentageFeePolicy');
+          instancePercentageFeePolicy = await testPercentageFeePolicyFactory.deploy(initPrecision, initFeePercentage);
+          await instancePercentageFeePolicy.deployed();
+          await feePolicyPortal.setUsersFeePolicy(instancePercentageFeePolicy.address, [feePolicyUser_2.address]);
+
+          // FlatFeePerTokenPolicy
+          const testFlatFeePerTokenPolicyFactory = await ethers.getContractFactory('FlatFeePerTokenPolicy');
+          instanceFlatFeePerTokenPolicy = await testFlatFeePerTokenPolicyFactory.deploy();
+          await instanceFlatFeePerTokenPolicy.deployed();
+          await instanceFlatFeePerTokenPolicy.setFlatFee(testNativeToken1.address, initFlatFeePerToken);
+          await feePolicyPortal.setUsersFeePolicy(instanceFlatFeePerTokenPolicy.address, [feePolicyUser_3.address]);
+        });
+
+        it('should calculate accumulated fees via FlatFeePolicy plus PercentageFeePolicy plus ServiceFee', async () => {
+          const _amount = ethers.utils.parseEther('100');
+
+          // via feePolicyUser_1 with FlatFeePolicy
+          await testNativeToken1.mint(feePolicyUser_1.address, _amount);
+          await testNativeToken1.connect(feePolicyUser_1).approve(router.address, _amount);
+          const feeAmountFor1 = await router.feeAmountFor(1, feePolicyUser_1.address, testNativeToken1.address, _amount);
+          await router.connect(feePolicyUser_1).lock(1, testNativeToken1.address, _amount, owner.address, feeAmountFor1);
+
+          // via feePolicyUser_2 with PercentageFeePolicy
+          await testNativeToken1.mint(feePolicyUser_2.address, _amount);
+          await testNativeToken1.connect(feePolicyUser_2).approve(router.address, _amount);
+          const feeAmountFor2 = await router.feeAmountFor(1, feePolicyUser_2.address, testNativeToken1.address, _amount);
+          await router.connect(feePolicyUser_2).lock(1, testNativeToken1.address, _amount, owner.address, feeAmountFor2);
+
+          // via feePolicyUser_3 with FlatFeePerTokenPolicy
+          await testNativeToken1.mint(feePolicyUser_3.address, _amount);
+          await testNativeToken1.connect(feePolicyUser_3).approve(router.address, _amount);
+          const feeAmountFor3 = await router.feeAmountFor(1, feePolicyUser_3.address, testNativeToken1.address, _amount);
+          await router.connect(feePolicyUser_3).lock(1, testNativeToken1.address, _amount, owner.address, feeAmountFor3);
+
+          // via feePolicyUser_4 with FEE_CALCULATOR_TOKEN_SERVICE_FEE
+          await testNativeToken1.mint(feePolicyUser_4.address, _amount);
+          await testNativeToken1.connect(feePolicyUser_4).approve(router.address, _amount);
+          const feeAmountFor4 = await router.feeAmountFor(1, feePolicyUser_4.address, testNativeToken1.address, _amount);
+          await router.connect(feePolicyUser_4).lock(1, testNativeToken1.address, _amount, owner.address, feeAmountFor4);
+
+          // service fee
+          const serviceFee1 = initFlatFee;
+          const serviceFe2 = _amount.mul(initFeePercentage).div(initPrecision);
+          const serviceFe3 = initFlatFeePerToken;
+          const serviceFe4 = _amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+
+          const allServiceFee = serviceFe4.add(serviceFe3).add(serviceFe2).add(serviceFee1);
+
+          const beforeMemberUpdateTokenFeeData = await router.tokenFeeData(testNativeToken1.address);
+
+          expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(allServiceFee);
+          expect(beforeMemberUpdateTokenFeeData.accumulator).to.equal(0);
+          expect(beforeMemberUpdateTokenFeeData.previousAccrued).to.equal(0);
+
+          const allAmounts = _amount.mul(4);
+          const routerBalance = await testNativeToken1.balanceOf(router.address);
+          expect(routerBalance).to.equal(allAmounts);
+        });
+      });
+    });
+  });
+
   describe('Diamond', async () => {
     beforeEach(async () => {
       await router.updateMember(bob.address, bobAdmin.address, true);
@@ -2638,7 +3649,13 @@ describe('Router', async () => {
       const expectedRevertMessage = 'Diamond: Function does not exist';
 
       const diamondCut = [
-        { facetAddress: ethers.constants.AddressZero, action: 2, functionSelectors: getSelectors(router) }
+        [ethers.constants.AddressZero, 2, getSelectors(cutFacet)],
+        [ethers.constants.AddressZero, 2, getSelectors(loupeFacet)],
+        [ethers.constants.AddressZero, 2, getSelectors(feeCalculatorFacet)],
+        [ethers.constants.AddressZero, 2, getSelectors(governanceFacet)],
+        [ethers.constants.AddressZero, 2, getSelectors(ownershipFacet)],
+        [ethers.constants.AddressZero, 2, getSelectors(pausableFacet)],
+        [ethers.constants.AddressZero, 2, getSelectors(routerFacet)],
       ];
 
       await expect(router.diamondCut(diamondCut, ethers.constants.AddressZero, '0x')).to.not.be.reverted;
@@ -2763,14 +3780,16 @@ describe('Router', async () => {
     });
 
     it('adds member with one existing token', async () => {
+      const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
       await router.updateNativeToken(nativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
-      await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
+      await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address, serviceFee);
 
       await router.updateMember(bob.address, bobAdmin.address, true);
     });
 
     it('adds member with two existing tokens', async () => {
       // given
+      const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
       const otherNativeToken = await nativeTokenFactory.deploy('OtherNativeToken', 'NT', 18);
       await otherNativeToken.deployed();
       await otherNativeToken.mint(nonMember.address, amount);
@@ -2778,8 +3797,8 @@ describe('Router', async () => {
 
       await router.updateNativeToken(nativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
       await router.updateNativeToken(otherNativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
-      await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
-      await router.connect(nonMember).lock(1, otherNativeToken.address, amount, owner.address);
+      await router.connect(nonMember).lock(1, nativeToken.address, amount, owner.address, serviceFee);
+      await router.connect(nonMember).lock(1, otherNativeToken.address, amount, owner.address, serviceFee);
 
       // when
       await router.updateMember(bob.address, bobAdmin.address, true);
