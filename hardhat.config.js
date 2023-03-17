@@ -264,6 +264,12 @@ task('transfer-ownership', 'Transfers ownership of the given contract')
         await transferOwnership(taskArgs.contract, taskArgs.newOwner);
     });
 
+task('deployERC721PortalFacet', 'Deploys ERC721PortalFacet')
+    .setAction(async () => {
+        const deployERC721PortalFacet = require('./scripts/deploy-erc721-portal-facet');
+        await deployERC721PortalFacet();
+    });
+
 module.exports = {
     solidity: {
         version: '0.8.3',
