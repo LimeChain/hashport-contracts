@@ -40,7 +40,7 @@ describe('Router', async () => {
   const wrappedTokenDecimals = 18;
 
   before(async () => {
-    [owner, alice, aliceAdmin, bob, bobAdmin, carol, carolAdmin, admin, nonMember] = await ethers.getSigners();
+    [owner, alice, aliceAdmin, bob, bobAdmin, carol, carolAdmin, admin, nonMember, attacker] = await ethers.getSigners();
 
     nativeTokenFactory = await ethers.getContractFactory('Token');
     nativeToken = await nativeTokenFactory.deploy('NativeToken', 'NT', 18);
@@ -2609,6 +2609,21 @@ describe('Router', async () => {
           const expectedRevertMessage = 'ERC721PortalFacet: _paymentToken does not match the current set payment token';
           await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nonMember.address, ERC721BurnFee, receiver))
             .to.be.revertedWith(expectedRevertMessage);
+        });
+
+        it("should revert when caller is not owner", async () => {
+          // given
+          await wrappedERC721.connect(nonMember).approve(router.address, tokenID);
+          // and
+          await nativeToken.mint(attacker.address, amount);
+          await nativeToken.connect(attacker).approve(router.address, amount);
+
+          // then
+          await expect(
+            erc721Portal
+              .connect(attacker)
+              .burnERC721(tokenID, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee, receiver)
+          ).to.be.revertedWith('ERC721PortalFacet: caller is not owner');
         });
       });
     });

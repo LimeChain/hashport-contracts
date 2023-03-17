@@ -79,6 +79,11 @@ contract ERC721PortalFacet is IERC721PortalFacet, ERC721Holder {
         uint256 _fee,
         bytes memory _receiver
     ) public override whenNotPaused {
+        require(
+            msg.sender == WrappedERC721(_wrappedToken).ownerOf(_tokenId),
+            "ERC721PortalFacet: caller is not owner"
+        );
+
         address payment = LibERC721.erc721Payment(_wrappedToken);
         require(
             LibPayment.containsPaymentToken(payment),
@@ -131,23 +136,17 @@ contract ERC721PortalFacet is IERC721PortalFacet, ERC721Holder {
 
     /// @notice Returns the payment token for an ERC-721
     /// @param _erc721 The address of the ERC-721 Token
-    function erc721Payment(address _erc721)
-        external
-        view
-        override
-        returns (address)
-    {
+    function erc721Payment(
+        address _erc721
+    ) external view override returns (address) {
         return LibERC721.erc721Payment(_erc721);
     }
 
     /// @notice Returns the payment fee for an ERC-721
     /// @param _erc721 The address of the ERC-721 Token
-    function erc721Fee(address _erc721)
-        external
-        view
-        override
-        returns (uint256)
-    {
+    function erc721Fee(
+        address _erc721
+    ) external view override returns (uint256) {
         return LibERC721.erc721Fee(_erc721);
     }
 
@@ -186,9 +185,10 @@ contract ERC721PortalFacet is IERC721PortalFacet, ERC721Holder {
     /// @notice Validates the signatures and the data and saves the transaction
     /// @param _ethHash The hashed data
     /// @param _signatures The array of signatures from the members, authorising the operation
-    function validateAndStoreTx(bytes32 _ethHash, bytes[] calldata _signatures)
-        internal
-    {
+    function validateAndStoreTx(
+        bytes32 _ethHash,
+        bytes[] calldata _signatures
+    ) internal {
         LibRouter.Storage storage rs = LibRouter.routerStorage();
         LibGovernance.validateSignatures(_ethHash, _signatures);
         rs.hashesUsed[_ethHash] = true;
