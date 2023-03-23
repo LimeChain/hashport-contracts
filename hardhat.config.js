@@ -270,6 +270,18 @@ task('deployERC721PortalFacet', 'Deploys ERC721PortalFacet')
         await deployERC721PortalFacet();
     });
 
+
+task('updateFacet', 'Deploys ERC721PortalFacet')
+    .addParam("facetName", "The addres of the router")
+    .addParam("facetAddress", "The addres of the router")
+    .addParam("routerAddress", "The addres of the router")
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const updateFacet = require('./scripts/update-Facet');
+        await updateFacet(taskArgs.facetName,taskArgs.facetAddress,taskArgs.routerAddress);
+    });
+
+
 module.exports = {
     solidity: {
         version: '0.8.3',
