@@ -277,7 +277,7 @@ task('updateFacet', 'Deploys ERC721PortalFacet')
     .addParam("routerAddress", "The addres of the router")
     .setAction(async (taskArgs) => {
         console.log(taskArgs);
-        const updateFacet = require('./scripts/update-Facet');
+        const updateFacet = require('./scripts/update-facet');
         await updateFacet(taskArgs.facetName,taskArgs.facetAddress,taskArgs.routerAddress);
     });
 
