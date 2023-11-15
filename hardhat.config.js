@@ -1,15 +1,22 @@
 const { task } = require('hardhat/config');
-
-const ALCHEMY_PROJECT_ID = process.env.ALCHEMY_PROJECT_ID || '';
-const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY || 'f39fd6e51aad88f6f4ce6ab8827279cfffb92266';
+const dotenv = require('dotenv');
+dotenv.config();
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
  */
-require("@nomiclabs/hardhat-etherscan");
+// require("@nomiclabs/hardhat-etherscan");
 require('@nomiclabs/hardhat-waffle');
 require('solidity-coverage');
 require('hardhat-gas-reporter');
+
+require("@matterlabs/hardhat-zksync-verify");
+require("@matterlabs/hardhat-zksync-deploy");
+require("@matterlabs/hardhat-zksync-solc");
+
+const ALCHEMY_PROJECT_ID = process.env.ALCHEMY_PROJECT_ID || '';
+const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY || '';
+
 
 task('deploy-router', 'Deploys Router contract will all the necessary facets')
     .addParam('owner', 'The owner of the to-be deployed router')
@@ -283,6 +290,7 @@ task('updateFacet', 'Deploys ERC721PortalFacet')
 
 
 module.exports = {
+    privateKey : DEPLOYER_PRIVATE_KEY,
     solidity: {
         version: '0.8.3',
         settings: {
@@ -294,6 +302,10 @@ module.exports = {
                 }
             },
         },
+    },
+    zksolc: {
+      version: "latest", // Uses latest available in https://github.com/matter-labs/zksolc-bin/
+      settings: {},
     },
     defaultNetwork: 'hardhat',
     networks: {
@@ -310,6 +322,13 @@ module.exports = {
         mumbai: {
             url: `https://polygon-mumbai.g.alchemy.com/v2/${ALCHEMY_PROJECT_ID}`,
             accounts: [`0x${DEPLOYER_PRIVATE_KEY}`]
+        },
+        zk: {
+          zksync: true,
+          url: `https://testnet.era.zksync.dev`,
+          ethNetwork: "goerli", // or a Goerli RPC endpoint from Infura/Alchemy/Chainstack etc.
+          accounts: [`0x${DEPLOYER_PRIVATE_KEY}`],
+          verifyURL: 'https://zksync2-testnet-explorer.zksync.dev/contract_verification'
         },
     },
     etherscan: {

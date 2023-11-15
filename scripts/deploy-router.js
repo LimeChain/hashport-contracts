@@ -1,45 +1,49 @@
 const hardhat = require('hardhat');
 const ethers = hardhat.ethers;
+const { Wallet, utils } =  require("zksync-web3");
+const { Deployer } =  require( "@matterlabs/hardhat-zksync-deploy");
 
 const { getSelectors } = require('../util');
-
 const { performUpgradeErc721Support } = require('./upgrade-erc721-support');
 
 async function deployRouter(owner, governancePercentage, governancePrecision, feeCalculatorPrecision, members, membersAdmins) {
   await hardhat.run('compile');
 
-  const routerFacetFactory = await ethers.getContractFactory('RouterFacet');
-  routerFacet = await routerFacetFactory.deploy();
+  const wallet = new Wallet(`0x${hardhat.config.privateKey}`);
+  const deployer = new Deployer(hre, wallet);
+
+  const routerFacetFactory = await deployer.loadArtifact('RouterFacet');
+  const routerFacet = await deployer.deploy(routerFacetFactory, []);
   console.log('Deploying RouterFacet, please wait...');
   await routerFacet.deployed();
 
-  const ownershipFacetFactory = await ethers.getContractFactory('OwnershipFacet');
-  ownershipFacet = await ownershipFacetFactory.deploy();
+  const ownershipFacetFactory = await deployer.loadArtifact('OwnershipFacet');
+  ownershipFacet = await deployer.deploy(ownershipFacetFactory, []); // ownershipFacetFactory.deploy();
   console.log('Deploying OwnershipFacet, please wait...');
   await ownershipFacet.deployed();
 
-  const feeCalculatorFacetFactory = await ethers.getContractFactory('FeeCalculatorFacet');
-  feeCalculatorFacet = await feeCalculatorFacetFactory.deploy();
+  const feeCalculatorFacetFactory = await deployer.loadArtifact('FeeCalculatorFacet');
+  feeCalculatorFacet = await deployer.deploy(feeCalculatorFacetFactory, []); //feeCalculatorFacetFactory.deploy();
   console.log('Deploying FeeCalculatorFacet, please wait...');
   await feeCalculatorFacet.deployed();
 
-  const governanceFacetFactory = await ethers.getContractFactory('GovernanceFacet');
-  governanceFacet = await governanceFacetFactory.deploy();
+  const governanceFacetFactory = await deployer.loadArtifact('GovernanceFacet');
+  governanceFacet = await deployer.deploy(governanceFacetFactory, []);//governanceFacetFactory.deploy();
   console.log('Deploying GovernanceFacet, please wait...');
   await governanceFacet.deployed();
 
-  const diamondCutFacetFactory = await ethers.getContractFactory('DiamondCutFacet');
-  cutFacet = await diamondCutFacetFactory.deploy();
+  const diamondCutFacetFactory = await deployer.loadArtifact('DiamondCutFacet');
+  cutFacet = await deployer.deploy(diamondCutFacetFactory, []);//diamondCutFacetFactory.deploy();
   console.log('Deploying DiamondCutFacet, please wait...');
   await cutFacet.deployed();
 
-  const diamondLoupeFacetFactory = await ethers.getContractFactory('DiamondLoupeFacet');
-  loupeFacet = await diamondLoupeFacetFactory.deploy();
+  const diamondLoupeFacetFactory = await deployer.loadArtifact('DiamondLoupeFacet');
+  loupeFacet = await deployer.deploy(diamondLoupeFacetFactory, []);//diamondLoupeFacetFactory.deploy();
   console.log('Deploying DiamondLoupeFacet, please wait...');
   await loupeFacet.deployed();
 
-  const pausableFacetFactory = await ethers.getContractFactory('PausableFacet');
-  pausableFacet = await pausableFacetFactory.deploy();
+  const pausableFacetFactory = await deployer.loadArtifact('PausableFacet');
+  pausableFacet = await deployer.deploy(pausableFacetFactory, []);//pausableFacetFactory.deploy();
   console.log('Deploying PausableFacet, please wait...');
   await pausableFacet.deployed();
 
@@ -58,8 +62,10 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
     owner
   ];
 
-  const diamondFactory = await ethers.getContractFactory('Router');
-  diamond = await diamondFactory.deploy(diamondCut, args);
+  const diamondFactory = await deployer.loadArtifact('Router');
+  
+  console.log('Deploying Diamond, please wait...', [diamondCut, args]);
+  diamond = await deployer.deploy(diamondFactory, [diamondCut, args]) //diamondFactory.deploy(diamondCut, args);
   console.log('Deploying Router, please wait...');
   await diamond.deployed();
 

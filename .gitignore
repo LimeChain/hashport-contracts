@@ -40,7 +40,8 @@ bower_components
 
 # Compiled binary addons (https://nodejs.org/api/addons.html)
 build/Release
-artifacts
+artifacts*
+
 
 # Dependency directories
 node_modules/
@@ -63,7 +64,7 @@ typings/
 .rts2_cache_cjs/
 .rts2_cache_es/
 .rts2_cache_umd/
-cache
+cache*
 
 # Optional REPL history
 .node_repl_history
@@ -115,3 +116,5 @@ dist
 .etherlime-store
 build/
 testfile.js
+
+.vscode
