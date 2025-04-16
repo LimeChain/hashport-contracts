@@ -6,7 +6,7 @@ async function burnERC721(routerAddress, targetChain, wrappedAsset, tokenId, rec
   await hardhat.run('compile');
 
   let receiverAddress = receiver;
-  if (targetChain === '0' || targetChain === '295' || targetChain === '296') {
+  if (targetChain === '0') {
     receiverAddress = (AccountId.fromString(receiver)).toBytes();
   }
 
