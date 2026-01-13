@@ -1,4 +1,4 @@
-const { task } = require('hardhat/config');
+const { task, types } = require('hardhat/config');
 
 const ALCHEMY_PROJECT_ID = process.env.ALCHEMY_PROJECT_ID || '';
 const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY || 'f39fd6e51aad88f6f4ce6ab8827279cfffb92266';
@@ -78,24 +78,6 @@ task('deploy-router-wrapped-token', 'Deploy wrapped token from router contract')
             taskArgs.decimals);
     });
 
-task('deploy-wrapped-erc721-transfer-ownership', 'Deploys Wrapped ERC-721 and transfer ownership to Router')
-    .addParam('router', 'The address of the router contract')
-    .addParam('name', 'Name for ERC-721')
-    .addParam('symbol', ' Symbol for ERC-721')
-    .setAction(async (taskArgs) => {
-        const deployWrappedERC721TransferOwnership = require('./scripts/deploy-wrapped-erc721-transfer-ownership');
-        await deployWrappedERC721TransferOwnership(taskArgs.router, taskArgs.name, taskArgs.symbol);
-    });
-
-task('deploy-wrapped-erc721-pausable-transfer-ownership', 'Deploys Wrapped ERC-721Pausable and transfer ownership to Router')
-    .addParam('router', 'The address of the router contract')
-    .addParam('name', 'Name for ERC-721Pausable')
-    .addParam('symbol', ' Symbol for ERC-721Pausable')
-    .setAction(async (taskArgs) => {
-        const deployWrappedERC721PausableTransferOwnership = require('./scripts/deploy-wrapped-erc721-pausable-transfer-ownership');
-        await deployWrappedERC721PausableTransferOwnership(taskArgs.router, taskArgs.name, taskArgs.symbol);
-    });
-
 task('update-member', 'Update member in router contract')
     .addParam('router', 'The address of the router contract')
     .addParam('member', 'The address of the member')
@@ -105,13 +87,6 @@ task('update-member', 'Update member in router contract')
         await updateMember(taskArgs.router, taskArgs.member, taskArgs.status);
     });
 
-task('upgrade-erc721-support', 'Upgrades the router diamond with Payment and ERC-721 facets')
-    .addParam('router', 'The address of the router contract')
-    .setAction(async (taskArgs) => {
-        const { upgradeErc721Support } = require('./scripts/upgrade-erc721-support');
-        await upgradeErc721Support(taskArgs.router);
-    });
-
 task('set-payment-token', 'Sets the router diamond with Payment token')
     .addParam('router', 'The address of the router contract')
     .addParam('paymentToken', 'The address of the payment token')
@@ -119,42 +94,6 @@ task('set-payment-token', 'Sets the router diamond with Payment token')
     .setAction(async (taskArgs) => {
         const setPaymentToken = require('./scripts/set-payment-token');
         await setPaymentToken(taskArgs.router, taskArgs.paymentToken, taskArgs.status);
-    });
-
-task('set-erc721-payment', 'Sets the router diamond payment for a Wrapped ERC-721')
-    .addParam('router', 'The address of the router contract')
-    .addParam('erc721', 'The address of the ERC-721')
-    .addParam('paymentToken', 'The address of the payment token')
-    .addParam('fee', 'The amount to be charged upon Wrapped ERC-721 Burn')
-    .setAction(async (taskArgs) => {
-        const setERC721Payment = require('./scripts/set-erc721-payment');
-        await setERC721Payment(taskArgs.router, taskArgs.erc721, taskArgs.paymentToken, taskArgs.fee);
-    });
-
-task('mint-erc721', 'Mints wrapped ERC-721 to the corresponding network')
-    .addParam('router', 'The address of the router contract')
-    .addParam('sourceChainId', 'The chain id of the source chain')
-    .addParam('targetChainId', 'The chain id of the target chain')
-    .addParam('transactionId', 'The target transaction id')
-    .addParam('wrappedAsset', 'The address of the wrapped asset')
-    .addParam('tokenId', 'The target token ID')
-    .addParam('metadata', 'The token ID metadata')
-    .addParam('receiver', 'The address of the receiver')
-    .addParam('signatures', 'An array of signatures, split by ","')
-    .setAction(async (taskArgs) => {
-        console.log(taskArgs);
-        const signaturesArray = taskArgs.signatures.split(',');
-        const mintERC721 = require('./scripts/erc-721-mint');
-        await mintERC721(
-            taskArgs.router,
-            taskArgs.sourceChainId,
-            taskArgs.targetChainId,
-            taskArgs.transactionId,
-            taskArgs.wrappedAsset,
-            taskArgs.tokenId,
-            taskArgs.metadata,
-            taskArgs.receiver,
-            signaturesArray);
     });
 
 task('mint-erc20', 'Mints wrapped ERC-20 to the corresponding network')
@@ -194,23 +133,6 @@ task('burn-erc20', 'Approves & Burns wrapped ERC-20 amount to the corresponding 
             taskArgs.targetChainId,
             taskArgs.wrappedAsset,
             taskArgs.amount,
-            taskArgs.receiver);
-    });
-
-task('burn-erc721', 'Burns wrapped ERC-721 tokenID to the corresponding network')
-    .addParam('router', 'The address of the router contract')
-    .addParam('targetChainId', 'The chain id of the target chain')
-    .addParam('wrappedAsset', 'The address of the wrapped asset')
-    .addParam('tokenId', 'The id of the token')
-    .addParam('receiver', 'The address of the receiver')
-    .setAction(async (taskArgs) => {
-        console.log(taskArgs);
-        const burnERC721 = require('./scripts/burn-erc-721');
-        await burnERC721(
-            taskArgs.router,
-            taskArgs.targetChainId,
-            taskArgs.wrappedAsset,
-            taskArgs.tokenId,
             taskArgs.receiver);
     });
 
@@ -264,14 +186,8 @@ task('transfer-ownership', 'Transfers ownership of the given contract')
         await transferOwnership(taskArgs.contract, taskArgs.newOwner);
     });
 
-task('deployERC721PortalFacet', 'Deploys ERC721PortalFacet')
-    .setAction(async () => {
-        const deployERC721PortalFacet = require('./scripts/deploy-erc721-portal-facet');
-        await deployERC721PortalFacet();
-    });
 
-
-task('updateFacet', 'Deploys ERC721PortalFacet')
+task('updateFacet', 'Updates a facet in the router diamond')
     .addParam("facetName", "The addres of the router")
     .addParam("facetAddress", "The addres of the router")
     .addParam("routerAddress", "The addres of the router")
@@ -279,6 +195,14 @@ task('updateFacet', 'Deploys ERC721PortalFacet')
         console.log(taskArgs);
         const updateFacet = require('./scripts/update-facet');
         await updateFacet(taskArgs.facetName,taskArgs.facetAddress,taskArgs.routerAddress);
+    });
+
+task('removeFacet', 'Removes a facet from the router diamond')
+    .addParam("facetAddress", "The address of the facet to remove")
+    .addParam("routerAddress", "The address of the router")
+    .setAction(async (taskArgs) => {
+        const removeFacet = require('./scripts/remove-facet');
+        await removeFacet(taskArgs.facetAddress, taskArgs.routerAddress);
     });
 
 

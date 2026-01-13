@@ -90,10 +90,6 @@ export DEPLOYER_PRIVATE_KEY=<private key to use for deployments for the specifie
 * Initializes `GovernanceFacet` with the provided list of members, governance percentage, and governance precision
 * Initializes `RouterFacet`
 * Initializes `FeeCalculatorFacet` with the provided fee precision. 
-* As a second step - the script will update the router as follows:
-    * Add `PaymentFacet`
-    * Add `ERC721PortalFacet`
-    * Replace `GovernanceFacet` with `GovernanceV2Facet`
 
 ```bash
 npx hardhat deploy-router \
@@ -129,26 +125,6 @@ npx hardhat deploy-wrapped-token \
     --decimals <decimals of the token>
 ```
 
-#### Wrapped ERC-721 token deployment and Transfer Ownership to Diamond Router
-Deploys a wrapped ERC-721 and transfers ownership to Diamond Router
-```bash
-npx hardhat deploy-wrapped-erc721-transfer-ownership \
-    --network <network name> \
-    --router <address of the router diamond contract> \
-    --name <name of the ERC-721> \
-    --symbol <symbol of the ERC-721>
-```
-
-#### Wrapped ERC-721Pausable token deployment and Transfer Ownership to Diamond Router
-Deploys a wrapped ERC-721Pausable and transfers ownership to Diamond Router
-```bash
-npx hardhat deploy-wrapped-erc721-pausable-transfer-ownership \
-    --network <network name> \
-    --router <address of the router diamond contract> \
-    --name <name of the ERC-721> \
-    --symbol <symbol of the ERC-721>
-```
-
 #### Token deployment
 Deploys an instance of a [Token](./contracts/mocks/Token.sol) contract, used for testing purposes.
 ```bash
@@ -170,14 +146,6 @@ npx hardhat update-native-token \
     --status <true|false (default true)>
 ```
 
-#### Upgrade diamond to support ERC-721
-Upgrades the diamond to support ERC-721:
-```bash
-npx hardhat upgrade-erc721-support \
-    --network <network name> \
-    --router <address of the Router Diamond contract>
-```
-
 #### Set Payment Token
 Requires Router Diamond Contract to be upgraded with PaymentFacet support
 
@@ -187,46 +155,6 @@ npx hardhat set-payment-token \
     --router <address of the Router Diamond contract> \
     --payment-token <address of ERC-20 payment token contract> \
     --status <true|false (default true)>
-```
-
-#### Set ERC-721 Payment
-Requires Router Diamond Contract to be upgraded with ERC721PortalFacet & PaymentFacet support
-```bash
-npx hardhat set-erc721-payment \
-    --network <network name> \
-    --router <address of the Router Diamond contract> \
-    --erc721 <address of the ERC-721 contract> \
-    --payment-token <address of the ERC-20 payment token contract> \
-    --fee <required Payment Token fee upon burnERC721 wrapped transfers>
-```
-
-#### Mint Wrapped ERC-721
-Requires Router Diamond Contract to support ERC721PortalFacet
-Mints Wrapped ERC-721 tokenID to the corresponding network
-```bash
-npx hardhat mint-erc721 \
-    --network <network name> \
-    --router <address of the Router Diamond contract> \
-    --source-chain-id <The chain id of the source chain> \
-    --target-chain-id <The chain id of the target chain> \
-    --transaction-id <The target transaction id> \
-    --wrapped-asset <The address of the wrapped ERC-721 token> \
-    --token-id <The target token ID to be minted> \
-    --metadata <The token ID metadata> \
-    --receiver <The address of the receiver> \
-    --signatures <An array of signatures, split by `,`>
-```
-
-#### Burn Wrapped ERC-721
-Burns Wrapped ERC-721 tokenId to the corresponding network
-```bash
-npx hardhat burn-erc721 \
-    --network <network name> \
-    --router <address of the Router Diamond contract> \
-    --target-chain-id <The chain id of the target chain> \
-    --wrapped-asset <The address of the wrapped ERC-721 token> \
-    --token-id <The token id to be burned> \
-    --receiver <The address/AccountID of the receiver>
 ```
 
 #### Mint Wrapped ERC-20
