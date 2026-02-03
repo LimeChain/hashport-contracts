@@ -32,6 +32,9 @@ describe('Router', async () => {
   const FEE_CALCULATOR_TOKEN_SERVICE_FEE = 10_000;
   const FEE_CALCULATOR_PRECISION = 100_000;
 
+  const UNLOCK_GAS_COST = 195000;
+  const MINT_GAS_COST = 185000;
+
   const amount = ethers.utils.parseEther('100');
   const permitDeadline = Math.round(Date.now() / 1000) + 60 * 60;
   const transactionId = '0x000000000000000000000000000000000000000000000000000000000000000000000000';
@@ -524,6 +527,77 @@ describe('Router', async () => {
       it('should revert when executing transaction with not owner', async () => {
         const expectedRevertMessage = 'LibDiamond: Must be contract owner';
         await expect(router.connect(nonMember).setServiceFee(bob.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE)).to.be.revertedWith(expectedRevertMessage);
+      });
+    });
+
+    describe('setUnlockGasCost', async () => {
+      it('should successfully set unlock gas cost', async () => {
+        await router.setUnlockGasCost(UNLOCK_GAS_COST);
+        expect(await router.unlockGasCost()).to.equal(UNLOCK_GAS_COST);
+      });
+
+      it('should revert when not called by owner', async () => {
+        const expectedRevertMessage = 'LibDiamond: Must be contract owner';
+        await expect(router.connect(nonMember).setUnlockGasCost(UNLOCK_GAS_COST))
+          .to.be.revertedWith(expectedRevertMessage);
+      });
+    });
+
+    describe('setMintGasCost', async () => {
+      it('should successfully set mint gas cost', async () => {
+        await router.setMintGasCost(MINT_GAS_COST);
+        expect(await router.mintGasCost()).to.equal(MINT_GAS_COST);
+      });
+
+      it('should emit MintGasCostSet event with correct value', async () => {
+        await expect(router.setMintGasCost(MINT_GAS_COST))
+          .to.emit(router, 'MintGasCostSet')
+          .withArgs(MINT_GAS_COST);
+      });
+
+      it('should allow updating mint gas cost multiple times', async () => {
+        await router.setMintGasCost(MINT_GAS_COST);
+        expect(await router.mintGasCost()).to.equal(MINT_GAS_COST);
+
+        const newGasCost = 200000;
+        await router.setMintGasCost(newGasCost);
+        
+        expect(await router.mintGasCost()).to.equal(newGasCost);
+      });
+
+      it('should revert when not called by owner', async () => {
+        const expectedRevertMessage = 'LibDiamond: Must be contract owner';
+        
+        await expect(router.connect(nonMember).setMintGasCost(MINT_GAS_COST))
+          .to.be.revertedWith(expectedRevertMessage);
+      });
+    });
+
+    describe('unlockGasCost', async () => {
+      it('should return 0 as initial value', async () => {
+        const initialValue = await router.unlockGasCost();
+        expect(initialValue).to.equal(0);
+      });
+
+      it('should return correct value after being set', async () => {
+        await router.setUnlockGasCost(UNLOCK_GAS_COST);
+          
+        const storedValue = await router.unlockGasCost();
+        expect(storedValue).to.equal(UNLOCK_GAS_COST);
+      });
+    });
+
+    describe('mintGasCost', async () => {
+      it('should return 0 as initial value', async () => {
+        const initialValue = await router.mintGasCost();
+        expect(initialValue).to.equal(0);
+      });
+
+      it('should return correct value after being set', async () => {
+        await router.setMintGasCost(MINT_GAS_COST);
+          
+        const storedValue = await router.mintGasCost();
+        expect(storedValue).to.equal(MINT_GAS_COST);
       });
     });
   });

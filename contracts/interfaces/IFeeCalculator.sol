@@ -11,6 +11,10 @@ interface IFeeCalculator {
         address token,
         uint256 amount
     );
+    /// @notice An event emitted once the gas cost for Unlock is modified
+    event UnlockGasCostSet(uint256 gasCost);
+    /// @notice An event emitted once the gas cost for Mint is modified
+    event MintGasCostSet(uint256 gasCost);
 
     /// @notice Construct a new FeeCalculator contract
     /// @param _precision The precision for every fee calculator
@@ -52,4 +56,20 @@ interface IFeeCalculator {
     /// @notice Sends out the reward accumulated by the member for the specified token
     /// to the member admin
     function claim(address _token, address _member) external;
+    
+    // @notice Sets the gas cost for unlock function
+    /// @param _gasCost The gas cost value
+    function setUnlockGasCost(uint256 _gasCost) external;
+    
+    /// @notice Sets the gas cost for mint function
+    /// @param _gasCost The gas cost value
+    function setMintGasCost(uint256 _gasCost) external;
+    
+    /// @notice Returns the stored gas cost for unlock
+    /// @return The gas cost
+    function unlockGasCost() external view returns (uint256);
+    
+    /// @notice Returns the stored gas cost for mint
+    /// @return The gas cost
+    function mintGasCost() external view returns (uint256);
 }

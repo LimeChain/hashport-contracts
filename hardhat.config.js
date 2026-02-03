@@ -205,6 +205,13 @@ task('removeFacet', 'Removes a facet from the router diamond')
         await removeFacet(taskArgs.facetAddress, taskArgs.routerAddress);
     });
 
+task('upgrade-fee-calculator', 'Deploys new FeeCalculatorFacet and upgrades router with gas cost functions')
+    .addParam("routerAddress", "The address of the router diamond")
+    .setAction(async (taskArgs) => {
+        console.log(taskArgs);
+        const { upgradeFeeCalculatorFacet } = require('./scripts/upgrade-fee-calculator-facet');
+        await upgradeFeeCalculatorFacet(taskArgs.routerAddress);
+    });
 
 module.exports = {
     solidity: {

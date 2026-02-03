@@ -102,6 +102,50 @@ contract FeeCalculatorFacet is IFeeCalculator {
         emit Claim(_member, memberAdmin, _token, claimableAmount);
     }
 
+    /// @notice Sets the gas cost reference for unlock function
+    /// @param _gasCost The gas cost to store
+    function setUnlockGasCost(uint256 _gasCost) 
+        external 
+        override 
+    {
+        LibDiamond.enforceIsContractOwner();
+        LibFeeCalculator.setUnlockGasCost(_gasCost);
+        emit UnlockGasCostSet(_gasCost);
+    }
+    
+    /// @notice Sets the gas cost reference for mint function
+    /// @param _gasCost The gas cost to store
+    function setMintGasCost(uint256 _gasCost) 
+        external 
+        override 
+    {
+        LibDiamond.enforceIsContractOwner();
+        LibFeeCalculator.setMintGasCost(_gasCost);
+        emit MintGasCostSet(_gasCost);
+    }
+    
+    /// @notice Returns the stored gas cost for unlock function
+    /// @return The gas cost
+    function unlockGasCost() 
+        external 
+        view 
+        override 
+        returns (uint256) 
+    {
+        return LibFeeCalculator.unlockGasCost();
+    }
+    
+    /// @notice Returns the stored gas cost for mint function
+    /// @return The gas cost
+    function mintGasCost() 
+        external 
+        view 
+        override 
+        returns (uint256) 
+    {
+        return LibFeeCalculator.mintGasCost();
+    }
+
     /// @notice Accepts only `msg.sender` part of the members
     modifier onlyMember(address _member) {
         require(
