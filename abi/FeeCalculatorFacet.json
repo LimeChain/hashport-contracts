@@ -35,6 +35,19 @@
     "inputs": [
       {
         "indexed": false,
+        "internalType": "uint256",
+        "name": "newGasCost",
+        "type": "uint256"
+      }
+    ],
+    "name": "MintGasCostSet",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
         "internalType": "address",
         "name": "account",
         "type": "address"
@@ -53,6 +66,19 @@
       }
     ],
     "name": "ServiceFeeSet",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "newGasCost",
+        "type": "uint256"
+      }
+    ],
+    "name": "UnlockGasCostSet",
     "type": "event"
   },
   {
@@ -112,6 +138,19 @@
   },
   {
     "inputs": [],
+    "name": "mintGasCost",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "serviceFeePrecision",
     "outputs": [
       {
@@ -121,6 +160,19 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_gasCost",
+        "type": "uint256"
+      }
+    ],
+    "name": "setMintGasCost",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -137,6 +189,19 @@
       }
     ],
     "name": "setServiceFee",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_gasCost",
+        "type": "uint256"
+      }
+    ],
+    "name": "setUnlockGasCost",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -169,6 +234,19 @@
       {
         "internalType": "uint256",
         "name": "accumulator",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "unlockGasCost",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
         "type": "uint256"
       }
     ],

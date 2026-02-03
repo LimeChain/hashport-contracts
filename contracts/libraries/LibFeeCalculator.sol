@@ -26,6 +26,8 @@ library LibFeeCalculator {
         uint256 precision;
         // A mapping consisting of all token fee calculators
         mapping(address => FeeCalculator) nativeTokenFeeCalculators;
+        uint256 unlockGasCost;
+        uint256 mintGasCost;
     }
 
     function feeCalculatorStorage() internal pure returns (Storage storage ds) {
@@ -125,5 +127,33 @@ library LibFeeCalculator {
         LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
         FeeCalculator storage fc = fcs.nativeTokenFeeCalculators[_token];
         fc.feesAccrued = fc.feesAccrued + _amount;
+    }
+
+    /// @notice Sets the gas cost for unlock function
+    /// @param _gasCost The gas cost to store
+    function setUnlockGasCost(uint256 _gasCost) internal {
+        LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
+        fcs.unlockGasCost = _gasCost;
+    }
+
+    /// @notice Sets the gas cost for mint function
+    /// @param _gasCost The gas cost to store
+    function setMintGasCost(uint256 _gasCost) internal {
+        LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
+        fcs.mintGasCost = _gasCost;
+    }
+
+    /// @notice Gets the gas cost for unlock function
+    /// @return The stored gas cost
+    function unlockGasCost() internal view returns (uint256) {
+        LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
+        return fcs.unlockGasCost;
+    }
+
+    /// @notice Gets the gas cost for mint function
+    /// @return The stored gas cost
+    function mintGasCost() internal view returns (uint256) {
+        LibFeeCalculator.Storage storage fcs = feeCalculatorStorage();
+        return fcs.mintGasCost;
     }
 }
