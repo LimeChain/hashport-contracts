@@ -18,6 +18,7 @@ task('deploy-router', 'Deploys Router contract will all the necessary facets')
     .addParam('feeCalculatorPrecision', 'The precision of fee calculations for native tokens', 100_000, types.int)
     .addParam('members', 'The addresses of the members')
     .addParam('membersAdmins', 'The addresses of the members\' admins')
+    .addParam('priceFeed', 'The Chainlink price feed address for the Oracle facet')
     .setAction(async (taskArgs) => {
         const deployRouter = require('./scripts/deploy-router');
         const membersArray = taskArgs.members.split(',');
@@ -28,7 +29,8 @@ task('deploy-router', 'Deploys Router contract will all the necessary facets')
             taskArgs.governancePrecision,
             taskArgs.feeCalculatorPrecision,
             membersArray,
-            membersAdminsArray);
+            membersAdminsArray,
+            taskArgs.priceFeed);
     });
 
 task('deploy-token', 'Deploys token to the provided network')
@@ -85,6 +87,14 @@ task('update-member', 'Update member in router contract')
     .setAction(async (taskArgs) => {
         const updateMember = require('./scripts/update-member');
         await updateMember(taskArgs.router, taskArgs.member, taskArgs.status);
+    });
+
+task('set-price-feed', 'Sets the Chainlink price feed address on the router')
+    .addParam('router', 'The address of the router contract')
+    .addParam('priceFeed', 'The address of the Chainlink price feed')
+    .setAction(async (taskArgs) => {
+        const setPriceFeed = require('./scripts/set-price-feed');
+        await setPriceFeed(taskArgs.router, taskArgs.priceFeed);
     });
 
 task('set-payment-token', 'Sets the router diamond with Payment token')
