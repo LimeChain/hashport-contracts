@@ -95,6 +95,22 @@ task('update-member', 'Update member in router contract')
         await updateMember(taskArgs.router, taskArgs.member, taskArgs.status);
     });
 
+task('deploy-oracle-facet', 'Deploys OracleFacet and upgrades the diamond router with it')
+    .addParam('router', 'The address of the router (diamond proxy) contract')
+    .addParam('sourcePriceFeed', 'The Chainlink price feed address for this chain\'s native token')
+    .addParam('destinationChainIds', 'Comma-separated list of destination chain IDs (e.g. 56,137)', '', types.string, true)
+    .addParam('destinationPriceFeeds', 'Comma-separated list of destination price feed addresses matching the chain IDs', '', types.string, true)
+    .setAction(async (taskArgs) => {
+        const destinationChainIds = taskArgs.destinationChainIds
+            ? taskArgs.destinationChainIds.split(',').map(id => id.trim())
+            : [];
+        const destinationPriceFeeds = taskArgs.destinationPriceFeeds
+            ? taskArgs.destinationPriceFeeds.split(',').map(addr => addr.trim())
+            : [];
+        const deployOracleFacet = require('./scripts/deploy-oracle-facet');
+        await deployOracleFacet(taskArgs.router, taskArgs.sourcePriceFeed, destinationChainIds, destinationPriceFeeds);
+    });
+
 task('set-source-price-feed', 'Sets the Chainlink price feed for the source chain on the router')
     .addParam('router', 'The address of the router contract')
     .addParam('priceFeed', 'The Chainlink price feed address for this chain\'s native token')
