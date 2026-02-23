@@ -16,8 +16,11 @@ describe('Router', async () => {
   let pausableFacet;
   let governanceFacet;
   let feeCalculatorFacet;
+  let oracleFacet;
   let cutFacet;
   let loupeFacet;
+  let mockPriceFeed;
+  let mockPriceFeed2;
   let owner;
   let alice;
   let bob;
@@ -31,6 +34,15 @@ describe('Router', async () => {
 
   const FEE_CALCULATOR_TOKEN_SERVICE_FEE = 10_000;
   const FEE_CALCULATOR_PRECISION = 100_000;
+
+  const PRICE_FEED_DECIMALS = 8;
+  const INITIAL_PRICE = ethers.BigNumber.from('200050000000');
+  const UPDATED_PRICE = ethers.BigNumber.from('250075000000');
+  const EXPECTED_INITIAL_PRICE = ethers.BigNumber.from('2000500000000000000000');
+  const EXPECTED_UPDATED_PRICE = ethers.BigNumber.from('2500750000000000000000');
+
+  const DESTINATION_CHAIN_ID = 137;   // Polygon — a destination chain for multi-feed tests
+  const OTHER_CHAIN_ID       = 56;    // BSC — a second destination chain
 
   const amount = ethers.utils.parseEther('100');
   const permitDeadline = Math.round(Date.now() / 1000) + 60 * 60;
@@ -76,6 +88,16 @@ describe('Router', async () => {
     loupeFacet = await diamondLoupeFacetFactory.deploy();
     await loupeFacet.deployed();
 
+    const oracleFacetFactory = await ethers.getContractFactory('OracleFacet');
+    oracleFacet = await oracleFacetFactory.deploy();
+    await oracleFacet.deployed();
+
+    const mockAggregatorFactory = await ethers.getContractFactory('MockAggregatorV3');
+    mockPriceFeed = await mockAggregatorFactory.deploy(PRICE_FEED_DECIMALS, INITIAL_PRICE);
+    await mockPriceFeed.deployed();
+    mockPriceFeed2 = await mockAggregatorFactory.deploy(PRICE_FEED_DECIMALS, UPDATED_PRICE);
+    await mockPriceFeed2.deployed();
+
     const diamondCut = [
       [cutFacet.address, 0, getSelectors(cutFacet)],
       [loupeFacet.address, 0, getSelectors(loupeFacet)],
@@ -84,6 +106,7 @@ describe('Router', async () => {
       [ownershipFacet.address, 0, getSelectors(ownershipFacet)],
       [pausableFacet.address, 0, getSelectors(pausableFacet)],
       [routerFacet.address, 0, getSelectors(routerFacet)],
+      [oracleFacet.address, 0, getSelectors(oracleFacet)],
     ];
 
     const args = [
@@ -99,6 +122,7 @@ describe('Router', async () => {
     await router.initGovernance([alice.address], [aliceAdmin.address], GOVERNANCE_PERCENTAGE, GOVERNANCE_PRECISION);
     await router.initRouter();
     await router.initFeeCalculator(FEE_CALCULATOR_PRECISION);
+    await router.initOracle(mockPriceFeed.address, [], []);
   });
 
   beforeEach(async function () {
@@ -170,6 +194,9 @@ describe('Router', async () => {
             break;
           case routerFacet.address:
             expect(facet.functionSelectors).to.deep.equal(getSelectors(routerFacet));
+            break;
+          case oracleFacet.address:
+            expect(facet.functionSelectors).to.deep.equal(getSelectors(oracleFacet));
             break;
           default:
             throw 'invalid facet address'
@@ -804,7 +831,7 @@ describe('Router', async () => {
       });
 
       it('should revert if not enough tokens are approved', async () => {
-        const expectedRevertMessage = 'ERC20: transfer amount exceeds allowance';
+        const expectedRevertMessage = 'ERC20: insufficient allowance';
         await expect(
           router.connect(nonMember).lock(1, nativeToken.address, amount, receiver))
           .to.be.revertedWith(expectedRevertMessage);
@@ -1645,6 +1672,244 @@ describe('Router', async () => {
 
       // when
       await router.updateMember(bob.address, bobAdmin.address, true);
+    });
+  });
+
+  describe('OracleFacet', async () => {
+    describe('initOracle', async () => {
+      it('should have initialized with the correct price feed for the current chain', async () => {
+        expect(await router.getSourceChainPriceFeed()).to.equal(mockPriceFeed.address);
+      });
+
+      it('should revert when already initialized', async () => {
+        await expect(router.initOracle(mockPriceFeed2.address, [], []))
+          .to.be.revertedWith('OracleFacet: already initialized');
+      });
+
+      it('should allow getNativeTokenPrice after init', async () => {
+        const price = await router['getNativeTokenPrice()']();
+        expect(price).to.equal(EXPECTED_INITIAL_PRICE);
+      });
+
+      it('should pre-configure destination chain feeds on init', async () => {
+        const diamondFactory = await ethers.getContractFactory('Router');
+        const diamondCut = [
+          [cutFacet.address, 0, getSelectors(cutFacet)],
+          [oracleFacet.address, 0, getSelectors(oracleFacet)],
+        ];
+        const freshDiamond = await diamondFactory.deploy(diamondCut, [owner.address]);
+        await freshDiamond.deployed();
+        const freshRouter = await ethers.getContractAt('IRouterDiamond', freshDiamond.address);
+
+        await freshRouter.initOracle(
+          mockPriceFeed.address,
+          [DESTINATION_CHAIN_ID, OTHER_CHAIN_ID],
+          [mockPriceFeed.address, mockPriceFeed2.address]
+        );
+
+        expect(await freshRouter.getSourceChainPriceFeed()).to.equal(mockPriceFeed.address);
+        expect(await freshRouter.getDestinationChainPriceFeed(DESTINATION_CHAIN_ID)).to.equal(mockPriceFeed.address);
+        expect(await freshRouter.getDestinationChainPriceFeed(OTHER_CHAIN_ID)).to.equal(mockPriceFeed2.address);
+      });
+
+      it('should revert on destination chain/feed length mismatch', async () => {
+        const diamondFactory = await ethers.getContractFactory('Router');
+        const diamondCut = [
+          [cutFacet.address, 0, getSelectors(cutFacet)],
+          [oracleFacet.address, 0, getSelectors(oracleFacet)],
+        ];
+        const freshDiamond = await diamondFactory.deploy(diamondCut, [owner.address]);
+        await freshDiamond.deployed();
+        const freshRouter = await ethers.getContractAt('IRouterDiamond', freshDiamond.address);
+
+        await expect(freshRouter.initOracle(mockPriceFeed.address, [DESTINATION_CHAIN_ID], []))
+          .to.be.revertedWith('OracleFacet: length mismatch');
+      });
+    });
+
+    describe('setSourceChainPriceFeed', async () => {
+      it('should update the source chain price feed', async () => {
+        await router.setSourceChainPriceFeed(mockPriceFeed2.address);
+
+        expect(await router.getSourceChainPriceFeed()).to.equal(mockPriceFeed2.address);
+      });
+
+      it('should emit SourcePriceFeedUpdated event', async () => {
+        await expect(router.setSourceChainPriceFeed(mockPriceFeed2.address))
+          .to.emit(router, 'SourcePriceFeedUpdated')
+          .withArgs(mockPriceFeed2.address);
+      });
+
+      it('should revert when caller is not owner', async () => {
+        await expect(
+          router.connect(nonMember).setSourceChainPriceFeed(mockPriceFeed2.address)
+        ).to.be.revertedWith('LibDiamond: Must be contract owner');
+      });
+
+      it('should revert when price feed is zero address', async () => {
+        await expect(router.setSourceChainPriceFeed(ethers.constants.AddressZero))
+          .to.be.revertedWith('OracleFacet: price feed cannot be zero address');
+      });
+    });
+
+    describe('setDestinationChainPriceFeed', async () => {
+      it('should set the price feed for a destination chain', async () => {
+        await router.setDestinationChainPriceFeed(DESTINATION_CHAIN_ID, mockPriceFeed2.address);
+
+        expect(await router.getDestinationChainPriceFeed(DESTINATION_CHAIN_ID)).to.equal(mockPriceFeed2.address);
+      });
+
+      it('should emit DestinationPriceFeedUpdated event', async () => {
+        await expect(router.setDestinationChainPriceFeed(DESTINATION_CHAIN_ID, mockPriceFeed2.address))
+          .to.emit(router, 'DestinationPriceFeedUpdated')
+          .withArgs(DESTINATION_CHAIN_ID, mockPriceFeed2.address);
+      });
+
+      it('should support multiple independent destination chains', async () => {
+        await router.setDestinationChainPriceFeed(DESTINATION_CHAIN_ID, mockPriceFeed.address);
+        await router.setDestinationChainPriceFeed(OTHER_CHAIN_ID, mockPriceFeed2.address);
+
+        expect(await router.getDestinationChainPriceFeed(DESTINATION_CHAIN_ID)).to.equal(mockPriceFeed.address);
+        expect(await router.getDestinationChainPriceFeed(OTHER_CHAIN_ID)).to.equal(mockPriceFeed2.address);
+      });
+
+      it('should revert when caller is not owner', async () => {
+        await expect(
+          router.connect(nonMember).setDestinationChainPriceFeed(DESTINATION_CHAIN_ID, mockPriceFeed2.address)
+        ).to.be.revertedWith('LibDiamond: Must be contract owner');
+      });
+
+      it('should revert when price feed is zero address', async () => {
+        await expect(router.setDestinationChainPriceFeed(DESTINATION_CHAIN_ID, ethers.constants.AddressZero))
+          .to.be.revertedWith('OracleFacet: price feed cannot be zero address');
+      });
+
+      it('should revert when chain ID is zero', async () => {
+        await expect(router.setDestinationChainPriceFeed(0, mockPriceFeed.address))
+          .to.be.revertedWith('OracleFacet: invalid chain id');
+      });
+    });
+
+    describe('getNativeTokenPrice (current chain)', async () => {
+      it('should return the price with 18 decimals', async () => {
+        const price = await router['getNativeTokenPrice()']();
+        expect(price).to.equal(EXPECTED_INITIAL_PRICE);
+      });
+
+      it('should return updated price after mock price change', async () => {
+        await mockPriceFeed.updateAnswer(UPDATED_PRICE);
+
+        const price = await router['getNativeTokenPrice()']();
+        expect(price).to.equal(EXPECTED_UPDATED_PRICE);
+      });
+
+      it('should return correct price after switching feed', async () => {
+        await router.setSourceChainPriceFeed(mockPriceFeed2.address);
+
+        const price = await router['getNativeTokenPrice()']();
+        expect(price).to.equal(EXPECTED_UPDATED_PRICE);
+      });
+
+      it('should preserve sub-cent precision with 18 decimals', async () => {
+        await mockPriceFeed.updateAnswer(ethers.BigNumber.from('200050550000'));
+
+        const price = await router['getNativeTokenPrice()']();
+        expect(price).to.equal(ethers.BigNumber.from('2000505500000000000000'));
+      });
+
+      it('should handle whole dollar prices correctly', async () => {
+        await mockPriceFeed.updateAnswer(ethers.BigNumber.from('200000000000'));
+
+        const price = await router['getNativeTokenPrice()']();
+        expect(price).to.equal(ethers.BigNumber.from('2000000000000000000000'));
+      });
+
+      it('should revert when price is zero', async () => {
+        await mockPriceFeed.updateAnswer(0);
+
+        await expect(router['getNativeTokenPrice()']())
+          .to.be.revertedWith('LibOracle: invalid price');
+      });
+
+      it('should revert when price is negative', async () => {
+        await mockPriceFeed.updateAnswer(-1);
+
+        await expect(router['getNativeTokenPrice()']())
+          .to.be.revertedWith('LibOracle: invalid price');
+      });
+    });
+
+    describe('getDestinationTokenPrice', async () => {
+      beforeEach(async () => {
+        await router.setDestinationChainPriceFeed(DESTINATION_CHAIN_ID, mockPriceFeed2.address);
+      });
+
+      it('should return the destination chain price with 18 decimals', async () => {
+        const price = await router.getDestinationTokenPrice(DESTINATION_CHAIN_ID);
+        expect(price).to.equal(EXPECTED_UPDATED_PRICE);
+      });
+
+      it('should return independent prices for current and destination chains', async () => {
+        const currentPrice = await router['getNativeTokenPrice()']();
+        const destPrice    = await router.getDestinationTokenPrice(DESTINATION_CHAIN_ID);
+        expect(currentPrice).to.equal(EXPECTED_INITIAL_PRICE);
+        expect(destPrice).to.equal(EXPECTED_UPDATED_PRICE);
+      });
+
+      it('should revert when no feed is configured for the destination chain', async () => {
+        await expect(router.getDestinationTokenPrice(OTHER_CHAIN_ID))
+          .to.be.revertedWith('LibOracle: no price feed for chain');
+      });
+
+      it('should normalize correctly with a 10 decimal feed', async () => {
+        const mockAggregatorFactory = await ethers.getContractFactory('MockAggregatorV3');
+        const feed10Decimals = await mockAggregatorFactory.deploy(10, ethers.BigNumber.from('20005000000000'));
+        await feed10Decimals.deployed();
+        await router.setDestinationChainPriceFeed(OTHER_CHAIN_ID, feed10Decimals.address);
+
+        const price = await router.getDestinationTokenPrice(OTHER_CHAIN_ID);
+        expect(price).to.equal(ethers.BigNumber.from('2000500000000000000000'));
+      });
+
+      it('should normalize correctly with an 18 decimal feed', async () => {
+        const mockAggregatorFactory = await ethers.getContractFactory('MockAggregatorV3');
+        const feed18Decimals = await mockAggregatorFactory.deploy(18, ethers.BigNumber.from('2000500000000000000000'));
+        await feed18Decimals.deployed();
+        await router.setDestinationChainPriceFeed(OTHER_CHAIN_ID, feed18Decimals.address);
+
+        const price = await router.getDestinationTokenPrice(OTHER_CHAIN_ID);
+        expect(price).to.equal(ethers.BigNumber.from('2000500000000000000000'));
+      });
+
+      it('should normalize correctly with a 20 decimal feed', async () => {
+        const mockAggregatorFactory = await ethers.getContractFactory('MockAggregatorV3');
+        const feed20Decimals = await mockAggregatorFactory.deploy(20, ethers.BigNumber.from('200050000000000000000000'));
+        await feed20Decimals.deployed();
+        await router.setDestinationChainPriceFeed(OTHER_CHAIN_ID, feed20Decimals.address);
+
+        const price = await router.getDestinationTokenPrice(OTHER_CHAIN_ID);
+        expect(price).to.equal(ethers.BigNumber.from('2000500000000000000000'));
+      });
+    });
+
+    describe('getSourceChainPriceFeed / getDestinationChainPriceFeed', async () => {
+      it('should return the initialized feed address for the source chain', async () => {
+        expect(await router.getSourceChainPriceFeed()).to.equal(mockPriceFeed.address);
+      });
+
+      it('should return updated address for the source chain after setSourceChainPriceFeed', async () => {
+        await router.setSourceChainPriceFeed(mockPriceFeed2.address);
+        expect(await router.getSourceChainPriceFeed()).to.equal(mockPriceFeed2.address);
+      });
+
+      it('should return zero address for an unregistered destination chain', async () => {
+        expect(await router.getDestinationChainPriceFeed(DESTINATION_CHAIN_ID)).to.equal(ethers.constants.AddressZero);
+      });
+
+      it('should return correct address after setDestinationChainPriceFeed', async () => {
+        await router.setDestinationChainPriceFeed(DESTINATION_CHAIN_ID, mockPriceFeed2.address);
+        expect(await router.getDestinationChainPriceFeed(DESTINATION_CHAIN_ID)).to.equal(mockPriceFeed2.address);
+      });
     });
   });
 });

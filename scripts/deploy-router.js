@@ -3,7 +3,7 @@ const ethers = hardhat.ethers;
 
 const { getSelectors } = require('../util');
 
-async function deployRouter(owner, governancePercentage, governancePrecision, feeCalculatorPrecision, members, membersAdmins) {
+async function deployRouter(owner, governancePercentage, governancePrecision, feeCalculatorPrecision, members, membersAdmins, priceFeedAddress, destinationChainIds, destinationPriceFeeds) {
   await hardhat.run('compile');
 
   const routerFacetFactory = await ethers.getContractFactory('RouterFacet');
@@ -41,6 +41,11 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
   console.log('Deploying PausableFacet, please wait...');
   await pausableFacet.deployed();
 
+  const oracleFacetFactory = await ethers.getContractFactory('OracleFacet');
+  oracleFacet = await oracleFacetFactory.deploy();
+  console.log('Deploying OracleFacet, please wait...');
+  await oracleFacet.deployed();
+
   const diamondCut = [
     // 0 stands for FacetCutAction.Add
     [cutFacet.address, 0, getSelectors(cutFacet)],
@@ -50,6 +55,7 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
     [ownershipFacet.address, 0, getSelectors(ownershipFacet)],
     [routerFacet.address, 0, getSelectors(routerFacet)],
     [pausableFacet.address, 0, getSelectors(pausableFacet)],
+    [oracleFacet.address, 0, getSelectors(oracleFacet)],
   ];
 
   const args = [
@@ -77,6 +83,9 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
   console.log(`Initializing Fee Calculator with precision [${feeCalculatorPrecision}], please wait...`);
   const initFeeCalculatorTx = await (await router.initFeeCalculator(feeCalculatorPrecision));
   await initFeeCalculatorTx.wait();
+  console.log(`Initializing Oracle with source feed [${priceFeedAddress}] and destination chains [${destinationChainIds}], please wait...`);
+  const initOracleTx = await router.initOracle(priceFeedAddress, destinationChainIds, destinationPriceFeeds);
+  await initOracleTx.wait();
 
   console.log('Router address: ', diamond.address);
   console.log('OwnershipFacet address: ', ownershipFacet.address);
@@ -86,6 +95,7 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
   console.log('DiamondCutFacet address: ', cutFacet.address);
   console.log('DiamondLoupeFacet address: ', loupeFacet.address);
   console.log('PausableFacet address: ', pausableFacet.address);
+  console.log('OracleFacet address: ', oracleFacet.address);
 
   console.log('Verification, please wait...');
 
@@ -121,6 +131,11 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
 
   await hardhat.run('verify:verify', {
     address: pausableFacet.address,
+    constructorArguments: []
+  });
+
+  await hardhat.run('verify:verify', {
+    address: oracleFacet.address,
     constructorArguments: []
   });
 
