@@ -5,7 +5,7 @@ async function setPriceFeed(routerAddress, priceFeedAddress) {
   await hardhat.run('compile');
 
   const router = await ethers.getContractAt('IRouterDiamond', routerAddress);
-  const tx = await router.setPriceFeedAddress(priceFeedAddress);
+  const tx = await router.setSourceChainPriceFeed(priceFeedAddress);
 
   console.log(`TX [${tx.hash}] submitted, waiting to be mined...`);
   await tx.wait();

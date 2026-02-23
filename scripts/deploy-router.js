@@ -3,7 +3,7 @@ const ethers = hardhat.ethers;
 
 const { getSelectors } = require('../util');
 
-async function deployRouter(owner, governancePercentage, governancePrecision, feeCalculatorPrecision, members, membersAdmins, priceFeedAddress) {
+async function deployRouter(owner, governancePercentage, governancePrecision, feeCalculatorPrecision, members, membersAdmins, priceFeedAddress, destinationChainIds, destinationPriceFeeds) {
   await hardhat.run('compile');
 
   const routerFacetFactory = await ethers.getContractFactory('RouterFacet');
@@ -83,8 +83,8 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
   console.log(`Initializing Fee Calculator with precision [${feeCalculatorPrecision}], please wait...`);
   const initFeeCalculatorTx = await (await router.initFeeCalculator(feeCalculatorPrecision));
   await initFeeCalculatorTx.wait();
-  console.log(`Initializing Oracle with price feed [${priceFeedAddress}], please wait...`);
-  const initOracleTx = await router.initOracle(priceFeedAddress);
+  console.log(`Initializing Oracle with source feed [${priceFeedAddress}] and destination chains [${destinationChainIds}], please wait...`);
+  const initOracleTx = await router.initOracle(priceFeedAddress, destinationChainIds, destinationPriceFeeds);
   await initOracleTx.wait();
 
   console.log('Router address: ', diamond.address);

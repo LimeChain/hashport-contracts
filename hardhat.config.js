@@ -18,11 +18,15 @@ task('deploy-router', 'Deploys Router contract will all the necessary facets')
     .addParam('feeCalculatorPrecision', 'The precision of fee calculations for native tokens', 100_000, types.int)
     .addParam('members', 'The addresses of the members')
     .addParam('membersAdmins', 'The addresses of the members\' admins')
-    .addParam('priceFeed', 'The Chainlink price feed address for the Oracle facet')
+    .addParam('sourcePriceFeed', 'The Chainlink price feed address for this (source) chain\'s native token')
+    .addParam('destinationChainIds', 'Comma-separated destination chain IDs (e.g. "1,56,137")')
+    .addParam('destinationPriceFeeds', 'Comma-separated Chainlink price feed addresses matching the destination chain IDs')
     .setAction(async (taskArgs) => {
         const deployRouter = require('./scripts/deploy-router');
         const membersArray = taskArgs.members.split(',');
         const membersAdminsArray = taskArgs.membersAdmins.split(',');
+        const destinationChainIds = taskArgs.destinationChainIds.split(',').map(id => id.trim());
+        const destinationPriceFeeds = taskArgs.destinationPriceFeeds.split(',').map(addr => addr.trim());
         await deployRouter(
             taskArgs.owner,
             taskArgs.governancePercentage,
@@ -30,7 +34,9 @@ task('deploy-router', 'Deploys Router contract will all the necessary facets')
             taskArgs.feeCalculatorPrecision,
             membersArray,
             membersAdminsArray,
-            taskArgs.priceFeed);
+            taskArgs.sourcePriceFeed,
+            destinationChainIds,
+            destinationPriceFeeds);
     });
 
 task('deploy-token', 'Deploys token to the provided network')
@@ -89,12 +95,21 @@ task('update-member', 'Update member in router contract')
         await updateMember(taskArgs.router, taskArgs.member, taskArgs.status);
     });
 
-task('set-price-feed', 'Sets the Chainlink price feed address on the router')
+task('set-source-price-feed', 'Sets the Chainlink price feed for the source chain on the router')
     .addParam('router', 'The address of the router contract')
-    .addParam('priceFeed', 'The address of the Chainlink price feed')
+    .addParam('priceFeed', 'The Chainlink price feed address for this chain\'s native token')
     .setAction(async (taskArgs) => {
-        const setPriceFeed = require('./scripts/set-price-feed');
-        await setPriceFeed(taskArgs.router, taskArgs.priceFeed);
+        const setSourcePriceFeed = require('./scripts/set-source-price-feed');
+        await setSourcePriceFeed(taskArgs.router, taskArgs.priceFeed);
+    });
+
+task('set-destination-price-feed', 'Sets the Chainlink price feed for a destination chain on the router')
+    .addParam('router', 'The address of the router contract')
+    .addParam('chainId', 'The destination chain ID')
+    .addParam('priceFeed', 'The Chainlink price feed address for that chain\'s native token')
+    .setAction(async (taskArgs) => {
+        const setDestinationPriceFeed = require('./scripts/set-destination-price-feed');
+        await setDestinationPriceFeed(taskArgs.router, taskArgs.chainId, taskArgs.priceFeed);
     });
 
 task('set-payment-token', 'Sets the router diamond with Payment token')
