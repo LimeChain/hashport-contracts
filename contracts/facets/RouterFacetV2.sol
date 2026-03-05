@@ -1,0 +1,238 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.3;
+
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "../WrappedToken.sol";
+import "../interfaces/IERC2612Permit.sol";
+import "../interfaces/IRouterV2.sol";
+import "../libraries/LibDiamond.sol";
+import "../libraries/LibFeeDistributor.sol";
+import "../libraries/LibRouter.sol";
+import "../libraries/LibGovernance.sol";
+
+contract RouterFacetV2 is IRouterV2 {
+    using SafeERC20 for IERC20;
+
+    /// @notice Transfers `amount` native tokens to the router contract
+    ///         and distributes the attached fee among validators.
+    /// @param _targetChain The target chain for the bridging operation
+    /// @param _nativeToken The token to be bridged
+    /// @param _amount The amount of tokens to bridge
+    /// @param _receiver The address of the receiver on the target chain
+    function lock(
+        uint256 _targetChain,
+        address _nativeToken,
+        uint256 _amount,
+        bytes memory _receiver
+    ) external payable override {
+        _lock(_targetChain, _nativeToken, _amount, _receiver);
+    }
+
+    /// @notice Locks the provided amount of nativeToken using an EIP-2612 permit
+    ///         and initiates a bridging transaction
+    /// @param _targetChain The chain to bridge the tokens to
+    /// @param _nativeToken The native token to bridge
+    /// @param _amount The amount of nativeToken to lock and bridge
+    /// @param _deadline The deadline for the provided permit
+    /// @param _v The recovery id of the permit's ECDSA signature
+    /// @param _r The first output of the permit's ECDSA signature
+    /// @param _s The second output of the permit's ECDSA signature
+    function lockWithPermit(
+        uint256 _targetChain,
+        address _nativeToken,
+        uint256 _amount,
+        bytes memory _receiver,
+        uint256 _deadline,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
+    ) external payable override {
+        IERC2612Permit(_nativeToken).permit(
+            msg.sender,
+            address(this),
+            _amount,
+            _deadline,
+            _v,
+            _r,
+            _s
+        );
+        _lock(_targetChain, _nativeToken, _amount, _receiver);
+    }
+
+    /// @notice Transfers `amount` native tokens to the `receiver` address.
+    ///         Must be authorised by the configured supermajority threshold
+    ///         of `signatures` from the `members` set.
+    /// @param _sourceChain The chainId of the chain that we're bridging from
+    /// @param _transactionId The transaction ID + log index in the source chain
+    /// @param _nativeToken The address of the native token
+    /// @param _amount The amount to transfer
+    /// @param _receiver The address reveiving the tokens
+    /// @param _signatures The array of signatures from the members, authorising the operation
+    function unlock(
+        uint256 _sourceChain,
+        bytes memory _transactionId,
+        address _nativeToken,
+        uint256 _amount,
+        address _receiver,
+        bytes[] calldata _signatures
+    ) external override whenNotPaused onlyNativeToken(_nativeToken) {
+        LibGovernance.validateSignaturesLength(_signatures.length);
+        bytes32 ethHash = computeMessage(
+            _sourceChain,
+            block.chainid,
+            _transactionId,
+            _nativeToken,
+            _receiver,
+            _amount
+        );
+        LibRouter.Storage storage rs = LibRouter.routerStorage();
+        require(
+            !rs.hashesUsed[ethHash],
+            "RouterFacet: transaction already submitted"
+        );
+        validateAndStoreTx(ethHash, _signatures);
+
+        IERC20(_nativeToken).safeTransfer(_receiver, _amount);
+
+        emit Unlock(
+            _sourceChain,
+            _transactionId,
+            _nativeToken,
+            _amount,
+            _receiver
+        );
+    }
+
+    /// @notice Burns `amount` of `wrappedToken` and distributes the attached
+    ///         fees among validators.
+    /// @param _targetChain The target chain to which the wrapped asset will be transferred
+    /// @param _wrappedToken The address of the wrapped token
+    /// @param _amount The amount of `wrappedToken` to burn
+    /// @param _receiver The address of the receiver on the target chain
+    function burn(
+        uint256 _targetChain,
+        address _wrappedToken,
+        uint256 _amount,
+        bytes memory _receiver
+    ) external payable override {
+        _burn(_targetChain, _wrappedToken, _amount, _receiver);
+    }
+
+    /// @notice Burns `amount` of `wrappedToken` using an EIP-2612 permit
+    ///         and initializes a bridging transaction to the target chain
+    /// @param _targetChain The target chain to which the wrapped asset will be transferred
+    /// @param _wrappedToken The address of the wrapped token
+    /// @param _amount The amount of `wrappedToken` to burn
+    /// @param _receiver The address of the receiver on the target chain
+    /// @param _deadline The deadline of the provided permit
+    /// @param _v The recovery id of the permit's ECDSA signature
+    /// @param _r The first output of the permit's ECDSA signature
+    /// @param _s The second output of the permit's ECDSA signature
+    function burnWithPermit(
+        uint256 _targetChain,
+        address _wrappedToken,
+        uint256 _amount,
+        bytes memory _receiver,
+        uint256 _deadline,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
+    ) external payable override {
+        WrappedToken(_wrappedToken).permit(
+            msg.sender,
+            address(this),
+            _amount,
+            _deadline,
+            _v,
+            _r,
+            _s
+        );
+        _burn(_targetChain, _wrappedToken, _amount, _receiver);
+    }
+
+    /// @notice Updates a native token, which will be used for lock/unlock.
+    /// @param _nativeToken The native token address
+    /// @param _status Whether the token will be added or removed
+    function updateNativeToken(
+        address _nativeToken,
+        bool _status
+    ) external override {
+        require(_nativeToken != address(0), "RouterFacet: zero address");
+        LibDiamond.enforceIsContractOwner();
+
+        LibRouter.updateNativeToken(_nativeToken, _status);
+
+        emit NativeTokenUpdated(_nativeToken, _status);
+    }
+
+    function _lock(
+        uint256 _targetChain,
+        address _nativeToken,
+        uint256 _amount,
+        bytes memory _receiver
+    ) internal whenNotPaused onlyNativeToken(_nativeToken) {
+        require(msg.value > 0, "RouterFacet: no fee provided");
+        IERC20(_nativeToken).safeTransferFrom(
+            msg.sender,
+            address(this),
+            _amount
+        );
+        LibFeeDistributor.distributeFee(msg.value);
+        emit Lock(_targetChain, _nativeToken, _amount, _receiver, msg.value);
+    }
+
+    function _burn(
+        uint256 _targetChain,
+        address _wrappedToken,
+        uint256 _amount,
+        bytes memory _receiver
+    ) internal whenNotPaused {
+        require(msg.value > 0, "RouterFacet: no fee provided");
+        WrappedToken(_wrappedToken).burnFrom(msg.sender, _amount);
+        LibFeeDistributor.distributeFee(msg.value);
+        emit Burn(_targetChain, _wrappedToken, _amount, _receiver, msg.value);
+    }
+
+    function validateAndStoreTx(bytes32 _ethHash, bytes[] calldata _signatures)
+        internal
+    {
+        LibRouter.Storage storage rs = LibRouter.routerStorage();
+        LibGovernance.validateSignatures(_ethHash, _signatures);
+        rs.hashesUsed[_ethHash] = true;
+    }
+
+    function computeMessage(
+        uint256 _sourceChain,
+        uint256 _targetChain,
+        bytes memory _transactionId,
+        address _token,
+        address _receiver,
+        uint256 _amount
+    ) internal pure returns (bytes32) {
+        bytes32 hashedData = keccak256(
+            abi.encode(
+                _sourceChain,
+                _targetChain,
+                _transactionId,
+                _token,
+                _receiver,
+                _amount
+            )
+        );
+        return ECDSA.toEthSignedMessageHash(hashedData);
+    }
+
+    modifier onlyNativeToken(address _nativeToken) {
+        require(
+            LibRouter.containsNativeToken(_nativeToken),
+            "RouterFacet: native token not found"
+        );
+        _;
+    }
+
+    modifier whenNotPaused() {
+        LibGovernance.enforceNotPaused();
+        _;
+    }
+}

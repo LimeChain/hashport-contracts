@@ -2,6 +2,8 @@ const hardhat = require('hardhat');
 const ethers = hardhat.ethers;
 
 const { getSelectors } = require('../util');
+const { performUpgradeGovernanceV2 } = require('./upgrade-governance-v2');
+const { performUpgradeGovernanceV3 } = require('./upgrade-governance-v3');
 
 async function deployRouter(owner, governancePercentage, governancePrecision, feeCalculatorPrecision, members, membersAdmins) {
   await hardhat.run('compile');
@@ -87,6 +89,12 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
   console.log('DiamondLoupeFacet address: ', loupeFacet.address);
   console.log('PausableFacet address: ', pausableFacet.address);
 
+  console.log('Upgrade router with GovernanceV2');
+  const upgradeGovernanceV2Items = await performUpgradeGovernanceV2(diamond.address);
+
+  console.log('Upgrade router with GovernanceV3, RouterV2 and FeeDistributor');
+  const upgradeGovernanceV3Items = await performUpgradeGovernanceV3(diamond.address);
+
   console.log('Verification, please wait...');
 
   await hardhat.run('verify:verify', {
@@ -128,6 +136,20 @@ async function deployRouter(owner, governancePercentage, governancePrecision, fe
     address: diamond.address,
     constructorArguments: [diamondCut, args]
   });
+
+  for (const contract of upgradeGovernanceV2Items) {
+    await hardhat.run('verify:verify', {
+      address: contract.address,
+      constructorArguments: contract.args
+    });
+  }
+
+  for (const contract of upgradeGovernanceV3Items) {
+    await hardhat.run('verify:verify', {
+      address: contract.address,
+      constructorArguments: contract.args
+    });
+  }
 }
 
 module.exports = deployRouter;

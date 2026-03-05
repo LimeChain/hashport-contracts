@@ -2,7 +2,7 @@ const { AccountId } = require('@hashgraph/sdk');
 const hardhat = require('hardhat');
 const ethers = hardhat.ethers;
 
-async function lockERC20(routerAddress, targetChain, nativeAsset, amount, receiver) {
+async function lockERC20(routerAddress, targetChain, nativeAsset, amount, receiver, serviceFee) {
   await hardhat.run('compile');
 
   let receiverAddress = receiver;
@@ -10,15 +10,15 @@ async function lockERC20(routerAddress, targetChain, nativeAsset, amount, receiv
     receiverAddress = (AccountId.fromString(receiver)).toBytes();
   }
 
-  const routerContract = await ethers.getContractAt('IRouter', routerAddress);
+  const routerContract = await ethers.getContractAt('IRouterV2', routerAddress);
   const nativeToken = await ethers.getContractAt('Token', nativeAsset);
 
   const approveERC20Tx = await nativeToken.approve(routerAddress, amount);
   console.log(`Approve Router [${routerAddress}] for ERC-20 [${nativeAsset}] for amount [${amount}]. Tx hash: [${approveERC20Tx.hash}]. Waiting to be mined...`);
   await approveERC20Tx.wait();
 
-  const lockERC20Tx = await routerContract.lock(targetChain, nativeAsset, amount, receiverAddress);
-  console.log(`Lock ERC-20 Portal transaction for [${nativeAsset}], amount [${amount}]. Tx hash: [${lockERC20Tx.hash}]. Waiting to be mined...`);
+  const lockERC20Tx = await routerContract.lock(targetChain, nativeAsset, amount, receiverAddress, { value: serviceFee });
+  console.log(`Lock ERC-20 Portal transaction for [${nativeAsset}], amount [${amount}], serviceFee [${serviceFee}]. Tx hash: [${lockERC20Tx.hash}]. Waiting to be mined...`);
   await lockERC20Tx.wait();
   console.log(`Tx [${lockERC20Tx.hash}] successfully mined.`);
 }

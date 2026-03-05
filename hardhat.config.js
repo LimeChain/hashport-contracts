@@ -52,11 +52,10 @@ task('deploy-wrapped-token', 'Deploys wrapped token to the provided network')
 task('update-native-token', 'Updates native token to router')
     .addParam('router', 'The address of the router contract')
     .addParam('nativeToken', 'The address of the native token')
-    .addParam('feePercentage', 'The fee percentage for the token')
     .addParam('status', 'The to-be-updated status of the token', true, types.boolean)
     .setAction(async (taskArgs) => {
         const updateNativeToken = require('./scripts/update-native-token');
-        await updateNativeToken(taskArgs.router, taskArgs.nativeToken, taskArgs.feePercentage, taskArgs.status);
+        await updateNativeToken(taskArgs.router, taskArgs.nativeToken, taskArgs.status);
     });
 
 task('deploy-router-wrapped-token', 'Deploy wrapped token from router contract')
@@ -125,6 +124,7 @@ task('burn-erc20', 'Approves & Burns wrapped ERC-20 amount to the corresponding 
     .addParam('wrappedAsset', 'The address of the wrapped asset')
     .addParam('amount', 'The target amount')
     .addParam('receiver', 'The address of the receiver on the target network')
+    .addParam('serviceFee', 'The service fee to send in native gas coin (in wei)')
     .setAction(async (taskArgs) => {
         console.log(taskArgs);
         const burnERC20 = require('./scripts/burn-erc-20');
@@ -133,7 +133,8 @@ task('burn-erc20', 'Approves & Burns wrapped ERC-20 amount to the corresponding 
             taskArgs.targetChainId,
             taskArgs.wrappedAsset,
             taskArgs.amount,
-            taskArgs.receiver);
+            taskArgs.receiver,
+            taskArgs.serviceFee);
     });
 
 task('lock-erc20', 'Locks native ERC-20 token amount to the corresponding network')
@@ -142,6 +143,7 @@ task('lock-erc20', 'Locks native ERC-20 token amount to the corresponding networ
     .addParam('nativeAsset', 'The address of the native asset')
     .addParam('amount', 'The amount to be locked')
     .addParam('receiver', 'The address of the receiver')
+    .addParam('serviceFee', 'The service fee to send in native gas coin (in wei)')
     .setAction(async (taskArgs) => {
         console.log(taskArgs);
         const lockERC20 = require('./scripts/lock-erc-20');
@@ -150,7 +152,8 @@ task('lock-erc20', 'Locks native ERC-20 token amount to the corresponding networ
             taskArgs.targetChainId,
             taskArgs.nativeAsset,
             taskArgs.amount,
-            taskArgs.receiver);
+            taskArgs.receiver,
+            taskArgs.serviceFee);
     });
 
 task('unlock-erc20', 'Unlocks native ERC-20 token amount to the corresponding network')
@@ -203,6 +206,20 @@ task('removeFacet', 'Removes a facet from the router diamond')
     .setAction(async (taskArgs) => {
         const removeFacet = require('./scripts/remove-facet');
         await removeFacet(taskArgs.facetAddress, taskArgs.routerAddress);
+    });
+
+task('upgrade-governance-v2', 'Replaces GovernanceFacet with GovernanceV2Facet')
+    .addParam('router', 'The address of the deployed Router diamond')
+    .setAction(async (taskArgs) => {
+        const { upgradeGovernanceV2 } = require('./scripts/upgrade-governance-v2');
+        await upgradeGovernanceV2(taskArgs.router);
+    });
+
+task('upgrade-governance-v3', 'Replaces GovernanceFacetV2 with GovernanceFacetV3 and adds FeeDistributorFacet')
+    .addParam('router', 'The address of the deployed Router diamond')
+    .setAction(async (taskArgs) => {
+        const { upgradeGovernanceV3 } = require('./scripts/upgrade-governance-v3');
+        await upgradeGovernanceV3(taskArgs.router);
     });
 
 
