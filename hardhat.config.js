@@ -215,7 +215,7 @@ task('upgrade-governance-v2', 'Replaces GovernanceFacet with GovernanceV2Facet')
         await upgradeGovernanceV2(taskArgs.router);
     });
 
-task('upgrade-governance-v3', 'Replaces GovernanceFacetV2 with GovernanceFacetV3 and adds FeeDistributorFacet')
+task('upgrade-governance-v3', 'Replaces GovernanceV2Facet with GovernanceV3Facet and adds FeeDistributorFacet')
     .addParam('router', 'The address of the deployed Router diamond')
     .setAction(async (taskArgs) => {
         const { upgradeGovernanceV3 } = require('./scripts/upgrade-governance-v3');

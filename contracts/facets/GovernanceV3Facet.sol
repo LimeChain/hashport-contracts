@@ -3,14 +3,14 @@ pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "../interfaces/IGovernanceV2.sol";
+import "../interfaces/IGovernanceV3.sol";
 import "../libraries/LibDiamond.sol";
 import "../libraries/LibGovernance.sol";
 import "../libraries/LibFeeCalculator.sol";
 import "../libraries/LibFeeDistributor.sol";
 import "../libraries/LibRouter.sol";
 
-contract GovernanceFacetV3 is IGovernanceV2 {
+contract GovernanceV3Facet is IGovernanceV3 {
     using SafeERC20 for IERC20;
 
     /// @notice Adds/removes a member account
@@ -26,22 +26,28 @@ contract GovernanceFacetV3 is IGovernanceV2 {
         LibDiamond.enforceIsContractOwner();
 
         if (_status) {
-            for (uint256 i = 0; i < LibRouter.nativeTokensCount(); i++) {
+            uint256 count = LibRouter.nativeTokensCount();
+            for (uint256 i = 0; i < count; ) {
                 LibFeeCalculator.addNewMember(
                     _account,
                     LibRouter.nativeTokenAt(i)
                 );
+                unchecked { i++; }
             }
             LibFeeDistributor.addNewMember(_account);
         } else {
             address accountAdmin = LibGovernance.memberAdmin(_account);
-            for (uint256 i = 0; i < LibRouter.nativeTokensCount(); i++) {
+            uint256 count = LibRouter.nativeTokensCount();
+            for (uint256 i = 0; i < count; ) {
                 address token = LibRouter.nativeTokenAt(i);
                 uint256 claimableFees = LibFeeCalculator.claimReward(
                     _account,
                     token
                 );
-                IERC20(token).safeTransfer(accountAdmin, claimableFees);
+                if (claimableFees > 0) {
+                    IERC20(token).safeTransfer(accountAdmin, claimableFees);
+                }
+                unchecked { i++; }
             }
             uint256 claimableFee = LibFeeDistributor.claimReward(_account);
             if (claimableFee > 0) {

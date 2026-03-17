@@ -13,11 +13,11 @@ describe('Router', async () => {
   let router;
   let routerV2;
   let routerFacet;
-  let routerFacetV2;
+  let routerV2Facet;
   let ownershipFacet;
   let pausableFacet;
   let governanceFacet;
-  let governanceFacetV3;
+  let governanceV3Facet;
   let feeCalculatorFacet;
   let feeDistributorFacet;
   let cutFacet;
@@ -79,13 +79,13 @@ describe('Router', async () => {
     governanceFacet = await governanceFacetFactory.deploy();
     await governanceFacet.deployed();
 
-    const governanceFacetV3Factory = await ethers.getContractFactory('GovernanceFacetV3');
-    governanceFacetV3 = await governanceFacetV3Factory.deploy();
-    await governanceFacetV3.deployed();
+    const governanceV3FacetFactory = await ethers.getContractFactory('GovernanceV3Facet');
+    governanceV3Facet = await governanceV3FacetFactory.deploy();
+    await governanceV3Facet.deployed();
 
-    const routerFacetV2Factory = await ethers.getContractFactory('RouterFacetV2');
-    routerFacetV2 = await routerFacetV2Factory.deploy();
-    await routerFacetV2.deployed();
+    const routerV2FacetFactory = await ethers.getContractFactory('RouterV2Facet');
+    routerV2Facet = await routerV2FacetFactory.deploy();
+    await routerV2Facet.deployed();
 
     const diamondCutFacetFactory = await ethers.getContractFactory('DiamondCutFacet');
     cutFacet = await diamondCutFacetFactory.deploy();
@@ -124,21 +124,21 @@ describe('Router', async () => {
     // replace router functions with V2, swap updateNativeToken signature
     const initCalldata = feeDistributorFacet.interface.encodeFunctionData('initFeeDistributor');
 
-    const newUpdateNativeTokenSelector = routerFacetV2.interface.getSighash('updateNativeToken(address,bool)');
+    const newUpdateNativeTokenSelector = routerV2Facet.interface.getSighash('updateNativeToken(address,bool)');
     const oldUpdateNativeTokenSelector = ethers.utils.id('updateNativeToken(address,uint256,bool)').slice(0, 10);
-    const routerV2ReplaceSelectors = getSelectors(routerFacetV2).filter(s => s !== newUpdateNativeTokenSelector);
+    const routerV2ReplaceSelectors = getSelectors(routerV2Facet).filter(s => s !== newUpdateNativeTokenSelector);
 
     const upgradeCut = [
-      { facetAddress: governanceFacetV3.address, action: 1, functionSelectors: getSelectors(governanceFacetV3) },
+      { facetAddress: governanceV3Facet.address, action: 1, functionSelectors: getSelectors(governanceV3Facet) },
       { facetAddress: feeDistributorFacet.address, action: 0, functionSelectors: getSelectors(feeDistributorFacet) },
-      { facetAddress: routerFacetV2.address, action: 1, functionSelectors: routerV2ReplaceSelectors },
+      { facetAddress: routerV2Facet.address, action: 1, functionSelectors: routerV2ReplaceSelectors },
       { facetAddress: ethers.constants.AddressZero, action: 2, functionSelectors: [oldUpdateNativeTokenSelector] },
-      { facetAddress: routerFacetV2.address, action: 0, functionSelectors: [newUpdateNativeTokenSelector] },
+      { facetAddress: routerV2Facet.address, action: 0, functionSelectors: [newUpdateNativeTokenSelector] },
     ];
 
     await router.diamondCut(upgradeCut, feeDistributorFacet.address, initCalldata);
 
-    routerV2 = await ethers.getContractAt('RouterFacetV2', diamond.address);
+    routerV2 = await ethers.getContractAt('RouterV2Facet', diamond.address);
   });
 
   beforeEach(async function () {
@@ -154,7 +154,7 @@ describe('Router', async () => {
       expect(diamond.address).to.be.properAddress;
       expect(router.address).to.be.properAddress;
       expect(routerFacet.address).to.be.properAddress;
-      expect(routerFacetV2.address).to.be.properAddress;
+      expect(routerV2Facet.address).to.be.properAddress;
       expect(pausableFacet.address).to.be.properAddress;
       expect(ownershipFacet.address).to.be.properAddress;
       expect(feeCalculatorFacet.address).to.be.properAddress;
@@ -166,10 +166,10 @@ describe('Router', async () => {
       expect(await router.serviceFeePrecision()).to.equal(FEE_CALCULATOR_PRECISION);
 
       // Fee Distributor
-      const feeData = await router.feeData();
-      expect(feeData.feesAccrued).to.equal(0);
-      expect(feeData.previousAccrued).to.equal(0);
-      expect(feeData.accumulator).to.equal(0);
+      const [feesAccrued, previousAccrued, accumulator] = await router.feeData();
+      expect(feesAccrued).to.equal(0);
+      expect(previousAccrued).to.equal(0);
+      expect(accumulator).to.equal(0);
 
       // Governance
       expect(await router.admin()).to.equal(ethers.constants.AddressZero);
@@ -189,17 +189,17 @@ describe('Router', async () => {
 
       expect(await router.facetAddresses())
         .to.include(routerFacet.address)
-        .to.include(routerFacetV2.address)
+        .to.include(routerV2Facet.address)
         .to.include(pausableFacet.address)
         .to.include(ownershipFacet.address)
         .to.include(feeCalculatorFacet.address)
         .to.include(feeDistributorFacet.address)
         .to.include(governanceFacet.address)
-        .to.include(governanceFacetV3.address)
+        .to.include(governanceV3Facet.address)
         .to.include(cutFacet.address)
         .to.include(loupeFacet.address);
 
-      const updateMemberSelector = governanceFacetV3.interface.getSighash('updateMember(address,address,bool)');
+      const updateMemberSelector = governanceV3Facet.interface.getSighash('updateMember(address,address,bool)');
       const governanceV1SelectorsAfterUpgrade = getSelectors(governanceFacet).filter(s => s !== updateMemberSelector);
 
       const facets = await router.facets();
@@ -220,7 +220,7 @@ describe('Router', async () => {
           case governanceFacet.address:
             expect([...facet.functionSelectors].sort()).to.deep.equal([...governanceV1SelectorsAfterUpgrade].sort());
             break;
-          case governanceFacetV3.address:
+          case governanceV3Facet.address:
             expect(facet.functionSelectors).to.deep.equal([updateMemberSelector]);
             break;
           case ownershipFacet.address:
@@ -230,7 +230,7 @@ describe('Router', async () => {
             expect(facet.functionSelectors).to.deep.equal(getSelectors(pausableFacet));
             break;
           case routerFacet.address: {
-            const v2Selectors = getSelectors(routerFacetV2);
+            const v2Selectors = getSelectors(routerV2Facet);
             const oldUpdateSelector = ethers.utils.id('updateNativeToken(address,uint256,bool)').slice(0, 10);
             const expectedV1Selectors = getSelectors(routerFacet).filter(
               s => !v2Selectors.includes(s) && s !== oldUpdateSelector
@@ -238,8 +238,8 @@ describe('Router', async () => {
             expect([...facet.functionSelectors].sort()).to.deep.equal([...expectedV1Selectors].sort());
             break;
           }
-          case routerFacetV2.address:
-            expect([...facet.functionSelectors].sort()).to.deep.equal([...getSelectors(routerFacetV2)].sort());
+          case routerV2Facet.address:
+            expect([...facet.functionSelectors].sort()).to.deep.equal([...getSelectors(routerV2Facet)].sort());
             break;
           default:
             throw 'invalid facet address'
@@ -470,19 +470,19 @@ describe('Router', async () => {
         await nativeToken.connect(nonMember).approve(router.address, amount);
         await routerV2.connect(nonMember).lock(1, nativeToken.address, amount, owner.address, { value: GAS_FEE });
 
-        const beforeFeeData = await router.feeData();
-        expect(beforeFeeData.feesAccrued).to.equal(GAS_FEE);
-        expect(beforeFeeData.accumulator).to.equal(0);
-        expect(beforeFeeData.previousAccrued).to.equal(0);
+        const [beforeFeesAccrued, beforePreviousAccrued, beforeAccumulator] = await router.feeData();
+        expect(beforeFeesAccrued).to.equal(GAS_FEE);
+        expect(beforeAccumulator).to.equal(0);
+        expect(beforePreviousAccrued).to.equal(0);
 
         // when
         await router.updateMember(bob.address, bobAdmin.address, true);
 
         // then
-        const afterFeeData = await router.feeData();
-        expect(afterFeeData.feesAccrued).to.equal(GAS_FEE);
-        expect(afterFeeData.accumulator).to.equal(GAS_FEE);
-        expect(afterFeeData.previousAccrued).to.equal(afterFeeData.feesAccrued);
+        const [afterFeesAccrued, afterPreviousAccrued, afterAccumulator] = await router.feeData();
+        expect(afterFeesAccrued).to.equal(GAS_FEE);
+        expect(afterAccumulator).to.equal(GAS_FEE);
+        expect(afterPreviousAccrued).to.equal(afterFeesAccrued);
 
         // alice joined before fees accrued so she starts at 0; bob starts at current accumulator
         expect(await router['claimedRewardsPerAccount(address)'](alice.address)).to.equal(0);
@@ -499,10 +499,10 @@ describe('Router', async () => {
         await nativeToken.connect(nonMember).approve(router.address, amount);
         await routerV2.connect(nonMember).lock(1, nativeToken.address, amount, owner.address, { value: GAS_FEE });
 
-        const beforeFeeData = await router.feeData();
-        expect(beforeFeeData.feesAccrued).to.equal(GAS_FEE);
-        expect(beforeFeeData.accumulator).to.equal(0);
-        expect(beforeFeeData.previousAccrued).to.equal(0);
+        const [beforeFeesAccrued, beforePreviousAccrued, beforeAccumulator] = await router.feeData();
+        expect(beforeFeesAccrued).to.equal(GAS_FEE);
+        expect(beforeAccumulator).to.equal(0);
+        expect(beforePreviousAccrued).to.equal(0);
 
         // when - alice is removed and should receive her share of fees
         const aliceAdminEthBefore = await ethers.provider.getBalance(aliceAdmin.address);
@@ -511,10 +511,10 @@ describe('Router', async () => {
 
         expect(aliceAdminEthAfter.sub(aliceAdminEthBefore)).to.equal(rewardPerMember);
 
-        const afterFeeData = await router.feeData();
-        expect(afterFeeData.feesAccrued).to.equal(GAS_FEE);
-        expect(afterFeeData.accumulator).to.equal(rewardPerMember);
-        expect(afterFeeData.previousAccrued).to.equal(afterFeeData.feesAccrued);
+        const [afterFeesAccrued, afterPreviousAccrued, afterAccumulator] = await router.feeData();
+        expect(afterFeesAccrued).to.equal(GAS_FEE);
+        expect(afterAccumulator).to.equal(rewardPerMember);
+        expect(afterPreviousAccrued).to.equal(afterFeesAccrued);
 
         expect(await router['claimedRewardsPerAccount(address)'](alice.address)).to.equal(rewardPerMember);
       });
@@ -600,10 +600,10 @@ describe('Router', async () => {
   describe('FeeDistributorFacet', async () => {
     describe('feeData', async () => {
       it('should return zero values initially', async () => {
-        const feeData = await router.feeData();
-        expect(feeData.feesAccrued).to.equal(0);
-        expect(feeData.previousAccrued).to.equal(0);
-        expect(feeData.accumulator).to.equal(0);
+        const [feesAccrued, previousAccrued, accumulator] = await router.feeData();
+        expect(feesAccrued).to.equal(0);
+        expect(previousAccrued).to.equal(0);
+        expect(accumulator).to.equal(0);
       });
 
       it('should reflect fees accrued after a lock', async () => {
@@ -613,8 +613,8 @@ describe('Router', async () => {
 
         await routerV2.connect(nonMember).lock(1, nativeToken.address, amount, owner.address, { value: GAS_FEE });
 
-        const feeData = await router.feeData();
-        expect(feeData.feesAccrued).to.equal(GAS_FEE);
+        const [feesAccrued] = await router.feeData();
+        expect(feesAccrued).to.equal(GAS_FEE);
       });
 
       it('should reflect fees accrued after a burn', async () => {
@@ -626,8 +626,8 @@ describe('Router', async () => {
 
         await routerV2.connect(nonMember).burn(1, wrappedToken.address, amount, owner.address, { value: GAS_FEE });
 
-        const feeData = await router.feeData();
-        expect(feeData.feesAccrued).to.equal(GAS_FEE);
+        const [feesAccrued] = await router.feeData();
+        expect(feesAccrued).to.equal(GAS_FEE);
       });
     });
 
@@ -880,7 +880,7 @@ describe('Router', async () => {
 
         await routerV2.connect(nonMember).lock(1, nativeToken.address, amount, receiver, { value: GAS_FEE });
 
-        const { feesAccrued } = await router.feeData();
+        const [feesAccrued] = await router.feeData();
         expect(feesAccrued).to.equal(GAS_FEE);
 
         const routerBalance = await nativeToken.balanceOf(router.address);
@@ -894,7 +894,7 @@ describe('Router', async () => {
           .connect(nonMember)
           .lock(1, nativeToken.address, amount, receiver, { value: GAS_FEE }))
           .to.emit(routerV2, 'Lock')
-          .withArgs(1, nativeToken.address, amount, receiver.toLowerCase(), GAS_FEE);
+          .withArgs(1, nativeToken.address, receiver.toLowerCase(), amount, GAS_FEE);
       });
 
       it('should revert when no fee is sent', async () => {
@@ -930,7 +930,7 @@ describe('Router', async () => {
           { value: GAS_FEE }
         );
 
-        const { feesAccrued } = await router.feeData();
+        const [feesAccrued] = await router.feeData();
         expect(feesAccrued).to.equal(GAS_FEE);
 
         const routerBalance = await nativeToken.balanceOf(router.address);
@@ -1387,10 +1387,10 @@ describe('Router', async () => {
       expect(await router['claimedRewardsPerAccount(address)'](bob.address)).to.equal(0);
       expect(await router['claimedRewardsPerAccount(address)'](carol.address)).to.equal(0);
 
-      const feeData = await router.feeData();
-      expect(feeData.feesAccrued).to.equal(nativeGasFee);
-      expect(feeData.previousAccrued).to.equal(expectedPrevAccrued);
-      expect(feeData.accumulator).to.equal(expectedMemberFeeReward);
+      const [feesAccrued, previousAccrued, accumulator] = await router.feeData();
+      expect(feesAccrued).to.equal(nativeGasFee);
+      expect(previousAccrued).to.equal(expectedPrevAccrued);
+      expect(accumulator).to.equal(expectedMemberFeeReward);
     });
 
     it('should claim fees for all members', async () => {
@@ -1423,10 +1423,10 @@ describe('Router', async () => {
       expect(await router['claimedRewardsPerAccount(address)'](bob.address)).to.equal(expectedMemberFeeReward);
       expect(await router['claimedRewardsPerAccount(address)'](carol.address)).to.equal(expectedMemberFeeReward);
 
-      const feeData = await router.feeData();
-      expect(feeData.feesAccrued).to.equal(nativeGasFee);
-      expect(feeData.previousAccrued).to.equal(expectedPrevAccrued);
-      expect(feeData.accumulator).to.equal(expectedMemberFeeReward);
+      const [feesAccrued, previousAccrued, accumulator] = await router.feeData();
+      expect(feesAccrued).to.equal(nativeGasFee);
+      expect(previousAccrued).to.equal(expectedPrevAccrued);
+      expect(accumulator).to.equal(expectedMemberFeeReward);
     });
 
     it('should emit Claim event with args', async () => {
@@ -1460,10 +1460,10 @@ describe('Router', async () => {
 
       expect(await router['claimedRewardsPerAccount(address)'](alice.address)).to.equal(expectedMemberFeeReward);
 
-      const feeData = await router.feeData();
-      expect(feeData.feesAccrued).to.equal(nativeGasFee);
-      expect(feeData.previousAccrued).to.equal(expectedPrevAccrued);
-      expect(feeData.accumulator).to.equal(expectedMemberFeeReward);
+      const [feesAccrued, previousAccrued, accumulator] = await router.feeData();
+      expect(feesAccrued).to.equal(nativeGasFee);
+      expect(previousAccrued).to.equal(expectedPrevAccrued);
+      expect(accumulator).to.equal(expectedMemberFeeReward);
     });
   });
 
@@ -1639,6 +1639,632 @@ describe('Router', async () => {
 
       // when
       await router.updateMember(bob.address, bobAdmin.address, true);
+    });
+  });
+
+  /**
+   * Deprecated facets: PaymentFacet, GovernanceV2Facet, ERC721PortalFacet.
+   * Uses legacy Router setup (RouterFacet V1, GovernanceFacet V1, FeeCalculatorFacet)
+   * with updateNativeToken(address, uint256, bool) and LibPayment.
+   */
+  describe('Deprecated facets (PaymentFacet, GovernanceV2Facet, ERC721PortalFacet)', async () => {
+    let legacyDiamond;
+    let legacyRouter;
+    let paymentFacet;
+    let payment;
+    const tokenID = 1;
+    const metadata = 'https://hello.zyx/1';
+    const ERC721BurnFee = ethers.utils.parseEther('1');
+
+    beforeEach(async () => {
+      const legacyDiamondCut = [
+        [cutFacet.address, 0, getSelectors(cutFacet)],
+        [loupeFacet.address, 0, getSelectors(loupeFacet)],
+        [feeCalculatorFacet.address, 0, getSelectors(feeCalculatorFacet)],
+        [governanceFacet.address, 0, getSelectors(governanceFacet)],
+        [ownershipFacet.address, 0, getSelectors(ownershipFacet)],
+        [pausableFacet.address, 0, getSelectors(pausableFacet)],
+        [routerFacet.address, 0, getSelectors(routerFacet)],
+      ];
+      const diamondFactory = await ethers.getContractFactory('Router');
+      legacyDiamond = await diamondFactory.deploy(legacyDiamondCut, [owner.address]);
+      await legacyDiamond.deployed();
+      legacyRouter = await ethers.getContractAt('IRouterDiamond', legacyDiamond.address);
+      await legacyRouter.initGovernance([alice.address], [aliceAdmin.address], GOVERNANCE_PERCENTAGE, GOVERNANCE_PRECISION);
+      await legacyRouter.initRouter();
+      await legacyRouter.initFeeCalculator(FEE_CALCULATOR_PRECISION);
+    });
+
+    describe('ERC-721 support (deprecated)', async () => {
+      beforeEach(async () => {
+        const paymentFacetFactory = await ethers.getContractFactory('PaymentFacet');
+        paymentFacet = await paymentFacetFactory.deploy();
+        await paymentFacet.deployed();
+
+        const diamondAddCut = [{
+          facetAddress: paymentFacet.address,
+          action: 0,
+          functionSelectors: getSelectors(paymentFacet),
+        }];
+
+        await legacyRouter.diamondCut(diamondAddCut, ethers.constants.AddressZero, '0x');
+
+        payment = await ethers.getContractAt('IPayment', legacyDiamond.address);
+      });
+
+      describe('PaymentFacet', async () => {
+        it('should diamond cut successfully', async () => {
+          expect(await legacyRouter.facetAddresses())
+            .to.include(routerFacet.address)
+            .to.include(pausableFacet.address)
+            .to.include(ownershipFacet.address)
+            .to.include(feeCalculatorFacet.address)
+            .to.include(cutFacet.address)
+            .to.include(loupeFacet.address)
+            .to.include(paymentFacet.address);
+
+          expect(await payment.totalPaymentTokens()).to.equal(0);
+        });
+
+        describe('setPaymentToken', async () => {
+          it('should add token payment', async () => {
+            await payment.setPaymentToken(nativeToken.address, true);
+
+            expect(await payment.supportsPaymentToken(nativeToken.address)).to.be.true;
+            expect(await payment.totalPaymentTokens()).to.equal(1);
+            expect(await payment.paymentTokenAt(0)).to.equal(nativeToken.address);
+          });
+
+          it('should emit event with args', async () => {
+            await expect(payment.setPaymentToken(nativeToken.address, true))
+              .to.emit(payment, 'SetPaymentToken')
+              .withArgs(nativeToken.address, true);
+          });
+
+          it('should remove token payment', async () => {
+            await payment.setPaymentToken(nativeToken.address, true);
+            await payment.setPaymentToken(nativeToken.address, false);
+
+            expect(await payment.supportsPaymentToken(nativeToken.address)).to.be.false;
+            expect(await payment.totalPaymentTokens()).to.equal(0);
+            await expect(payment.paymentTokenAt(0)).to.be.reverted;
+          });
+
+          it('should revert when token payment is 0x0', async () => {
+            const expectedRevertMessage = 'PaymentFacet: _token must not be 0x0';
+            await expect(payment.setPaymentToken(ethers.constants.AddressZero, true))
+              .to.be.revertedWith(expectedRevertMessage);
+            await expect(payment.setPaymentToken(ethers.constants.AddressZero, false))
+              .to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should revert when caller is not owner', async () => {
+            const expectedRevertMessage = 'LibDiamond: Must be contract owner';
+            await expect(payment.connect(alice).setPaymentToken(nativeToken.address, false))
+              .to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should revert when token payment is already added', async () => {
+            const expectedRevertMessage = 'LibPayment: payment token already added';
+            await payment.setPaymentToken(nativeToken.address, true);
+
+            await expect(payment.setPaymentToken(nativeToken.address, true))
+              .to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should revert when token payment is already removed/never added', async () => {
+            const expectedRevertMessage = 'LibPayment: payment token not found';
+
+            await expect(payment.setPaymentToken(nativeToken.address, false))
+              .to.be.revertedWith(expectedRevertMessage);
+          });
+        });
+      });
+
+      describe('GovernanceV2Facet', async () => {
+        let governanceV2Facet;
+        const updatedFunction = 'updateMember(address,address,bool)';
+
+        beforeEach(async () => {
+          const governanceV2Factory = await ethers.getContractFactory('GovernanceV2Facet');
+          governanceV2Facet = await governanceV2Factory.deploy();
+          await governanceV2Facet.deployed();
+
+          const diamondReplaceCut = [{
+            facetAddress: governanceV2Facet.address,
+            action: 1,
+            functionSelectors: getSelectors(governanceV2Facet),
+          }];
+
+          await legacyRouter.diamondCut(diamondReplaceCut, ethers.constants.AddressZero, '0x');
+        });
+
+        it('should diamond cut successfully', async () => {
+          const sigHash = governanceFacet.interface.getSighash(updatedFunction);
+
+          expect(await legacyRouter.facetAddresses())
+            .to.include(governanceV2Facet.address);
+
+          const expectedGovernanceSelectors = getSelectors(governanceFacet)
+            .filter(selector => selector !== sigHash)
+            .sort();
+
+          const facets = await legacyRouter.facets();
+          for (const facet of facets) {
+            if (facet.facetAddress === governanceFacet.address) {
+              const sorted = facet.functionSelectors.slice().sort();
+              expect(sorted).to.deep.equal(expectedGovernanceSelectors);
+              break;
+            }
+          }
+        });
+
+        describe('updateMember', async () => {
+          it('should add a member', async () => {
+            await legacyRouter.updateMember(bob.address, bobAdmin.address, true);
+
+            expect(await legacyRouter.isMember(bob.address)).to.be.true;
+            expect(await legacyRouter.memberAt(1)).to.equal(bob.address);
+            expect(await legacyRouter.membersCount()).to.equal(2);
+            expect(await legacyRouter.memberAdmin(bob.address)).to.equal(bobAdmin.address);
+          });
+
+          it('should emit add event', async () => {
+            await expect(await legacyRouter.updateMember(bob.address, bobAdmin.address, true))
+              .to.emit(legacyRouter, 'MemberUpdated')
+              .withArgs(bob.address, true)
+              .to.emit(legacyRouter, 'MemberAdminUpdated')
+              .withArgs(bob.address, bobAdmin.address);
+          });
+
+          it('should revert setting a member twice', async () => {
+            const expectedRevertMessage = 'LibGovernance: Account already added';
+            await expect(legacyRouter.updateMember(alice.address, aliceAdmin.address, true)).to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should revert when trying to remove the last member', async () => {
+            const expectedRevertMessage = 'LibGovernance: contract would become memberless';
+            await expect(legacyRouter.updateMember(alice.address, aliceAdmin.address, false)).to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should remove a member', async () => {
+            await legacyRouter.updateMember(bob.address, bobAdmin.address, true);
+            expect(await legacyRouter.membersCount()).to.equal(2);
+
+            await legacyRouter.updateMember(alice.address, aliceAdmin.address, false);
+
+            expect(await legacyRouter.isMember(alice.address)).to.be.false;
+            expect(await legacyRouter.membersCount()).to.equal(1);
+            expect(await legacyRouter.memberAdmin(alice.address)).to.equal(ethers.constants.AddressZero);
+          });
+
+          it('should emit remove event', async () => {
+            await legacyRouter.updateMember(bob.address, bobAdmin.address, true);
+            await expect(await legacyRouter.updateMember(alice.address, aliceAdmin.address, false))
+              .to.emit(legacyRouter, 'MemberUpdated')
+              .withArgs(alice.address, false)
+              .to.emit(legacyRouter, 'MemberAdminUpdated')
+              .withArgs(alice.address, ethers.constants.AddressZero);
+          });
+
+          it('should revert removing a member twice', async () => {
+            await legacyRouter.updateMember(bob.address, bobAdmin.address, true);
+            await legacyRouter.updateMember(carol.address, carolAdmin.address, true);
+
+            await legacyRouter.updateMember(alice.address, aliceAdmin.address, false);
+            const expectedRevertMessage = 'LibGovernance: Account is not a member';
+            await expect(legacyRouter.updateMember(alice.address, aliceAdmin.address, false)).to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should revert when executing transaction with not owner', async () => {
+            const expectedRevertMessage = 'LibDiamond: Must be contract owner';
+            await expect(legacyRouter.connect(nonMember).updateMember(alice.address, aliceAdmin.address, false)).to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should correctly accrue fees after addition of a new member', async () => {
+            const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+            await legacyRouter.updateNativeToken(nativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+            await nativeToken.mint(nonMember.address, amount);
+
+            await nativeToken.connect(nonMember).approve(legacyRouter.address, amount);
+            await legacyRouter.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
+
+            const beforeMemberUpdateTokenFeeData = await legacyRouter.tokenFeeData(nativeToken.address);
+            expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(serviceFee);
+            expect(beforeMemberUpdateTokenFeeData.accumulator).to.equal(0);
+            expect(beforeMemberUpdateTokenFeeData.previousAccrued).to.equal(0);
+
+            await legacyRouter.updateMember(bob.address, bobAdmin.address, true);
+
+            const afterMemberUpdateTokenFeeData = await legacyRouter.tokenFeeData(nativeToken.address);
+            expect(afterMemberUpdateTokenFeeData.feesAccrued).to.equal(serviceFee);
+            expect(afterMemberUpdateTokenFeeData.accumulator).to.equal(serviceFee);
+            expect(afterMemberUpdateTokenFeeData.previousAccrued).to.equal(afterMemberUpdateTokenFeeData.feesAccrued);
+
+            expect(await legacyRouter['claimedRewardsPerAccount(address,address)'](alice.address, nativeToken.address)).to.equal(0);
+            expect(await legacyRouter['claimedRewardsPerAccount(address,address)'](bob.address, nativeToken.address)).to.equal(serviceFee);
+          });
+
+          it('should correctly accrue fees after removal of a member', async () => {
+            const serviceFee = amount.mul(FEE_CALCULATOR_TOKEN_SERVICE_FEE).div(FEE_CALCULATOR_PRECISION);
+            const rewardPerMember = serviceFee.div(2);
+
+            await legacyRouter.updateMember(bob.address, bobAdmin.address, true);
+            await legacyRouter.updateNativeToken(nativeToken.address, FEE_CALCULATOR_TOKEN_SERVICE_FEE, true);
+            await nativeToken.mint(nonMember.address, amount);
+
+            await nativeToken.connect(nonMember).approve(legacyRouter.address, amount);
+            await legacyRouter.connect(nonMember).lock(1, nativeToken.address, amount, owner.address);
+
+            const beforeMemberUpdateTokenFeeData = await legacyRouter.tokenFeeData(nativeToken.address);
+            expect(beforeMemberUpdateTokenFeeData.feesAccrued).to.equal(serviceFee);
+            expect(beforeMemberUpdateTokenFeeData.accumulator).to.equal(0);
+            expect(beforeMemberUpdateTokenFeeData.previousAccrued).to.equal(0);
+
+            await expect(
+              legacyRouter.updateMember(alice.address, aliceAdmin.address, false))
+              .to.emit(legacyRouter, 'MemberUpdated')
+              .withArgs(alice.address, false)
+              .to.emit(legacyRouter, 'MemberAdminUpdated')
+              .withArgs(alice.address, ethers.constants.AddressZero)
+              .to.emit(nativeToken, 'Transfer')
+              .withArgs(legacyRouter.address, aliceAdmin.address, rewardPerMember);
+
+            const afterMemberUpdateTokenFeeData = await legacyRouter.tokenFeeData(nativeToken.address);
+            expect(afterMemberUpdateTokenFeeData.feesAccrued).to.equal(serviceFee);
+            expect(afterMemberUpdateTokenFeeData.accumulator).to.equal(rewardPerMember);
+            expect(afterMemberUpdateTokenFeeData.previousAccrued).to.equal(afterMemberUpdateTokenFeeData.feesAccrued);
+
+            expect(await legacyRouter['claimedRewardsPerAccount(address,address)'](alice.address, nativeToken.address)).to.equal(rewardPerMember);
+          });
+        });
+      });
+
+      describe('ERC721PortalFacet', async () => {
+        let erc721PortalFacet;
+        let erc721Portal;
+        const wrappedERC721Name = 'Wrapped ERC-721 Token';
+        const wrappedERC721Symbol = 'WT ERC-721';
+        let wrappedERC721;
+
+        beforeEach(async () => {
+          const erc721PortalFacetFactory = await ethers.getContractFactory('ERC721PortalFacet');
+          erc721PortalFacet = await erc721PortalFacetFactory.deploy();
+          await erc721PortalFacet.deployed();
+
+          const diamondAddCut = [{
+            facetAddress: erc721PortalFacet.address,
+            action: 0,
+            functionSelectors: getSelectors(erc721PortalFacet),
+          }];
+
+          await legacyRouter.diamondCut(diamondAddCut, ethers.constants.AddressZero, '0x');
+
+          erc721Portal = await ethers.getContractAt('IERC721PortalFacet', legacyDiamond.address);
+
+          const wrappedERC721Factory = await ethers.getContractFactory('WrappedERC721');
+          wrappedERC721 = await wrappedERC721Factory.deploy(wrappedERC721Name, wrappedERC721Symbol);
+          await wrappedERC721.deployed();
+          await wrappedERC721.transferOwnership(legacyRouter.address);
+        });
+
+        it('should diamond cut successfully', async () => {
+          expect(await legacyRouter.facetAddresses())
+            .to.include(erc721PortalFacet.address);
+        });
+
+        describe('setERC721Payment', async () => {
+          it('should set ERC-721 payment', async () => {
+            await payment.setPaymentToken(nativeToken.address, true);
+
+            await erc721Portal.setERC721Payment(wrappedERC721.address, nativeToken.address, ERC721BurnFee);
+
+            expect(await erc721Portal.erc721Payment(wrappedERC721.address)).to.equal(nativeToken.address);
+            expect(await erc721Portal.erc721Fee(wrappedERC721.address)).to.equal(ERC721BurnFee);
+          });
+
+          it('should emit event with args', async () => {
+            await payment.setPaymentToken(nativeToken.address, true);
+
+            await expect(erc721Portal.setERC721Payment(wrappedERC721.address, nativeToken.address, ERC721BurnFee))
+              .to.emit(erc721Portal, 'SetERC721Payment')
+              .withArgs(wrappedERC721.address, nativeToken.address, ERC721BurnFee);
+          });
+
+          it('should revert when caller is not owner', async () => {
+            const expectedRevertMessage = 'LibDiamond: Must be contract owner';
+            await expect(erc721Portal
+              .connect(nonMember)
+              .setERC721Payment(wrappedERC721.address, nativeToken.address, ERC721BurnFee)
+            ).to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should revert when token payment is not supported', async () => {
+            const expectedRevertMessage = 'ERC721PortalFacet: payment token not supported';
+            await expect(erc721Portal
+              .setERC721Payment(wrappedERC721.address, alice.address, ERC721BurnFee)
+            ).to.be.revertedWith(expectedRevertMessage);
+          });
+        });
+
+        describe('mintERC721', async () => {
+          let receiver;
+          let hashData;
+          let aliceSignature;
+          let bobSignature;
+          let carolSignature;
+
+          beforeEach(async () => {
+            receiver = nonMember.address;
+            await legacyRouter.updateMember(bob.address, bobAdmin.address, true);
+            await legacyRouter.updateMember(carol.address, carolAdmin.address, true);
+
+            const encodeData = ethers.utils.defaultAbiCoder.encode(
+              ['uint256', 'uint256', 'bytes', 'address', 'uint256', 'string', 'address'],
+              [1, chainId, transactionId, wrappedERC721.address, tokenID, metadata, receiver]);
+            const hashMsg = ethers.utils.keccak256(encodeData);
+            hashData = ethers.utils.arrayify(hashMsg);
+
+            aliceSignature = await alice.signMessage(hashData);
+            bobSignature = await bob.signMessage(hashData);
+            carolSignature = await carol.signMessage(hashData);
+          });
+
+          it('should mint successfully', async () => {
+            await erc721Portal.mintERC721(
+              1,
+              transactionId,
+              wrappedERC721.address,
+              tokenID,
+              metadata,
+              receiver,
+              [aliceSignature, bobSignature, carolSignature]);
+
+            const receiverBalance = await wrappedERC721.balanceOf(receiver);
+            expect(receiverBalance).to.equal(1);
+            expect(await wrappedERC721.tokenOfOwnerByIndex(receiver, 0)).to.equal(tokenID);
+            expect(await wrappedERC721.ownerOf(tokenID)).to.equal(nonMember.address);
+            expect(await wrappedERC721.tokenURI(tokenID)).to.equal(metadata);
+            expect(await wrappedERC721.totalSupply()).to.equal(1);
+            expect(await wrappedERC721.tokenByIndex(0)).to.equal(tokenID);
+            expect(await legacyRouter.hashesUsed(ethers.utils.hashMessage(hashData))).to.be.true;
+          });
+
+          it('should emit event with args', async () => {
+            const sourceChainId = 1;
+            await expect(erc721Portal
+              .connect(nonMember)
+              .mintERC721(
+                sourceChainId,
+                transactionId,
+                wrappedERC721.address,
+                tokenID,
+                metadata,
+                receiver,
+                [aliceSignature, bobSignature, carolSignature]))
+              .to.emit(erc721Portal, 'MintERC721')
+              .withArgs(sourceChainId, transactionId, wrappedERC721.address, tokenID, metadata, receiver)
+              .to.emit(wrappedERC721, 'Transfer')
+              .withArgs(ethers.constants.AddressZero, receiver, tokenID);
+          });
+
+          it('should revert when trying to mint for the same transaction', async () => {
+            const expectedRevertMessage = 'ERC721PortalFacet: transaction already submitted';
+            await erc721Portal.connect(nonMember).mintERC721(
+              1,
+              transactionId,
+              wrappedERC721.address,
+              tokenID,
+              metadata,
+              receiver,
+              [aliceSignature, bobSignature, carolSignature]);
+
+            await expect(erc721Portal.connect(nonMember).mintERC721(
+              1,
+              transactionId,
+              wrappedERC721.address,
+              tokenID,
+              metadata,
+              receiver,
+              [aliceSignature, bobSignature, carolSignature]))
+              .to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should revert with insufficient signatures', async () => {
+            const expectedRevertMessage = 'LibGovernance: Invalid number of signatures';
+            await expect(erc721Portal
+              .connect(nonMember)
+              .mintERC721(
+                1,
+                transactionId,
+                wrappedERC721.address,
+                tokenID,
+                metadata,
+                receiver,
+                [aliceSignature]))
+              .to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should revert with a non-member signature', async () => {
+            const expectedRevertMessage = 'LibGovernance: invalid signer';
+            const nonMemberSignature = await nonMember.signMessage(hashData);
+
+            await expect(erc721Portal
+              .connect(nonMember)
+              .mintERC721(
+                1,
+                transactionId,
+                wrappedERC721.address,
+                tokenID,
+                metadata,
+                receiver,
+                [aliceSignature, nonMemberSignature]))
+              .to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should revert with duplicate signatures', async () => {
+            const expectedRevertMessage = 'LibGovernance: duplicate signatures';
+            await expect(erc721Portal
+              .connect(nonMember)
+              .mintERC721(
+                1,
+                transactionId,
+                wrappedERC721.address,
+                tokenID,
+                metadata,
+                receiver,
+                [aliceSignature, aliceSignature]))
+              .to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should revert when contract is paused', async () => {
+            const expectedRevertMessage = 'LibGovernance: paused';
+            await legacyRouter.updateAdmin(admin.address);
+            await legacyRouter.connect(admin).pause();
+
+            await expect(erc721Portal
+              .connect(nonMember)
+              .mintERC721(
+                1,
+                transactionId,
+                wrappedERC721.address,
+                tokenID,
+                metadata,
+                receiver,
+                [aliceSignature, bobSignature]))
+              .to.be.revertedWith(expectedRevertMessage);
+          });
+        });
+
+        describe('burnERC721', async () => {
+          const receiver = nonMember.address;
+          let hashData;
+          let aliceSignature;
+
+          function receiverBytes(addr) {
+            return ethers.utils.defaultAbiCoder.encode(['address'], [addr]);
+          }
+
+          beforeEach(async () => {
+            const encodeData = ethers.utils.defaultAbiCoder.encode(
+              ['uint256', 'uint256', 'bytes', 'address', 'uint256', 'string', 'address'],
+              [1, chainId, transactionId, wrappedERC721.address, tokenID, metadata, receiver]);
+            const hashMsg = ethers.utils.keccak256(encodeData);
+            hashData = ethers.utils.arrayify(hashMsg);
+
+            aliceSignature = await alice.signMessage(hashData);
+
+            await payment.setPaymentToken(nativeToken.address, true);
+            await erc721Portal.setERC721Payment(wrappedERC721.address, nativeToken.address, ERC721BurnFee);
+            await erc721Portal.mintERC721(
+              1,
+              transactionId,
+              wrappedERC721.address,
+              tokenID,
+              metadata,
+              receiver,
+              [aliceSignature]);
+            await nativeToken.mint(nonMember.address, amount);
+          });
+
+          it('should burn successfully', async () => {
+            await nativeToken.connect(nonMember).approve(legacyRouter.address, ERC721BurnFee);
+            await wrappedERC721.connect(nonMember).approve(legacyRouter.address, tokenID);
+
+            await erc721Portal.connect(nonMember).burnERC721(
+              1,
+              wrappedERC721.address,
+              tokenID,
+              nativeToken.address,
+              ERC721BurnFee,
+              receiverBytes(receiver));
+
+            const balance = await wrappedERC721.balanceOf(nonMember.address);
+            expect(balance).to.equal(0);
+            await expect(wrappedERC721.tokenOfOwnerByIndex(receiver, 0)).to.be.revertedWith('ERC721Enumerable: owner index out of bounds');
+            await expect(wrappedERC721.ownerOf(tokenID)).to.be.revertedWith('ERC721: owner query for nonexistent token');
+            await expect(wrappedERC721.tokenURI(tokenID)).to.be.revertedWith('WrappedERC721: URI query for nonexistent token');
+            await expect(wrappedERC721.tokenByIndex(0)).to.be.revertedWith('ERC721Enumerable: global index out of bounds');
+            expect(await wrappedERC721.totalSupply()).to.equal(0);
+
+            const tokenFeeData = await legacyRouter.tokenFeeData(nativeToken.address);
+            expect(tokenFeeData.feesAccrued).to.equal(ERC721BurnFee);
+            expect(tokenFeeData.accumulator).to.equal(0);
+            expect(tokenFeeData.previousAccrued).to.equal(0);
+          });
+
+          it('should emit event with args', async () => {
+            await nativeToken.connect(nonMember).approve(legacyRouter.address, ERC721BurnFee);
+            await wrappedERC721.connect(nonMember).approve(legacyRouter.address, tokenID);
+
+            await expect(
+              erc721Portal
+                .connect(nonMember)
+                .burnERC721(1, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee, receiverBytes(receiver))
+            )
+              .to.emit(erc721Portal, 'BurnERC721')
+              .withArgs(1, wrappedERC721.address, tokenID, receiverBytes(receiver), nativeToken.address, ERC721BurnFee)
+              .to.emit(wrappedERC721, 'Transfer')
+              .withArgs(nonMember.address, ethers.constants.AddressZero, tokenID);
+          });
+
+          it('should revert with no approved ERC-721 token', async () => {
+            await nativeToken.connect(nonMember).approve(legacyRouter.address, ERC721BurnFee);
+
+            const expectedRevertMessage = 'ERC721Burnable: caller is not owner nor approved';
+            await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee, receiverBytes(receiver)))
+              .to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should revert when no approved ERC-20 payments', async () => {
+            const expectedRevertMessage = 'ERC20: transfer amount exceeds allowance';
+            await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee, receiverBytes(receiver)))
+              .to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should revert burn when contract is paused', async () => {
+            const expectedRevertMessage = 'LibGovernance: paused';
+            await legacyRouter.updateAdmin(admin.address);
+            await legacyRouter.connect(admin).pause();
+
+            await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee, receiverBytes(receiver)))
+              .to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should revert when payment token is not supported', async () => {
+            await payment.setPaymentToken(nativeToken.address, false);
+
+            const expectedRevertMessage = 'ERC721PortalFacet: payment token not supported';
+            await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee, receiverBytes(receiver)))
+              .to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should revert when provided burn fee does not match expected burn fee', async () => {
+            const expectedRevertMessage = 'ERC721PortalFacet: _fee does not match current set payment token fee';
+            await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee.mul(2), receiverBytes(receiver)))
+              .to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should revert when provided burn payment token does not match current set payment token', async () => {
+            const expectedRevertMessage = 'ERC721PortalFacet: _paymentToken does not match the current set payment token';
+            await expect(erc721Portal.connect(nonMember).burnERC721(1, wrappedERC721.address, tokenID, nonMember.address, ERC721BurnFee, receiverBytes(receiver)))
+              .to.be.revertedWith(expectedRevertMessage);
+          });
+
+          it('should revert when caller is not owner', async () => {
+            await wrappedERC721.connect(nonMember).approve(legacyRouter.address, tokenID);
+            await nativeToken.mint(attacker.address, amount);
+            await nativeToken.connect(attacker).approve(legacyRouter.address, amount);
+
+            const expectedRevertMessage = 'ERC721PortalFacet: caller is not owner';
+            await expect(
+              erc721Portal
+                .connect(attacker)
+                .burnERC721(1, wrappedERC721.address, tokenID, nativeToken.address, ERC721BurnFee, receiverBytes(receiver))
+            ).to.be.revertedWith(expectedRevertMessage);
+          });
+        });
+      });
     });
   });
 });

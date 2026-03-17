@@ -11,7 +11,7 @@ import "../libraries/LibFeeDistributor.sol";
 import "../libraries/LibRouter.sol";
 import "../libraries/LibGovernance.sol";
 
-contract RouterFacetV2 is IRouterV2 {
+contract RouterV2Facet is IRouterV2 {
     using SafeERC20 for IERC20;
 
     /// @notice Transfers `amount` native tokens to the router contract
@@ -93,7 +93,9 @@ contract RouterFacetV2 is IRouterV2 {
         );
         validateAndStoreTx(ethHash, _signatures);
 
-        IERC20(_nativeToken).safeTransfer(_receiver, _amount);
+        if (_amount > 0) {
+            IERC20(_nativeToken).safeTransfer(_receiver, _amount);
+        }
 
         emit Unlock(
             _sourceChain,
@@ -178,8 +180,8 @@ contract RouterFacetV2 is IRouterV2 {
             address(this),
             _amount
         );
-        LibFeeDistributor.distributeFee(msg.value);
-        emit Lock(_targetChain, _nativeToken, _amount, _receiver, msg.value);
+        LibFeeDistributor.accrueFee(msg.value);
+        emit Lock(_targetChain, _nativeToken, _receiver, _amount, msg.value);
     }
 
     function _burn(
@@ -190,7 +192,7 @@ contract RouterFacetV2 is IRouterV2 {
     ) internal whenNotPaused {
         require(msg.value > 0, "RouterFacet: no fee provided");
         WrappedToken(_wrappedToken).burnFrom(msg.sender, _amount);
-        LibFeeDistributor.distributeFee(msg.value);
+        LibFeeDistributor.accrueFee(msg.value);
         emit Burn(_targetChain, _wrappedToken, _amount, _receiver, msg.value);
     }
 

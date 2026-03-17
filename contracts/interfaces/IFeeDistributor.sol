@@ -19,11 +19,7 @@ interface IFeeDistributor {
     function feeData()
         external
         view
-        returns (
-            uint256 feesAccrued,
-            uint256 previousAccrued,
-            uint256 accumulator
-        );
+        returns (uint256, uint256, uint256);
 
     /// @param _account The address of a validator
     /// @return The total amount of feesclaimed by the provided validator address

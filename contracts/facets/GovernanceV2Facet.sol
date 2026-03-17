@@ -10,6 +10,7 @@ import "../libraries/LibGovernance.sol";
 import "../libraries/LibPayment.sol";
 import "../libraries/LibRouter.sol";
 
+/// @notice Deprecated. Use GovernanceV3Facet instead.
 contract GovernanceV2Facet is IGovernanceV2 {
     using SafeERC20 for IERC20;
 

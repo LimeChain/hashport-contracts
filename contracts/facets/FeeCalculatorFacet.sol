@@ -7,6 +7,7 @@ import "../libraries/LibDiamond.sol";
 import "../libraries/LibFeeCalculator.sol";
 import "../libraries/LibRouter.sol";
 
+/// @notice DEPRECATED. Use FeeDistributorFacet instead.
 contract FeeCalculatorFacet is IFeeCalculator {
     using SafeERC20 for IERC20;
 

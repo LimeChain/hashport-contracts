@@ -20,12 +20,12 @@ async function performUpgradeGovernanceV3(routerAddress) {
 
   await hardhat.run('compile');
 
-  const governanceV3FacetFactory = await ethers.getContractFactory('GovernanceFacetV3');
+  const governanceV3FacetFactory = await ethers.getContractFactory('GovernanceV3Facet');
   const governanceV3Facet = await governanceV3FacetFactory.deploy();
-  console.log('Deploying GovernanceFacetV3, please wait...');
+  console.log('Deploying GovernanceV3Facet, please wait...');
   await governanceV3Facet.deployed();
-  console.log('GovernanceFacetV3 address: ', governanceV3Facet.address);
-  result.push({ title: 'GovernanceFacetV3', address: governanceV3Facet.address, args: [] });
+  console.log('GovernanceV3Facet address: ', governanceV3Facet.address);
+  result.push({ title: 'GovernanceV3Facet', address: governanceV3Facet.address, args: [] });
 
   const feeDistributorFacetFactory = await ethers.getContractFactory('FeeDistributorFacet');
   const feeDistributorFacet = await feeDistributorFacetFactory.deploy();
@@ -34,19 +34,19 @@ async function performUpgradeGovernanceV3(routerAddress) {
   console.log('FeeDistributorFacet address: ', feeDistributorFacet.address);
   result.push({ title: 'FeeDistributorFacet', address: feeDistributorFacet.address, args: [] });
 
-  const routerFacetV2Factory = await ethers.getContractFactory('RouterFacetV2');
-  const routerFacetV2 = await routerFacetV2Factory.deploy();
-  console.log('Deploying RouterFacetV2, please wait...');
-  await routerFacetV2.deployed();
-  console.log('RouterFacetV2 address: ', routerFacetV2.address);
-  result.push({ title: 'RouterFacetV2', address: routerFacetV2.address, args: [] });
+  const routerV2FacetFactory = await ethers.getContractFactory('RouterV2Facet');
+  const routerV2Facet = await routerV2FacetFactory.deploy();
+  console.log('Deploying RouterV2Facet, please wait...');
+  await routerV2Facet.deployed();
+  console.log('RouterV2Facet address: ', routerV2Facet.address);
+  result.push({ title: 'RouterV2Facet', address: routerV2Facet.address, args: [] });
 
   const router = await ethers.getContractAt('IRouterDiamond', routerAddress);
 
-  const newUpdateNativeTokenSelector = routerFacetV2.interface.getSighash('updateNativeToken(address,bool)');
+  const newUpdateNativeTokenSelector = routerV2Facet.interface.getSighash('updateNativeToken(address,bool)');
   const oldUpdateNativeTokenSelector = ethers.utils.id('updateNativeToken(address,uint256,bool)').slice(0, 10);
 
-  const routerV2ReplaceSelectors = getSelectors(routerFacetV2).filter(
+  const routerV2ReplaceSelectors = getSelectors(routerV2Facet).filter(
     s => s !== newUpdateNativeTokenSelector
   );
 
@@ -62,7 +62,7 @@ async function performUpgradeGovernanceV3(routerAddress) {
       functionSelectors: getSelectors(feeDistributorFacet),
     },
     {
-      facetAddress: routerFacetV2.address,
+      facetAddress: routerV2Facet.address,
       action: 1, // Replace
       functionSelectors: routerV2ReplaceSelectors,
     },
@@ -72,7 +72,7 @@ async function performUpgradeGovernanceV3(routerAddress) {
       functionSelectors: [oldUpdateNativeTokenSelector],
     },
     {
-      facetAddress: routerFacetV2.address,
+      facetAddress: routerV2Facet.address,
       action: 0, // Add
       functionSelectors: [newUpdateNativeTokenSelector],
     },

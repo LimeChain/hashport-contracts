@@ -6,8 +6,8 @@ interface IRouterV2 {
     event Lock(
         uint256 targetChain,
         address token,
-        uint256 amount,
         bytes receiver,
+        uint256 amount,
         uint256 serviceFee
     );
 

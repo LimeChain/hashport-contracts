@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.3;
 
-/// @notice DEPRECATED. Use IGovernanceV3 instead.
-interface IGovernanceV2 {
+/// @title IGovernanceV3
+/// @notice Interface for GovernanceV3Facet. Defines the updateMember, which adds and
+///         removes members, registering them for both ERC-20 fee rewards (LibFeeCalculator)
+///         and native gas coin fee rewards (LibFeeDistributor). On removal, claims and
+///         transfers accrued fees to the member admin.
+interface IGovernanceV3 {
     /// @notice An event emitted once member is updated
     event MemberUpdated(address member, bool status);
 
@@ -10,9 +14,6 @@ interface IGovernanceV2 {
     event MemberAdminUpdated(address member, address admin);
 
     /// @notice Adds/removes a member account
-    /// @dev Replaces existing {IGovernance-updateMember}.
-    /// Given that {IGovernance-updateMember} has the same function selector,
-    /// only one of the two functions can exist within the Diamond standard implementation.
     /// @param _account The account to be modified
     /// @param _accountAdmin The admin of the account.
     /// Ignored if member account is removed

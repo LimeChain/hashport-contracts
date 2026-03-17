@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.3;
 
+/// @notice DEPRECATED. Use IFeeDistributor instead.
 interface IFeeCalculator {
     /// @notice An event emitted once the service fee is modified
     event ServiceFeeSet(address account, address token, uint256 newServiceFee);

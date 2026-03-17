@@ -23,17 +23,12 @@ contract FeeDistributorFacet is IFeeDistributor {
         external
         view
         override
-        returns (
-            uint256 feesAccrued,
-            uint256 previousAccrued,
-            uint256 accumulator
-        )
+        returns (uint256, uint256, uint256)
     {
-        LibFeeDistributor.FeeCalculator storage fc = LibFeeDistributor
-            .feeDistributorStorage()
-            .nativeGasFeeCalculator;
+        LibFeeDistributor.Storage storage s = LibFeeDistributor
+            .feeDistributorStorage();
 
-        return (fc.feesAccrued, fc.previousAccrued, fc.accumulator);
+        return (s.feesAccrued, s.previousAccrued, s.accumulator);
     }
 
     /// @param _account The address of a validator
@@ -47,7 +42,6 @@ contract FeeDistributorFacet is IFeeDistributor {
         return
             LibFeeDistributor
                 .feeDistributorStorage()
-                .nativeGasFeeCalculator
                 .claimedRewardsPerAccount[_account];
     }
 
