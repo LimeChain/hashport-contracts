@@ -6,7 +6,8 @@ const hexPrefix = '0x';
 async function unlockERC20(routerAddress, sourceChain, targetChain, transactionId, nativeAsset, receiver, amount, signatures) {
   await hardhat.run('compile');
 
-  const router = await ethers.getContractAt('IRouterDiamond', routerAddress);
+  const router = await ethers.getContractAt('IRouter', routerAddress);
+  const routerV2 = await ethers.getContractAt('IRouterV2', routerAddress);
 
   const bytesTransactionId = ethers.utils.toUtf8Bytes(transactionId);
 
@@ -32,7 +33,7 @@ async function unlockERC20(routerAddress, sourceChain, targetChain, transactionI
     return;
   }
 
-  const tx = await router.unlock(
+  const tx = await routerV2.unlock(
     sourceChain,
     bytesTransactionId,
     nativeAsset,

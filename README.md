@@ -17,6 +17,8 @@ This repository contains the smart contracts for the [Hedera <-> EVM Bridge](htt
     - [Compilation](#compilation)
     - [Scripts](#scripts)
         - [Router deployment](#router-deployment)
+        - [Upgrade Governance V1 → V2](#upgrade-governance-v1--v2)
+        - [Upgrade Governance V2 → V3 + FeeDistributor + RouterV2](#upgrade-governance-v2--v3--feedistributor--routerv2)
         - [Wrapped token Deployment](#wrapped-token-deployment-through-router)
     - [Tests](#tests)
         - [Unit Tests](#unit-tests)
@@ -31,17 +33,17 @@ Of course, you cannot directly transfer the token to the network, so in order th
 In our terms, a `wrapped` token on a given network is a representation of a `native` token on another network. A `native` token can have `wrapped` representations on more than one `EVM` network.
 
 Users operate with the following functionality:
-* `lock` - lock a specific amount of native tokens, specifying the receiver and target network.
+* `lock` - lock a specific amount of native tokens, specifying the receiver and target network. Requires a service fee paid in the native gas coin via `msg.value`.
 * `unlock` - unlock a previously locked amount of native tokens by providing an array of signatures. Signatures are verified that they are signed by the `members`.
 * `mint` - mint a specific amount of wrapped tokens by providing an array of signatures, verified that they are signed by the `members`.
-* `burn` - burn a specific amount of wrapped tokens.
+* `burn` - burn a specific amount of wrapped tokens. Requires a service fee paid in the native gas coin via `msg.value`.
 
 
-EVM `native` tokens have to be explicitly added as supported native tokens in the smart contracts. 
-Each `native` token has a service fee percentage, which will be left for the smart contract `members` upon locking/unlocking `native` tokens.
+EVM `native` tokens have to be explicitly added as supported native tokens in the smart contracts.
+A service fee in the native gas coin (e.g. ETH, MATIC) is collected on every `lock` and `burn` operation.
 `Members` are entities, which will serve as governance whenever a user wants to get `wrapped` tokens from `native tokens` and vice versa.
-Fees for `native` tokens accumulate equally between members.
-`Members` need to explicitly claim (transfer) their accumulated fees for a given `native` token. 
+Service fees accumulate equally between members via the `FeeDistributorFacet`.
+`Members` need to explicitly claim (transfer) their accumulated fees — both ERC-20 fees (legacy) and native gas coin fees.
 
 You can read more [here](https://github.com/LimeChain/hedera-evm-bridge-validator/blob/main/docs/overview.md).
 
@@ -85,11 +87,13 @@ export DEPLOYER_PRIVATE_KEY=<private key to use for deployments for the specifie
 ```
 
 #### Router deployment
-* Deploys all the facets
+* Deploys all the facets (`RouterFacet`, `GovernanceFacet`, `FeeCalculatorFacet`, `OwnershipFacet`, `DiamondCutFacet`, `DiamondLoupeFacet`, `PausableFacet`)
 * Deploys the Router Diamond with all the facets as diamond cuts
 * Initializes `GovernanceFacet` with the provided list of members, governance percentage, and governance precision
 * Initializes `RouterFacet`
-* Initializes `FeeCalculatorFacet` with the provided fee precision. 
+* Initializes `FeeCalculatorFacet` with the provided fee precision
+* Upgrades Governance V1 → V2 (`GovernanceV2Facet`)
+* Upgrades Governance V2 → V3 (`GovernanceV3Facet`) + deploys `FeeDistributorFacet` + replaces router functions with `RouterV2Facet`
 
 ```bash
 npx hardhat deploy-router \
@@ -100,6 +104,22 @@ npx hardhat deploy-router \
     --fee-calculator-precision <fee calculator precision> \
     --members <list of members, split by `,`> \
     --members-admins <list of members admins, split by `,`>
+```
+
+#### Upgrade Governance V1 → V2
+Replaces `GovernanceFacet.updateMember` with `GovernanceV2Facet.updateMember` (adds `LibPayment` support):
+```bash
+npx hardhat upgrade-governance-v2 \
+    --network <network name> \
+    --router <address of the router diamond contract>
+```
+
+#### Upgrade Governance V2 → V3 + FeeDistributor + RouterV2
+Replaces `GovernanceV2Facet.updateMember` with `GovernanceV3Facet.updateMember`, adds `FeeDistributorFacet`, and replaces router functions with `RouterV2Facet`:
+```bash
+npx hardhat upgrade-governance-v3 \
+    --network <network name> \
+    --router <address of the router diamond contract>
 ```
 
 #### Wrapped ERC-20 token deployment through Router
@@ -136,24 +156,12 @@ npx hardhat deploy-token \
 ```
 
 #### Update Native Token to Router
-Updates a native token to the Router contract:
+Adds or removes a native token from the Router contract:
 ```bash
 npx hardhat update-native-token \
     --network <network name> \
     --router <address of the router diamond contract> \
     --native-token <address of the native token> \
-    --fee-percentage <fee percetange for the given token> \
-    --status <true|false (default true)>
-```
-
-#### Set Payment Token
-Requires Router Diamond Contract to be upgraded with PaymentFacet support
-
-```bash
-npx hardhat set-payment-token \
-    --network <network name> \
-    --router <address of the Router Diamond contract> \
-    --payment-token <address of ERC-20 payment token contract> \
     --status <true|false (default true)>
 ```
 
@@ -173,7 +181,7 @@ npx hardhat mint-erc20 \
 ```
 
 #### Burn Wrapped ERC-20
-Approves & Burns Wrapped ERC-20 amount to the corresponding network
+Approves & Burns Wrapped ERC-20 amount to the corresponding network. Requires a service fee in native gas coin.
 ```bash
 npx hardhat burn-erc20 \
     --network <network name> \
@@ -181,11 +189,12 @@ npx hardhat burn-erc20 \
     --target-chain-id <The chain id of the target chain> \
     --wrapped-asset <The address of the wrapped ERC-20 token> \
     --amount <The target amount> \
-    --receiver <The address/AccountID of the receiver on the target network>
+    --receiver <The address/AccountID of the receiver on the target network> \
+    --service-fee <The service fee in native gas coin (in wei)>
 ```
 
 #### Lock Native ERC-20
-Locks Native ERC-20 amount to the corresponding network
+Locks Native ERC-20 amount to the corresponding network. Requires a service fee in native gas coin.
 ```bash
 npx hardhat lock-erc20 \
     --network <network name> \
@@ -193,7 +202,8 @@ npx hardhat lock-erc20 \
     --target-chain-id <The chain id of the target chain> \
     --native-asset <The address of the native ERC-20 token> \
     --amount <The amount to be locked> \
-    --receiver <The address/AccountID of the receiver>
+    --receiver <The address/AccountID of the receiver> \
+    --service-fee <The service fee in native gas coin (in wei)>
 ```
 
 #### Unlock Native ERC-20
